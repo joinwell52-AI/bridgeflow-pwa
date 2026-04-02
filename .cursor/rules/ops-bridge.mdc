@@ -35,7 +35,6 @@ TASK-{日期}-{序号}-OPS01-to-PM01.md
 
 ## 服务信息
 
-- AI服务器：120.55.164.16（ai.chedian.cc）
-- 后端服务：supervisorctl → xiaoai
-- 中继服务：systemctl → bridgeflow-relay（端口5252）
-- 发布工具：ops.py（差量发布选1，全量选2）
+- 中继服务：WebSocket relay（默认端口 5252，也可自定义）
+- 后端服务：通过 systemctl 或 supervisorctl 管理
+- 发布工具：参考项目根目录 `scripts/deploy_public_relay.py`

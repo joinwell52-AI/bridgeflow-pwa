@@ -16,12 +16,12 @@
 ## 产品架构
 
 ```
-手机端 PWA                  中继（WebSocket）          PC 执行机
-────────────                ──────────────────         ──────────────────
-发送任务文本       ──────>  wss://ai.chedian.cc  <──── bridgeflow run
-查看任务清单                /bridgeflow/ws/            写 TASK-*.md
-查看回复摘要       <──────  转发 JSON 事件      ──────> 扫描回执推送
-扫码绑定 PC                                            Cursor 窗口控制
+手机端 PWA                  中继（WebSocket）               PC 执行机
+────────────                ──────────────────────────     ──────────────────
+发送任务文本       ──────>  wss://your-relay-server   <──── bridgeflow run
+查看任务清单                /bridgeflow/ws/                写 TASK-*.md
+查看回复摘要       <──────  转发 JSON 事件           ──────> 扫描回执推送
+扫码绑定 PC                                                Cursor 窗口控制
 ```
 
 ---
@@ -125,21 +125,21 @@ BridgeFlow/
 │       ├── publish.yml          # tag 触发 → 自动发布到 PyPI
 │       └── deploy-pwa.yml       # main 推送 → 自动部署 PWA 到 GitHub Pages
 │
-├── docs/
+├── docs/                        # 公开文档（已脱敏，随 GitHub 发布）
 │   ├── 产品设计说明.md
-│   ├── 联调启动说明.md
-│   ├── BridgeFlow-PC执行机落地说明.md
-│   ├── 公网部署说明.md
 │   ├── PyPI发布说明.md
-│   ├── GitHub发布说明.md        # GitHub 仓库 + Pages + 分支策略
-│   └── agents/
-│       ├── README.md
-│       ├── ADMIN-01.md          # 真人角色
-│       ├── PM-01.md / DEV-01.md / OPS-01.md / QA-01.md
-│       ├── tasks/               # 任务文件
-│       ├── reports/             # 回执文件
-│       ├── log/                 # 日志
-│       └── issues/              # 问题记录
+│   └── GitHub发布说明.md
+│
+├── private/                     # 私有文档（.gitignore，不推送到 GitHub）
+│   ├── 联调启动说明.md           # 本地联调步骤（含内部服务地址）
+│   ├── 公网部署说明.md           # 服务器部署细节
+│   ├── BridgeFlow-PC执行机落地说明.md
+│   └── agents/                  # 角色定义 + 任务/回执文件
+│       ├── ADMIN-01.md / PM-01.md / DEV-01.md / OPS-01.md / QA-01.md
+│       ├── tasks/
+│       ├── reports/
+│       ├── log/
+│       └── issues/
 │
 ├── server/relay/
 │   └── server.py                # 本地联调用独立中继
@@ -161,10 +161,10 @@ BridgeFlow/
 
 | 环境 | 地址 |
 |------|------|
-| **公网正式** | `wss://ai.chedian.cc/bridgeflow/ws/` |
-| 本地联调 | `ws://127.0.0.1:5252` |
+| **自部署中继** | `wss://your-relay-server/bridgeflow/ws/`（自行部署，见部署说明） |
+| 本地联调 | `ws://127.0.0.1:5252`（运行 `server/relay/server.py`） |
 
-中继已集成到 `saige-ai` FastAPI 后端，无需单独部署 Relay 进程。
+中继为轻量 WebSocket 服务，可集成到任意 FastAPI / Starlette 后端，也可独立运行。
 
 ---
 

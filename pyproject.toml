@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
-  { name = "joinwell52-AI", email = "ai@chedian.cc" }
+  { name = "joinwell52-AI" }
 ]
 keywords = ["ai", "agent", "cursor", "pwa", "bridgeflow", "workflow", "human-in-the-loop"]
 classifiers = [

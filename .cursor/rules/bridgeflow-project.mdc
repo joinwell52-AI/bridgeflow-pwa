@@ -11,7 +11,7 @@ BridgeFlow 是一套面向多 AI 角色团队的人机协作桥接工具。
 
 - **手机端**：主控台（ADMIN01），发任务、看状态、扫码绑定
 - **PC 端**：专用执行机，收任务、写文件、巡检、桥接
-- **中继**：轻量文本事件转发层（wss://ai.chedian.cc/bridgeflow/ws/）
+- **中继**：轻量文本事件转发层（wss://your-relay-server/bridgeflow/ws/）
 
 ## 命名约定
 

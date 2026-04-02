@@ -68,6 +68,9 @@ bridgeflow_config.json
 Thumbs.db
 desktop.ini
 
+# ── 私有文档（内部使用，含敏感信息，不发布到 GitHub） ──
+private/
+
 # ── 临时文件 ──
 _patch_*.py
 _rebuild*.py

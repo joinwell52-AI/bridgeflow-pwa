@@ -99,7 +99,7 @@ BridgeFlow 版本历史，遵循 [语义化版本](https://semver.org/lang/zh-CN
 
 ### 初版发布
 - Python CLI：`bridgeflow init` / `run` / `write-admin-task` / `write-reply`
-- WebSocket 轻量中继（集成到 saige-ai FastAPI 后端）
+- WebSocket 轻量中继（可集成到 FastAPI/Starlette 后端或独立运行）
 - 手机端 PWA（GitHub Pages 托管）
 - 桌面桥接器：任务文件写入 / 回执扫描 / 摘要推送
 - 设备绑定机制（生成绑定码 / 确认 / 解绑）
