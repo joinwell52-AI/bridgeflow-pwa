@@ -1,11 +1,11 @@
 (function (global) {
   global.BRIDGEFLOW_CONFIG = {
     appName: "BridgeFlow",
-    appVersion: "1.6.0",
-    relayUrl: "wss://relay.example.com/bridgeflow/ws/",
-    relayLabel: "示例公网中继",
-    roomKey: "replace-with-random-room-key",
-    autoConnect: false,
+    appVersion: "1.8.1",
+    relayUrl: "wss://ai.chedian.cc/bridgeflow/ws/",
+    relayLabel: "公网正式中继",
+    roomKey: "bridgeflow-default",
+    autoConnect: true,
     defaultTarget: "PM"
   };
 })(typeof self !== "undefined" ? self : window);

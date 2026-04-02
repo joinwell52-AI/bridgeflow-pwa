@@ -2,266 +2,362 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#c8cdd6" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
+  <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="./manifest.json?v=1.6.0" />
   <link rel="apple-touch-icon" href="./logo-BridgeFlow-125.png" />
   <title>BridgeFlow Workspace</title>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js" async></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@500;600;700&family=Fira+Sans:wght@400;500;600;700&display=swap');
 
     :root {
-      --metal-bg: linear-gradient(180deg,#d8dce4 0%,#c2c8d2 20%,#e2e6ee 50%,#bdc4cd 76%,#9fa8b2 100%);
-      --metal-card: linear-gradient(135deg,rgba(255,255,255,.76) 0%,rgba(208,214,222,.97) 14%,rgba(248,250,253,.98) 30%,rgba(190,197,206,.99) 46%,rgba(238,242,247,.98) 60%,rgba(176,183,192,.97) 74%,rgba(240,243,247,.96) 100%);
-      --metal-btn: linear-gradient(180deg,#dde3ec 0%,#b8bfc8 100%);
-      --metal-inset: linear-gradient(180deg,#f0f3f8 0%,#dde2ea 100%);
-      --blue: #2563eb;
-      --blue-hi: #3b82f6;
-      --blue-glow: rgba(37,99,235,.28);
+      --bg: #141e30;
+      --bg2: #243447;
+      --bg3: #3a4d63;
+      --card: linear-gradient(145deg, rgba(40,55,78,.94) 0%, rgba(30,44,64,.96) 50%, rgba(48,65,88,.92) 100%);
+      --card-flat: rgba(36,52,71,.92);
+      --card-border: rgba(180,200,220,.18);
+      --card-shine: rgba(255,255,255,.06);
+      --card-hover: rgba(180,200,220,.28);
+      --blue: #3b82f6;
+      --blue-hi: #60a5fa;
+      --blue-glow: rgba(59,130,246,.3);
       --green: #22c55e;
       --red: #ef4444;
-      --text: #111827;
-      --text2: #374151;
-      --text3: #6b7280;
-      --header-h: 54px;
-      --r: 14px;
-      --r2: 10px;
+      --amber: #fbbf24;
+      --text: #F8FAFC;
+      --text2: #CBD5E1;
+      --text3: #94A3B8;
+      --header-h: 78px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --r: 16px;
+      --r2: 12px;
     }
 
     *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
     html, body {
-      height: 100%; margin: 0; padding: 0; overflow: hidden;
-      font-family: "Fira Sans","Segoe UI",Arial,sans-serif;
+      width: 100%; height: 100%;
+      margin: 0; padding: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
+      -webkit-text-size-adjust: 100%;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none; -webkit-user-select: none;
+      font-family: -apple-system, "SF Pro Display", "Helvetica Neue", "Fira Sans", "Segoe UI", Arial, sans-serif;
       font-size: 14px; color: var(--text);
       -webkit-font-smoothing: antialiased;
+      position: fixed; inset: 0;
     }
-    body { background: var(--metal-bg); }
+    body {
+      background: linear-gradient(160deg, #1c2e4a 0%, #162540 35%, #1a3050 65%, #142238 100%);
+      position: fixed; inset: 0; width: 100%; height: 100%;
+    }
+    input, textarea, select { user-select: text; -webkit-user-select: text; touch-action: manipulation; }
 
-    /* ══ App 壳：固定顶部 + 中间滚动，无底部 Tab ══ */
     .app-shell {
-      width: min(100%, 480px);
-      margin: 0 auto;
-      height: 100dvh; height: 100vh;
-      display: flex; flex-direction: column; overflow: hidden;
-      border-left: 1px solid rgba(255,255,255,.55);
-      border-right: 1px solid rgba(0,0,0,.10);
-      box-shadow: 0 0 40px rgba(0,0,0,.18);
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 0 60px rgba(0,0,0,.5);
     }
 
-    /* ══ 固定顶部 Header ══ */
+    /* ══ 固定顶部 Header（金属拉丝） ══ */
     .app-header {
       flex-shrink: 0;
-      height: var(--header-h);
-      display: flex; align-items: center; padding: 0 14px; gap: 10px;
-      background-image:
-        repeating-linear-gradient(92deg,rgba(255,255,255,.14) 0 2px,rgba(0,0,0,.04) 2px 4px,rgba(255,255,255,.09) 4px 6px),
-        linear-gradient(180deg,#e8ecf2 0%,#c8cfd8 50%,#d8dde5 100%);
-      border-bottom: 1px solid rgba(0,0,0,.18);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.9), inset 0 -1px 0 rgba(0,0,0,.12), 0 3px 10px rgba(0,0,0,.18);
+      padding: calc(var(--safe-top) + 10px) 14px 8px;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+      background: linear-gradient(180deg, #263e5c 0%, #1e3250 50%, #182a44 100%);
+      border-bottom: 1px solid rgba(200,218,235,.18);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 2px 16px rgba(0,0,0,.3);
       position: relative; z-index: 20;
     }
-    .header-logo { width: 28px; height: 28px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 1px 2px rgba(0,0,0,.22)); }
-    .header-brand { font-family:"Fira Code",monospace; font-weight:700; font-size:15px; color:#1a2a4a; letter-spacing:.04em; white-space:nowrap; text-shadow:0 1px 0 rgba(255,255,255,.7); }
-    .header-slogan { flex:1; font-size:11px; color:var(--text3); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .header-right { display:flex; align-items:center; gap:8px; flex-shrink:0; }
-    .status-light { width:11px; height:11px; border-radius:50%; background:var(--red); box-shadow:0 0 0 2px rgba(255,255,255,.6),0 0 6px rgba(0,0,0,.2); transition:background .3s,box-shadow .3s; }
-    .status-light.ok { background:var(--green); box-shadow:0 0 0 2px rgba(255,255,255,.6),0 0 10px rgba(34,197,94,.55); }
-    .header-my-btn {
-      background: var(--metal-btn); border:1px solid rgba(0,0,0,.22); border-radius:20px;
-      color:var(--text2); font-size:12px; font-weight:700; padding:5px 13px;
-      cursor:pointer; white-space:nowrap; margin-top:0; width:auto;
-      box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 1px 3px rgba(0,0,0,.18);
+    .header-row1 {
+      display: flex; align-items: center; gap: 10px; width: 100%;
     }
-    .header-my-btn:hover { border-color:var(--blue); color:var(--blue); }
-    .header-my-btn:active { transform:translateY(1px); }
+    .header-logo { width: 28px; height: 28px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 1px 3px rgba(0,0,0,.5)); }
+    .header-brand { font-family:"Fira Code",monospace; font-weight:700; font-size:16px; color:#F8FAFC; letter-spacing:.05em; white-space:nowrap; text-shadow:0 0 12px rgba(96,165,250,.2), 0 1px 3px rgba(0,0,0,.5); flex:1; }
+    .header-right { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+    .status-light { width:11px; height:11px; border-radius:50%; background:var(--red); box-shadow:0 0 0 2px rgba(15,23,42,.8),0 0 8px rgba(239,68,68,.4); transition:background .3s,box-shadow .3s; }
+    .status-light.ok { background:var(--green); box-shadow:0 0 0 2px rgba(15,23,42,.8),0 0 12px rgba(34,197,94,.5); animation:pulse-green 2s ease-in-out infinite; }
+    @keyframes pulse-green { 0%,100%{box-shadow:0 0 0 2px rgba(15,23,42,.8),0 0 12px rgba(34,197,94,.5);} 50%{box-shadow:0 0 0 2px rgba(15,23,42,.8),0 0 20px rgba(34,197,94,.7);} }
+    .header-my-btn {
+      background: linear-gradient(180deg,#3b82f6,#2563eb); border:1px solid rgba(96,165,250,.3); border-radius:20px;
+      color:#fff; font-size:12px; font-weight:700; padding:5px 13px;
+      cursor:pointer; white-space:nowrap; margin-top:0; width:auto;
+      box-shadow: 0 2px 8px rgba(37,99,235,.4), inset 0 1px 0 rgba(255,255,255,.15);
+    }
+    .header-my-btn:hover { background:linear-gradient(180deg,#60a5fa,#3b82f6); }
+    .header-my-btn:active { transform:translateY(1px); box-shadow: 0 1px 4px rgba(37,99,235,.3); }
+    .header-slogan {
+      width: 100%; font-size:11px; color:var(--text3); text-align:center;
+      padding: 3px 0 0; letter-spacing: .04em;
+      opacity:.75;
+    }
 
     /* ══ 滚动内容区 ══ */
     .app-content {
-      flex:1; overflow-y:auto;
-      -webkit-overflow-scrolling:touch; overscroll-behavior:contain;
-      padding:12px 12px 24px;
+      flex:1; overflow-y:auto; overflow-x:hidden;
+      -webkit-overflow-scrolling:touch;
+      overscroll-behavior-y:contain; overscroll-behavior-x:none;
+      padding:12px 14px calc(env(safe-area-inset-bottom, 0px) + 24px);
     }
     .app-content::-webkit-scrollbar { width:4px; }
-    .app-content::-webkit-scrollbar-track { background:rgba(0,0,0,.05); }
-    .app-content::-webkit-scrollbar-thumb { background:rgba(0,0,0,.18); border-radius:2px; }
+    .app-content::-webkit-scrollbar-track { background:rgba(148,163,184,.08); }
+    .app-content::-webkit-scrollbar-thumb { background:rgba(148,163,184,.25); border-radius:2px; }
 
-    /* ══ 通用金属卡片 ══ */
+    /* ══ 通用卡片（金属感） ══ */
     .card {
       position:relative; overflow:hidden;
-      background: var(--metal-card);
-      border:1px solid rgba(110,117,130,.5); border-radius:var(--r);
-      padding:14px; margin-bottom:10px;
-      box-shadow:inset 0 1px 0 rgba(255,255,255,.96),inset 0 -1px 0 rgba(60,68,80,.18),0 3px 10px rgba(40,46,58,.18);
+      background: linear-gradient(180deg, #324a68 0%, #283e5a 50%, #223450 100%);
+      border:1px solid rgba(200,218,235,.22); border-radius:var(--r);
+      padding:16px; margin-bottom:12px;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.18),
+        inset 0 -1px 0 rgba(0,0,0,.12),
+        0 3px 0 #182838,
+        0 5px 16px rgba(0,0,0,.22);
       color:var(--text);
+      transition: border-color .2s ease, box-shadow .2s ease, transform .15s ease;
     }
+    .card:hover { border-color: rgba(200,218,235,.3); transform:translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,.2), inset 0 -1px 0 rgba(0,0,0,.12), 0 4px 0 #182838, 0 7px 20px rgba(0,0,0,.25); }
     .card::before {
-      content:""; position:absolute; inset:0;
-      background:repeating-linear-gradient(98deg,rgba(255,255,255,.15) 0 2px,rgba(0,0,0,.03) 2px 4px,rgba(255,255,255,.09) 4px 6px);
-      opacity:.18; pointer-events:none; mix-blend-mode:soft-light;
+      content:""; position:absolute; inset:0; border-radius:inherit;
+      background: linear-gradient(180deg, rgba(255,255,255,.1) 0%, transparent 40%);
+      pointer-events:none;
     }
-    .card-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
-    .card-title { font-family:"Fira Code",monospace; font-size:14px; font-weight:700; color:var(--text); margin:0; text-shadow:0 1px 0 rgba(255,255,255,.7); }
+    .card-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+    .card-title { font-family:"Fira Code",monospace; font-size:13px; font-weight:700; color:var(--text); margin:0; }
     .muted { color:var(--text3); font-size:12px; }
-    .note  { color:var(--text3); font-size:12px; margin-top:6px; }
+    .note  { color:var(--text3); font-size:11px; margin-top:6px; }
 
-    /* ══ 1. 看板区：4个统计按钮 ══ */
-    .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+    /* ══ 1. 看板区：4个统计卡片 ══ */
+    .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
     .stat-btn {
-      display:flex; flex-direction:column; align-items:flex-start;
-      background: var(--metal-card);
-      border:1px solid rgba(105,112,125,.48); border-radius:var(--r2);
+      display:flex; align-items:center; justify-content:space-between;
+      background: linear-gradient(180deg, #3a5575 0%, #2e4662 40%, #263a54 100%);
+      border:1px solid rgba(200,218,235,.25); border-radius:var(--r2);
       padding:12px 14px; cursor:pointer; margin:0; width:auto;
-      box-shadow:inset 0 1px 0 rgba(255,255,255,.88),inset 0 -1px 0 rgba(0,0,0,.12),0 2px 5px rgba(0,0,0,.14);
-      transition:box-shadow .18s; color:var(--text);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.2),
+        inset 0 -1px 0 rgba(0,0,0,.15),
+        0 4px 0 #1a2a40,
+        0 6px 12px rgba(0,0,0,.25);
+      transition:all .15s ease; color:var(--text);
+      position:relative; overflow:hidden;
     }
-    .stat-btn:hover { box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 0 0 2px var(--blue-glow),0 2px 6px rgba(0,0,0,.16); }
-    .stat-btn:active { transform:translateY(1px); }
-    .stat-label { font-size:11px; color:var(--text3); font-weight:600; margin-bottom:6px; }
-    .stat-num { font-size:24px; font-weight:800; color:var(--text); font-family:"Fira Code",monospace; text-shadow:0 1px 0 rgba(255,255,255,.7); }
+    .stat-btn::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg, rgba(255,255,255,.1) 0%, transparent 40%); pointer-events:none; border-radius:inherit; }
+    .stat-btn:hover { border-color:rgba(96,165,250,.4); box-shadow: inset 0 1px 0 rgba(255,255,255,.22), inset 0 -1px 0 rgba(0,0,0,.15), 0 4px 0 #1a2a40, 0 6px 12px rgba(0,0,0,.25), 0 0 20px rgba(59,130,246,.1); transform:translateY(-1px); }
+    .stat-btn:active { transform:translateY(3px); box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 1px 0 #1a2a40, 0 2px 4px rgba(0,0,0,.2); }
+    .stat-label { font-size:11px; color:var(--text3); font-weight:600; letter-spacing:.02em; }
+    .stat-num { font-size:22px; font-weight:800; color:var(--blue-hi); font-family:"Fira Code",monospace; text-shadow: 0 0 20px rgba(96,165,250,.3); }
 
     /* ══ 2. 团队4图标 ══ */
-    .team-section { margin-bottom:10px; }
-    .role-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:4px; }
+    .team-section { margin-bottom:12px; }
+    .role-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
     .team-icon-card {
       text-align:center;
-      background: var(--metal-card);
-      border:1px solid rgba(100,108,122,.44); border-radius:var(--r);
+      background: linear-gradient(180deg, #3a5575 0%, #2e4662 50%, #263a54 100%);
+      border:1px solid rgba(200,218,235,.22); border-radius:var(--r);
       padding:12px 4px 10px; cursor:pointer;
-      box-shadow:inset 0 1px 0 rgba(255,255,255,.85),0 2px 5px rgba(0,0,0,.12);
-      transition:border-color .18s,box-shadow .18s;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.18),
+        inset 0 -1px 0 rgba(0,0,0,.1),
+        0 3px 0 #1a2a3e,
+        0 5px 12px rgba(0,0,0,.2);
+      transition:all .15s ease;
     }
-    .team-icon-card:hover { border-color:rgba(37,99,235,.4); box-shadow:inset 0 1px 0 rgba(255,255,255,.85),0 0 0 2px var(--blue-glow),0 3px 8px rgba(0,0,0,.14); }
-    .team-icon-card.active { border-color:var(--blue); background:linear-gradient(135deg,rgba(219,234,254,.97),rgba(191,219,254,.96)); box-shadow:0 0 0 2px rgba(37,99,235,.22),0 3px 8px rgba(0,0,0,.14); }
-    .team-icon { width:40px; height:40px; margin:0 auto 6px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; color:#fff; background:linear-gradient(180deg,#3b82f6,#1d4ed8); box-shadow:0 2px 6px rgba(37,99,235,.35),inset 0 1px 0 rgba(255,255,255,.28); }
-    .team-role-name { font-weight:800; font-size:12px; color:var(--text); text-shadow:0 1px 0 rgba(255,255,255,.7); }
-    .team-role-state { margin-top:3px; font-size:10px; color:var(--text3); }
+    .team-icon-card:hover { border-color:rgba(96,165,250,.35); transform:translateY(-2px); box-shadow: inset 0 1px 0 rgba(255,255,255,.2), inset 0 -1px 0 rgba(0,0,0,.1), 0 4px 0 #1a2a3e, 0 7px 16px rgba(0,0,0,.22); }
+    .team-icon-card:active { transform:translateY(2px); box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 1px 0 #1a2a3e, 0 2px 4px rgba(0,0,0,.15); }
+    .team-icon-card.active { border-color:var(--blue); background:linear-gradient(160deg, rgba(30,50,80,.95) 0%, rgba(20,35,65,.98) 60%, rgba(40,60,90,.9) 100%); box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 0 28px rgba(59,130,246,.12), 0 4px 16px rgba(0,0,0,.25); }
+    .team-icon { width:40px; height:40px; margin:0 auto 6px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; color:#fff; background:linear-gradient(145deg,#5c9cf5 0%,#3b82f6 50%,#2563eb 100%); box-shadow:inset 0 1px 0 rgba(255,255,255,.3), 0 4px 12px rgba(59,130,246,.4); transition:box-shadow .25s ease-out; }
+    .team-icon-card:hover .team-icon { box-shadow:0 4px 16px rgba(59,130,246,.55); }
+    .team-icon-card.active .team-icon { box-shadow:0 0 22px rgba(59,130,246,.5), 0 4px 12px rgba(59,130,246,.4); }
+    .team-role-state { margin-top:4px; font-size:10px; color:var(--text3); }
 
     /* ══ 3. 任务列表 ══ */
     .task-section {}
     .section-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
-    .section-title { font-family:"Fira Code",monospace; font-size:14px; font-weight:700; color:var(--text); margin:0; text-shadow:0 1px 0 rgba(255,255,255,.7); }
-    .task-stack { display:grid; gap:8px; }
+    .section-title { font-family:"Fira Code",monospace; font-size:13px; font-weight:700; color:var(--text); margin:0; }
+    .task-stack { display:grid; gap:6px; }
     .task-card {
       cursor:pointer; position:relative; overflow:hidden;
-      background: var(--metal-card);
-      border:1px solid rgba(105,112,125,.42); border-radius:var(--r2); padding:12px;
-      box-shadow:inset 0 1px 0 rgba(255,255,255,.85),0 2px 5px rgba(0,0,0,.14);
-      transition:border-color .18s,box-shadow .18s; color:var(--text);
+      background: linear-gradient(180deg, #344e6e 0%, #2a4260 40%, #243a54 100%);
+      border:1px solid rgba(200,218,235,.2); border-radius:var(--r2); padding:12px;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.16),
+        inset 0 -1px 0 rgba(0,0,0,.1),
+        0 3px 0 #1a2a3e,
+        0 5px 12px rgba(0,0,0,.2);
+      transition:all .15s ease; color:var(--text);
     }
-    .task-card::before { content:""; position:absolute; inset:0; background:repeating-linear-gradient(98deg,rgba(255,255,255,.12) 0 2px,rgba(0,0,0,.02) 2px 4px); opacity:.15; pointer-events:none; }
-    .task-card:hover { border-color:rgba(37,99,235,.5); box-shadow:inset 0 1px 0 rgba(255,255,255,.85),0 0 0 2px var(--blue-glow),0 3px 8px rgba(0,0,0,.16); }
-    .task-card.active { border-color:var(--blue); background:linear-gradient(135deg,rgba(219,234,254,.97),rgba(191,219,254,.96)); box-shadow:0 0 0 2px rgba(37,99,235,.22),0 3px 10px rgba(0,0,0,.14); }
-    .task-head { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
-    .task-title { font-size:14px; font-weight:700; color:var(--text); flex:1; line-height:1.4; }
-    .task-meta { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
-    .task-line { margin-top:6px; font-size:12px; color:var(--text3); }
-    .badge { display:inline-block; font-size:11px; padding:2px 8px; border-radius:99px; background:rgba(0,0,0,.08); border:1px solid rgba(0,0,0,.12); color:var(--text2); }
-    .badge.priority { background:rgba(239,68,68,.12); border-color:rgba(239,68,68,.28); color:#b91c1c; }
-    .badge.type     { background:rgba(99,102,241,.1); border-color:rgba(99,102,241,.25); color:#4338ca; }
-    .badge.doing    { background:rgba(234,179,8,.12); border-color:rgba(234,179,8,.28); color:#92400e; }
-    .badge.done     { background:rgba(34,197,94,.1); border-color:rgba(34,197,94,.22); color:#166534; }
-    .badge.reply    { background:rgba(34,197,94,.1); border-color:rgba(34,197,94,.22); color:#166534; }
-    .badge.todo     { background:rgba(99,102,241,.1); border-color:rgba(99,102,241,.24); color:#4338ca; }
-    .badge.status-published { background:rgba(37,99,235,.1); border-color:rgba(37,99,235,.22); color:#1e40af; }
-    .badge.status-received  { background:rgba(34,197,94,.1); border-color:rgba(34,197,94,.22); color:#166534; }
-    .badge.status-doing     { background:rgba(234,179,8,.12); border-color:rgba(234,179,8,.28); color:#92400e; }
-    .badge.status-waiting   { background:rgba(251,191,36,.12); border-color:rgba(251,191,36,.22); color:#78350f; }
-    .badge.status-done      { background:rgba(34,197,94,.1); border-color:rgba(34,197,94,.22); color:#166534; }
-    .pair-summary { margin-top:8px; padding:8px 10px; border-radius:8px; background:rgba(37,99,235,.08); border-left:3px solid var(--blue); font-size:12px; color:var(--text2); }
+    .task-card:hover { border-color:rgba(96,165,250,.35); transform:translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 -1px 0 rgba(0,0,0,.1), 0 4px 0 #1a2a3e, 0 6px 16px rgba(0,0,0,.22); }
+    .task-card:active { transform:translateY(2px); box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 1px 0 #1a2a3e, 0 2px 4px rgba(0,0,0,.15); }
+    .task-card.active { border-color:var(--blue); background:linear-gradient(180deg, #2e4e78 0%, #264270 40%, #1e3660 100%); box-shadow:inset 0 1px 0 rgba(255,255,255,.14), 0 3px 0 #162840, 0 0 20px rgba(59,130,246,.12), 0 5px 12px rgba(0,0,0,.2); }
+    .task-head { display:flex; align-items:center; justify-content:space-between; gap:6px; }
+    .task-title { font-size:13px; font-weight:700; color:var(--text); flex:1; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .task-meta { display:flex; flex-wrap:wrap; gap:4px; margin-top:5px; }
+    .task-line { margin-top:4px; font-size:11px; color:var(--text3); }
+
+    .badge { display:inline-block; font-size:10px; padding:3px 8px; border-radius:99px; background:rgba(148,163,184,.12); border:1px solid rgba(148,163,184,.2); color:var(--text2); font-weight:600; letter-spacing:.02em; }
+    .badge.priority { background:rgba(239,68,68,.15); border-color:rgba(239,68,68,.3); color:#fca5a5; }
+    .badge.type     { background:rgba(129,140,248,.15); border-color:rgba(129,140,248,.3); color:#a5b4fc; }
+    .badge.doing    { background:rgba(251,191,36,.15); border-color:rgba(251,191,36,.3); color:#fcd34d; }
+    .badge.done     { background:rgba(34,197,94,.15); border-color:rgba(34,197,94,.3); color:#86efac; }
+    .badge.reply    { background:rgba(34,197,94,.15); border-color:rgba(34,197,94,.3); color:#86efac; }
+    .badge.todo     { background:rgba(129,140,248,.12); border-color:rgba(129,140,248,.25); color:#a5b4fc; }
+    .badge.status-published { background:rgba(96,165,250,.15); border-color:rgba(96,165,250,.3); color:#93c5fd; }
+    .badge.status-received  { background:rgba(34,197,94,.15); border-color:rgba(34,197,94,.3); color:#86efac; }
+    .badge.status-doing     { background:rgba(251,191,36,.15); border-color:rgba(251,191,36,.3); color:#fcd34d; }
+    .badge.status-waiting   { background:rgba(251,191,36,.12); border-color:rgba(251,191,36,.25); color:#fde68a; }
+    .badge.status-done      { background:rgba(34,197,94,.15); border-color:rgba(34,197,94,.3); color:#86efac; }
+    .pair-summary { margin-top:6px; padding:6px 8px; border-radius:8px; background:rgba(59,130,246,.1); border-left:3px solid var(--blue); font-size:11px; color:var(--text2); }
+
 
     /* 任务详情展开区 */
-    .detail-expand { display:none; margin-top:10px; padding-top:10px; border-top:1px solid rgba(0,0,0,.10); }
+    .detail-expand { display:none; margin-top:10px; padding-top:10px; border-top:1px solid rgba(148,163,184,.1); }
     .detail-expand.open { display:block; }
-    .detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-    .detail-field { background:var(--metal-inset); border:1px solid rgba(100,108,122,.34); border-radius:var(--r2); padding:9px 11px; box-shadow:inset 0 1px 0 rgba(255,255,255,.85),inset 0 1px 3px rgba(0,0,0,.07); }
+    .detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+    .detail-field { background:rgba(20,30,48,.55); border:1px solid rgba(180,200,220,.12); border-radius:var(--r2); padding:8px 10px; box-shadow:inset 0 1px 3px rgba(0,0,0,.1); }
     .detail-label { font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:.05em; }
-    .detail-value { margin-top:5px; font-size:12px; color:var(--text); word-break:break-all; }
-    .detail-section { margin-top:10px; background:var(--metal-inset); border:1px solid rgba(100,108,122,.3); border-radius:var(--r); padding:12px; box-shadow:inset 0 1px 0 rgba(255,255,255,.82); }
-    .detail-section h4 { margin:0 0 8px; font-size:13px; font-family:"Fira Code",monospace; color:var(--text2); }
-    .detail-body-text { white-space:pre-wrap; line-height:1.7; color:var(--text2); font-size:13px; max-height:260px; overflow-y:auto; }
-    .detail-tabs { display:flex; gap:6px; margin-top:10px; }
-    .detail-tab-btn { width:auto; margin-top:0; padding:7px 16px; border-radius:99px; background:var(--metal-btn); color:var(--text2); font-size:12px; font-weight:700; border:1px solid rgba(100,108,122,.36); box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 1px 3px rgba(0,0,0,.12); }
-    .detail-tab-btn.active { background:linear-gradient(180deg,#3b82f6,#1d4ed8); border-color:rgba(147,197,253,.4); color:#fff; box-shadow:0 2px 8px rgba(37,99,235,.35); }
-    .detail-view { display:none; margin-top:10px; }
+    .detail-value { margin-top:4px; font-size:12px; color:var(--text); word-break:break-all; }
+    .detail-section { margin-top:8px; background:rgba(20,30,48,.55); border:1px solid rgba(180,200,220,.12); border-radius:var(--r); padding:10px; box-shadow:inset 0 1px 3px rgba(0,0,0,.1); }
+    .detail-section h4 { margin:0 0 6px; font-size:12px; font-family:"Fira Code",monospace; color:var(--text2); }
+    .detail-body-text { white-space:pre-wrap; line-height:1.7; color:var(--text2); font-size:12px; max-height:260px; overflow-y:auto; }
+    .detail-tabs { display:flex; gap:6px; margin-top:8px; }
+    .detail-tab-btn { width:auto; margin-top:0; padding:6px 14px; border-radius:99px; background:rgba(20,30,48,.55); color:var(--text3); font-size:11px; font-weight:700; border:1px solid rgba(180,200,220,.12); box-shadow:inset 0 1px 2px rgba(0,0,0,.08); }
+    .detail-tab-btn.active { background:var(--blue); border-color:var(--blue); color:#fff; }
+    .detail-view { display:none; margin-top:8px; }
     .detail-view.active { display:block; }
-    .detail-markdown { white-space:pre-wrap; line-height:1.7; color:var(--text2); font-size:12px; background:var(--metal-inset); border:1px solid rgba(100,108,122,.28); border-radius:var(--r2); padding:12px; max-height:280px; overflow:auto; box-shadow:inset 0 1px 3px rgba(0,0,0,.08); }
-    .detail-file-line { margin-top:6px; font-size:11px; color:var(--text3); }
+    .detail-markdown { white-space:pre-wrap; line-height:1.7; color:var(--text2); font-size:12px; background:rgba(20,30,48,.55); border:1px solid rgba(180,200,220,.12); border-radius:var(--r2); padding:10px; max-height:280px; overflow:auto; box-shadow:inset 0 1px 3px rgba(0,0,0,.1); }
+    .detail-file-line { margin-top:5px; font-size:11px; color:var(--text3); }
     .chat-list { display:grid; gap:6px; }
-    .chat-item { max-width:92%; padding:10px 12px; border-radius:var(--r2); background:linear-gradient(135deg,rgba(246,248,252,.97),rgba(214,220,228,.97)); border:1px solid rgba(100,108,122,.28); color:var(--text); font-size:13px; box-shadow:inset 0 1px 0 rgba(255,255,255,.75),0 1px 4px rgba(0,0,0,.10); }
-    .chat-item.mine { margin-left:auto; background:linear-gradient(135deg,rgba(219,234,254,.97),rgba(191,219,254,.97)); border-color:rgba(37,99,235,.3); }
-    .chat-meta { font-size:11px; color:var(--text3); margin-bottom:4px; }
+    .chat-item { max-width:92%; padding:8px 10px; border-radius:var(--r2); background:rgba(20,30,48,.55); border:1px solid rgba(180,200,220,.12); color:var(--text); font-size:12px; box-shadow:inset 0 1px 2px rgba(0,0,0,.08); }
+    .chat-item.mine { margin-left:auto; background:rgba(59,130,246,.12); border-color:rgba(96,165,250,.25); }
+    .chat-meta { font-size:10px; color:var(--text3); margin-bottom:3px; }
 
     /* ══ 4. 发送任务区 ══ */
     .composer-section {}
     input, textarea, select {
-      width:100%; box-sizing:border-box; margin-top:8px; padding:10px 12px;
+      width:100%; box-sizing:border-box; margin-top:6px; padding:10px 12px;
       border-radius:var(--r2); font-size:13px; font-family:inherit;
-      background:var(--metal-inset); border:1px solid rgba(100,108,122,.4); color:var(--text);
-      box-shadow:inset 0 2px 4px rgba(0,0,0,.10),inset 0 1px 0 rgba(255,255,255,.85); outline:none;
-      transition:border-color .18s;
+      background:rgba(20,30,48,.65); border:1px solid rgba(180,200,220,.15); color:var(--text);
+      box-shadow: inset 0 2px 4px rgba(0,0,0,.15);
+      outline:none; transition:all .25s ease-out;
     }
-    input:focus,textarea:focus,select:focus { border-color:var(--blue); box-shadow:inset 0 2px 4px rgba(0,0,0,.10),0 0 0 2px rgba(37,99,235,.2); }
+    input:focus,textarea:focus,select:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(59,130,246,.15), 0 0 16px rgba(59,130,246,.08); }
     textarea { min-height:88px; resize:vertical; }
-    select option { background:#eef1f6; color:var(--text); }
+    select option { background:var(--bg2); color:var(--text); }
     .row2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+
     button {
-      width:100%; box-sizing:border-box; margin-top:8px; padding:10px 14px;
+      width:100%; box-sizing:border-box; margin-top:6px; padding:9px 14px;
       border-radius:var(--r2); font-size:13px; font-family:inherit; font-weight:700;
-      background:var(--metal-btn); border:1px solid rgba(90,100,116,.42); color:var(--text2);
-      cursor:pointer; box-shadow:inset 0 1px 0 rgba(255,255,255,.85),inset 0 -1px 0 rgba(0,0,0,.12),0 2px 5px rgba(0,0,0,.14);
-      transition:box-shadow .18s,border-color .18s;
+      background: linear-gradient(180deg, #3a5575 0%, #2e4662 50%, #263a54 100%);
+      border:1px solid rgba(200,218,235,.22); color:var(--text);
+      cursor:pointer;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.15), 0 3px 0 #1a2a3e, 0 4px 10px rgba(0,0,0,.2);
+      transition:all .15s ease;
     }
-    button:hover { border-color:var(--blue); box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 0 0 2px var(--blue-glow),0 2px 6px rgba(0,0,0,.16); }
-    button:active { transform:translateY(1px); box-shadow:inset 0 2px 4px rgba(0,0,0,.18); }
-    button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible { outline:2px solid rgba(37,99,235,.55); outline-offset:2px; }
-    #sendBtn { background:linear-gradient(180deg,#3b82f6,#1d4ed8); border-color:rgba(147,197,253,.5); color:#fff; font-size:14px; min-height:46px; box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 4px 12px rgba(37,99,235,.35); }
-    #sendBtn:hover { background:linear-gradient(180deg,#60a5fa,#2563eb); }
-    button.secondary { background:linear-gradient(180deg,#e8ecf2,#ced4dc); color:var(--text3); }
-    button.success   { background:linear-gradient(180deg,#34d399,#059669); color:#fff; border-color:rgba(52,211,153,.4); }
-    button.warning   { background:linear-gradient(180deg,#fbbf24,#d97706); color:#fff; }
+    button:hover { border-color:rgba(96,165,250,.35); }
+    button:active { transform:translateY(2px); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 1px 0 #1a2a3e, 0 2px 4px rgba(0,0,0,.15); }
+    button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible { outline:2px solid rgba(96,165,250,.5); outline-offset:2px; }
+    #sendBtn { background:linear-gradient(180deg,#4a92f7 0%,#3b82f6 40%,#2563eb 100%); border-color:rgba(96,165,250,.5); color:#fff; font-size:14px; font-weight:700; min-height:48px; min-width:44px; box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 4px 0 #1a4eb8, 0 6px 16px rgba(37,99,235,.4); letter-spacing:.02em; }
+    #sendBtn:hover { background:linear-gradient(180deg,#60a5fa 0%,#4a92f7 40%,#3b82f6 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 4px 0 #1a4eb8, 0 6px 20px rgba(59,130,246,.5); }
+    #sendBtn:active { transform:translateY(3px); box-shadow: inset 0 1px 0 rgba(255,255,255,.15), 0 1px 0 #1a4eb8, 0 2px 6px rgba(37,99,235,.3); }
+    button.secondary { background:var(--bg2); color:var(--text3); border-color:var(--card-border); }
+    button.success   { background:#059669; color:#fff; border-color:rgba(34,197,94,.4); }
+    button.warning   { background:#d97706; color:#fff; border-color:rgba(251,191,36,.4); }
+
+
+    /* ══ 全屏覆盖页（通用） ══ */
+    .fullscreen-page {
+      display:none; position:fixed; inset:0; z-index:100;
+      width:100%; height:100%;
+      background: linear-gradient(160deg, #1c2e4a 0%, #162540 35%, #1a3050 65%, #142238 100%);
+      flex-direction:column; overflow:hidden;
+      overscroll-behavior:none;
+    }
+    .fullscreen-page.open { display:flex; }
+    .fullscreen-page-header {
+      flex-shrink:0;
+      padding: calc(var(--safe-top) + 6px) 14px 8px;
+      display:flex; align-items:center; gap:10px;
+      background: linear-gradient(180deg, #263e5c 0%, #1e3250 50%, #182a44 100%);
+      border-bottom:1px solid rgba(200,218,235,.18);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 2px 16px rgba(0,0,0,.25);
+    }
+    .fullscreen-back-btn {
+      background:linear-gradient(180deg, #3a5575 0%, #2e4662 100%); border:1px solid rgba(200,218,235,.22); border-radius:20px;
+      color:#fff; font-size:12px; font-weight:700; padding:4px 12px; cursor:pointer; margin:0; width:auto;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.15), 0 2px 0 #1a2a3e, 0 3px 8px rgba(0,0,0,.18);
+    }
+    .fullscreen-back-btn:hover { background:rgba(59,130,246,.2); border-color:rgba(96,165,250,.4); }
+    .fullscreen-page-title { font-family:"Fira Code",monospace; font-weight:700; font-size:15px; color:var(--text); flex:1; }
+    .fullscreen-page-content { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:10px 12px 24px; }
 
     /* ══ 我的：全屏覆盖页 ══ */
     .my-page {
       display:none; position:fixed; inset:0; z-index:100;
-      background:var(--metal-bg);
+      width:100%; height:100%;
+      background: linear-gradient(160deg, #1c2e4a 0%, #162540 35%, #1a3050 65%, #142238 100%);
       flex-direction:column; overflow:hidden;
+      overscroll-behavior:none;
     }
     .my-page.open { display:flex; }
     .my-page-header {
-      flex-shrink:0; height:var(--header-h);
-      display:flex; align-items:center; padding:0 14px; gap:10px;
-      background-image:
-        repeating-linear-gradient(92deg,rgba(255,255,255,.14) 0 2px,rgba(0,0,0,.04) 2px 4px,rgba(255,255,255,.09) 4px 6px),
-        linear-gradient(180deg,#e8ecf2 0%,#c8cfd8 50%,#d8dde5 100%);
-      border-bottom:1px solid rgba(0,0,0,.18);
-      box-shadow:inset 0 1px 0 rgba(255,255,255,.9),inset 0 -1px 0 rgba(0,0,0,.12),0 3px 10px rgba(0,0,0,.18);
+      flex-shrink:0;
+      padding: calc(var(--safe-top) + 6px) 14px 8px;
+      display:flex; align-items:center; gap:10px;
+      background: linear-gradient(180deg, #263e5c 0%, #1e3250 50%, #182a44 100%);
+      border-bottom:1px solid rgba(200,218,235,.18);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 2px 16px rgba(0,0,0,.25);
     }
-    .my-back-btn { background:var(--metal-btn); border:1px solid rgba(0,0,0,.22); border-radius:20px; color:var(--text2); font-size:12px; font-weight:700; padding:5px 13px; cursor:pointer; margin:0; width:auto; box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 1px 3px rgba(0,0,0,.18); }
-    .my-back-btn:hover { border-color:var(--blue); color:var(--blue); }
-    .my-page-title { font-family:"Fira Code",monospace; font-weight:700; font-size:15px; color:#1a2a4a; text-shadow:0 1px 0 rgba(255,255,255,.7); flex:1; }
-    .my-page-content { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:12px 12px 24px; }
+    .my-back-btn { background:linear-gradient(180deg, #3a5575 0%, #2e4662 100%); border:1px solid rgba(200,218,235,.22); border-radius:20px; color:#fff; font-size:12px; font-weight:700; padding:4px 12px; cursor:pointer; margin:0; width:auto; box-shadow: inset 0 1px 0 rgba(255,255,255,.15), 0 2px 0 #1a2a3e, 0 3px 8px rgba(0,0,0,.18); }
+    .my-back-btn:hover { border-color:rgba(96,165,250,.35); }
+    .my-page-title { font-family:"Fira Code",monospace; font-weight:700; font-size:15px; color:var(--text); flex:1; }
+    .my-page-content { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:10px 12px 24px; }
 
-    /* 我的页内复用通用 card */
-    .my-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
-    .action-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
-    .slot-label { font-size:11px; font-weight:700; color:var(--text3); margin-bottom:6px; text-transform:uppercase; letter-spacing:.04em; }
-    .lang-switch { display:inline-flex; gap:4px; padding:3px; background:linear-gradient(180deg,#dde3ec,#c8cfd8); border:1px solid rgba(100,108,122,.36); border-radius:99px; margin-top:12px; box-shadow:inset 0 1px 2px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.7); }
-    .lang-btn { cursor:pointer; width:auto; margin-top:0; min-width:40px; padding:6px 12px; border-radius:99px; background:transparent; color:var(--text3); border:none; font-size:12px; box-shadow:none; }
+    .my-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+    .action-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px; }
+    .slot-label { font-size:10px; font-weight:700; color:var(--text3); margin-bottom:4px; text-transform:uppercase; letter-spacing:.04em; }
+    .lang-switch { display:inline-flex; gap:4px; padding:3px; background:rgba(10,18,35,.5); border:1px solid var(--card-border); border-radius:99px; margin-top:10px; box-shadow:inset 0 1px 3px rgba(0,0,0,.15); }
+    .lang-btn { cursor:pointer; width:auto; margin-top:0; min-width:36px; padding:5px 10px; border-radius:99px; background:transparent; color:var(--text3); border:none; font-size:12px; box-shadow:none; }
     .lang-btn:hover { color:var(--text); }
-    .lang-btn.active { background:linear-gradient(180deg,#3b82f6,#1d4ed8); color:#fff; box-shadow:0 2px 6px rgba(37,99,235,.35); }
-    #connectInfo { font-size:12px; color:var(--text3); line-height:1.6; }
-    #systemLog { white-space:pre-wrap; font-size:11px; color:var(--text3); line-height:1.6; max-height:200px; overflow:auto; margin-top:8px; }
+    .lang-btn.active { background:var(--blue); color:#fff; }
+    #connectInfo { font-size:11px; color:var(--text3); line-height:1.6; }
+    #systemLog { white-space:pre-wrap; font-size:11px; color:var(--text3); line-height:1.6; max-height:200px; overflow:auto; margin-top:6px; }
     details>summary { cursor:pointer; font-weight:700; color:var(--text2); font-size:13px; }
-    details>summary:focus-visible { outline:2px solid rgba(37,99,235,.5); outline-offset:2px; }
+    details>summary:focus-visible { outline:2px solid rgba(96,165,250,.5); outline-offset:2px; }
 
-    /* JS兼容占位 */
     #status,#meta,#heroTitle,#heroSubMinor { display:none; }
-    .tab-panel { display:block; }  /* 单页无tab切换，全部显示 */
+    .tab-panel { display:block; }
 
-    /* QR modal */
     #qrScanModal { position:fixed; inset:0; background:rgba(0,0,0,.88); z-index:999; display:none; flex-direction:column; align-items:center; justify-content:center; }
+
+    /* 全屏任务列表页中的任务行 */
+    .full-task-row {
+      display:flex; flex-wrap:wrap; align-items:center; gap:4px;
+      padding:10px 12px; margin-bottom:6px; cursor:pointer;
+      background: linear-gradient(180deg, #344e6e 0%, #2a4260 40%, #243a54 100%);
+      border:1px solid rgba(200,218,235,.2); border-radius:var(--r2);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.16), inset 0 -1px 0 rgba(0,0,0,.1), 0 3px 0 #1a2a3e, 0 4px 10px rgba(0,0,0,.18);
+      transition:all .15s ease;
+    }
+    .full-task-row:hover { border-color:rgba(96,165,250,.35); transform:translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 -1px 0 rgba(0,0,0,.1), 0 4px 0 #1a2a3e, 0 6px 14px rgba(0,0,0,.2); }
+    .full-task-row:active { transform:translateY(2px); box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 1px 0 #1a2a3e, 0 2px 4px rgba(0,0,0,.15); }
+    .full-task-row:active { background:linear-gradient(145deg, rgba(30,50,80,.95) 0%, rgba(20,35,65,.98) 100%); transform:translateY(0); }
+    .full-task-row .task-title { flex:1 1 100%; font-size:13px; font-weight:700; color:var(--text); margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .full-task-time { font-size:10px; color:var(--text3); margin-left:auto; }
 
     @media (max-width:400px) {
       .detail-grid { grid-template-columns:1fr; }
@@ -272,62 +368,64 @@
 <body>
 <div class="app-shell">
 
-  <!-- ════ 固定顶部 Header ════ -->
+  <!-- ════ 固定顶部 Header（两行） ════ -->
   <header class="app-header">
-    <img class="header-logo" src="./logo-BridgeFlow-125.png" alt="logo" />
-    <span class="header-brand">BridgeFlow</span>
-    <span id="heroSub" class="header-slogan">手机驭 AI，指令达团队</span>
-    <div class="header-right">
-      <span id="statusLight" class="status-light"></span>
-      <span id="statusText" style="font-size:11px;color:var(--text3);white-space:nowrap;">未连接</span>
-      <button id="myQuickBtn" class="header-my-btn" type="button">我的</button>
+    <div class="header-row1">
+      <img class="header-logo" src="./logo-BridgeFlow-125.png" alt="logo" />
+      <span class="header-brand">BridgeFlow</span>
+      <div class="header-right">
+        <span id="statusLight" class="status-light"></span>
+        <span id="statusText" style="font-size:11px;color:var(--text3);white-space:nowrap;">未连接</span>
+        <button id="myQuickBtn" class="header-my-btn" type="button">我的</button>
+      </div>
     </div>
+    <span id="heroSub" class="header-slogan">手机驭 AI，指令达团队</span>
   </header>
 
-  <!-- ════ 主滚动内容（顶部→看板→团队→任务列表→发送任务） ════ -->
+  <!-- ════ 主滚动内容 ════ -->
   <main class="app-content">
 
-    <!-- ── 1. 看板：4个统计按钮 ── -->
+    <!-- ── 1. 看板：4个统计（紧凑） ── -->
     <div class="stat-grid">
-      <button class="stat-btn" type="button">
+      <button class="stat-btn" type="button" data-filter="today">
         <span id="labelTodayTasks" class="stat-label">今日任务</span>
         <strong id="todayTasks" class="stat-num">0</strong>
       </button>
-      <button class="stat-btn" type="button">
+      <button class="stat-btn" type="button" data-filter="reply">
         <span id="labelTodayReplies" class="stat-label">今日回复</span>
         <strong id="todayReplies" class="stat-num">0</strong>
       </button>
-      <button class="stat-btn" type="button">
+      <button class="stat-btn" type="button" data-filter="progress">
         <span id="labelInProgress" class="stat-label">进行中任务</span>
         <strong id="inProgressThreads" class="stat-num">0</strong>
       </button>
-      <button class="stat-btn" type="button">
+      <button class="stat-btn" type="button" data-filter="done">
         <span id="labelReplied" class="stat-label">已完成任务</span>
         <strong id="repliedThreads" class="stat-num">0</strong>
       </button>
     </div>
 
-    <!-- ── 2. 团队：4个角色图标 ── -->
+    <!-- ── 2. 团队：4个角色（精简） ── -->
     <div class="card team-section">
       <div class="card-head">
         <h3 id="teamTitle" class="card-title">我的团队</h3>
         <span id="teamCount" class="muted">4 人</span>
       </div>
-      <div id="teamDesc" class="muted">点击角色，下方任务清单同步切换。</div>
+      <div id="teamDesc" class="muted" style="display:none;"></div>
       <div id="teamList" class="role-grid"></div>
     </div>
 
-    <!-- ── 3. 任务列表 ── -->
+    <!-- ── 3. 任务清单（只显示2条，点击标题进列表） ── -->
     <div class="card task-section">
-      <div class="card-head">
+      <div class="card-head" id="taskSectionHead" style="cursor:pointer;">
         <h3 id="listTitle" class="card-title">任务清单</h3>
-        <span id="listDesc" class="muted">默认显示 PM</span>
+        <span id="listDesc" class="muted" style="display:flex;align-items:center;gap:4px;">默认显示 PM <span style="font-size:14px;opacity:.6;">›</span></span>
       </div>
       <div id="workspaceRoleStrip" style="display:none;"></div>
       <div id="taskList" class="task-stack"></div>
     </div>
 
-    <!-- 当前任务详情（点击任务后展开） -->
+    <!-- 当前任务详情（点击任务后展开，首页保留兼容） -->
     <div id="taskDetailCard" class="card" style="display:none;">
       <div class="card-head">
         <h3 id="detailTitle" class="card-title">任务详情</h3>
@@ -358,10 +456,10 @@
       <div class="card-head">
         <h3 id="sendTitle" class="card-title">发送任务</h3>
       </div>
-      <div id="sendDesc" class="muted">默认向 PM 投递；选中任务后追加到记录。</div>
+      <div id="sendDesc" class="muted">选中团队角色后，任务将发送给该角色。</div>
       <select id="targetRole"></select>
       <input id="threadKey" type="hidden" />
-      <textarea id="message" rows="3" placeholder="输入任务内容，发送后立即出现在当前任务记录中"></textarea>
+      <textarea id="message" rows="4" placeholder="输入任务内容..."></textarea>
       <div class="row2">
         <select id="priority">
           <option value="P0">P0 紧急</option>
@@ -369,14 +467,64 @@
           <option value="P2">P2 中</option>
           <option value="P3">P3 低</option>
         </select>
-        <button id="sendBtn" type="button">发送</button>
+        <button id="sendBtn" type="button">发送任务</button>
       </div>
       <div id="sendHint" class="note">未选任务时立为新任务；已选时追加到记录。</div>
     </div>
 
-  </main><!-- /app-content -->
+  </main>
 
-</div><!-- /app-shell -->
+</div>
+
+<!-- ════ 全屏任务列表页 ════ -->
+<div id="taskListPage" class="fullscreen-page">
+  <header class="fullscreen-page-header">
+    <button id="taskListBackBtn" class="fullscreen-back-btn" type="button">← 返回</button>
+    <span id="taskListPageTitle" class="fullscreen-page-title">任务列表</span>
+  </header>
+  <div class="fullscreen-page-content">
+    <div id="fullTaskList" class="task-stack"></div>
+  </div>
+</div>
+
+<!-- ════ 全屏任务详情页 ════ -->
+<div id="taskDetailPage" class="fullscreen-page">
+  <header class="fullscreen-page-header">
+    <button id="taskDetailBackBtn" class="fullscreen-back-btn" type="button">← 返回</button>
+    <span id="taskDetailPageTitle" class="fullscreen-page-title">任务详情</span>
+  </header>
+  <div class="fullscreen-page-content">
+    <div class="card">
+      <div class="detail-grid">
+        <div class="detail-field"><div class="detail-label">任务编号</div><div id="fpDetailTaskId" class="detail-value">--</div></div>
+        <div class="detail-field"><div class="detail-label">关联文件</div><div id="fpDetailFileName" class="detail-value">--</div></div>
+        <div class="detail-field"><div class="detail-label">优先级</div><div id="fpDetailPriority" class="detail-value">--</div></div>
+        <div class="detail-field"><div class="detail-label">任务类型</div><div id="fpDetailType" class="detail-value">--</div></div>
+        <div class="detail-field"><div class="detail-label">发起人</div><div id="fpDetailSender" class="detail-value">--</div></div>
+        <div class="detail-field"><div class="detail-label">接收人</div><div id="fpDetailRecipient" class="detail-value">--</div></div>
+        <div class="detail-field"><div class="detail-label">时间</div><div id="fpDetailTime" class="detail-value">--</div></div>
+        <div class="detail-field"><div class="detail-label">状态</div><div id="fpDetailStatus" class="detail-value">--</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3 id="fpFlowTitle" class="card-title">流转路径</h3></div>
+      <div id="fpDetailFlow" class="detail-body-text">--</div>
+    </div>
+    <div class="card">
+      <div class="detail-tabs">
+        <button id="fpRecordTabBtn" class="detail-tab-btn active" type="button">任务记录</button>
+        <button id="fpMarkdownTabBtn" class="detail-tab-btn" type="button">MD原文</button>
+      </div>
+      <div id="fpRecordView" class="detail-view active">
+        <div id="fpMessages" class="chat-list"></div>
+      </div>
+      <div id="fpMarkdownView" class="detail-view">
+        <div id="fpMarkdown" class="detail-markdown"></div>
+        <div id="fpMarkdownFile" class="detail-file-line"></div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ════ 我的：全屏覆盖页 ════ -->
 <div id="myPage" class="my-page">
@@ -401,16 +549,14 @@
     <div class="card">
       <div class="card-head"><h3 id="myDeviceTitle" class="card-title">绑定设备</h3></div>
       <div id="myDeviceDesc" class="muted">手机扫 PC 端二维码完成绑定。</div>
-      <div class="detail-grid" style="margin-top:10px;">
+      <div class="detail-grid" style="margin-top:8px;">
         <div class="detail-field"><div id="myDeviceNameLabel" class="detail-label">当前设备名</div><div id="myDeviceNameValue" class="detail-value">--</div></div>
         <div class="detail-field"><div id="myDeviceIdLabel" class="detail-label">当前设备ID</div><div id="myDeviceIdValue" class="detail-value">--</div></div>
         <div class="detail-field"><div id="myBindStatusLabel" class="detail-label">绑定状态</div><div id="myBindStatusValue" class="detail-value">--</div></div>
         <div class="detail-field"><div id="myBoundPcLabel" class="detail-label">已绑定电脑</div><div id="myBoundPcValue" class="detail-value">--</div></div>
       </div>
       <div class="action-grid">
-        <button id="refreshBindBtn" type="button">读取绑定</button>
-        <button id="bindCodeBtn" type="button">申请绑定码</button>
-        <button id="scanQrBtn" type="button" style="grid-column:1/-1;background:linear-gradient(180deg,#3b82f6,#1d4ed8);color:#fff;border-color:rgba(147,197,253,.4);">📷 扫码绑定 PC</button>
+        <button id="scanQrBtn" type="button" style="grid-column:1/-1;background:var(--blue);border-color:rgba(96,165,250,.4);color:#fff;">📷 扫码绑定 PC</button>
       </div>
     </div>
 
@@ -418,24 +564,26 @@
       <div class="card-head"><h3 id="deployTitle" class="card-title">配置与版本</h3></div>
       <div class="my-grid">
         <div class="detail-field"><div class="slot-label">配置</div><div id="deployInfo" class="detail-value" style="font-size:11px;line-height:1.6;"></div><div id="deployDesc" class="muted" style="margin-top:4px;"></div></div>
-        <div class="detail-field"><div id="versionTitle" class="slot-label">版本号</div><div id="versionInfo" class="detail-value">--</div><div id="languageTitle" class="slot-label" style="margin-top:10px;">语言</div><div id="currentLanguageValue" class="detail-value">--</div></div>
+        <div class="detail-field">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <span id="versionTitle" class="slot-label" style="margin:0;">版本号</span>
+            <span id="versionInfo" class="detail-value" style="margin:0;font-family:'Fira Code',monospace;font-weight:600;">--</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;">
+            <span id="languageTitle" class="slot-label" style="margin:0;">语言</span>
+            <span id="currentLanguageValue" class="detail-value" style="margin:0;">--</span>
+          </div>
+        </div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-head"><h3 id="deviceActionTitle" class="card-title">执行机控制</h3></div>
-      <div class="action-grid">
-        <button id="focusCursorBtn" type="button">聚焦 Cursor</button>
-        <button id="inspectBtn" type="button">巡检</button>
-        <button id="startWorkBtn" type="button">开工</button>
-        <button id="goLogBtn" type="button">查看日志</button>
-      </div>
-      <div id="firstBindDesc" class="pair-summary" style="margin-top:12px;">任务+回复是一对。手机端发布任务，PC 端回执后形成完整记录。</div>
-      <div class="detail-section" style="margin-top:10px;"><h4 id="firstBindStepsTitle">首次使用步骤</h4><div id="firstBindSteps" class="detail-body-text">1. 启动 PC 端
-2. 生成绑定码
-3. 手机打开 PWA
-4. 扫码绑定
-5. PC 确认后完成绑定</div></div>
+      <div id="firstBindDesc" class="pair-summary" style="margin-top:10px;">任务+回复是一对。手机端发布任务，PC 端回执后形成完整记录。</div>
+      <div class="detail-section" style="margin-top:8px;"><h4 id="firstBindStepsTitle">首次使用步骤</h4><div id="firstBindSteps" class="detail-body-text">1. PC 双击 bfstart.bat 启动
+2. 浏览器自动打开仪表盘，显示二维码
+3. 手机打开 PWA → 点「我的」
+4. 点「📷 扫码绑定 PC」对准二维码
+5. 扫描成功，连接灯变绿，绑定完成</div></div>
     </div>
 
     <div class="card">
@@ -448,16 +596,16 @@
     </div>
 
   </div>
-</div><!-- /myPage -->
+</div>
 
 <!-- QR 扫码弹窗 -->
 <div id="qrScanModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:999;flex-direction:column;align-items:center;justify-content:center;">
-  <div style="background:#1a1e28;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:20px;width:92%;max-width:380px;text-align:center;">
-    <div style="font-weight:700;font-size:16px;color:#f1f5fb;margin-bottom:12px;">扫描 PC 端二维码</div>
+  <div style="background:var(--bg2);border:1px solid var(--card-border);border-radius:16px;padding:20px;width:92%;max-width:380px;text-align:center;">
+    <div id="scanQrTitle" style="font-weight:700;font-size:16px;color:var(--text);margin-bottom:12px;">扫描 PC 端二维码</div>
     <video id="qrVideo" autoplay playsinline style="width:100%;border-radius:10px;background:#000;max-height:260px;"></video>
     <canvas id="qrCanvas" style="display:none;"></canvas>
-    <div id="qrScanStatus" style="color:#8fa3bd;font-size:13px;margin:10px 0;">正在启动摄像头…</div>
-    <button id="qrScanClose" type="button" style="margin-top:8px;padding:10px 28px;border-radius:8px;background:#2a3249;color:#f1f5fb;border:1px solid rgba(255,255,255,.12);font-size:14px;cursor:pointer;width:auto;">取消</button>
+    <div id="qrScanStatus" style="color:var(--text3);font-size:13px;margin:10px 0;">正在启动摄像头…</div>
+    <button id="qrScanClose" type="button" style="margin-top:8px;padding:10px 28px;border-radius:8px;background:rgba(255,255,255,.08);color:#e3f0ff;border:1px solid rgba(150,200,255,.2);font-size:14px;cursor:pointer;width:auto;">取消</button>
   </div>
 </div>
 
@@ -466,14 +614,12 @@
 <div id="meta" style="display:none;"></div>
 <div id="heroTitle" style="display:none;"></div>
 <div id="heroSubMinor" style="display:none;"></div>
-<!-- tab panel 兼容占位（JS 引用但不需要显示切换） -->
 <div id="tabWorkspace" style="display:none;"></div>
 <div id="tabTeam" style="display:none;"></div>
 <div id="tabMy" style="display:none;"></div>
 <div id="tabWorkspaceBtn" style="display:none;"></div>
 <div id="tabTeamBtn" style="display:none;"></div>
 <div id="tabMyBtn" style="display:none;"></div>
-<!-- 团队页兼容占位 -->
 <div id="roleTaskList" style="display:none;"></div>
 <div id="roleDetailTitle" style="display:none;"></div>
 <div id="roleDetailMeta" style="display:none;"></div>
@@ -617,12 +763,6 @@
     const DEFAULT_TARGET = String(appConfig.defaultTarget || "PM").trim();
     const RELAY_LABEL = String(appConfig.relayLabel || "公网正式中继").trim();
     const myQuickBtnEl = document.getElementById("myQuickBtn");
-    const refreshBindBtnEl = document.getElementById("refreshBindBtn");
-    const bindCodeBtnEl = document.getElementById("bindCodeBtn");
-    const focusCursorBtnEl = document.getElementById("focusCursorBtn");
-    const inspectBtnEl = document.getElementById("inspectBtn");
-    const startWorkBtnEl = document.getElementById("startWorkBtn");
-    const goLogBtnEl = document.getElementById("goLogBtn");
     const langZhBtnEl = document.getElementById("langZhBtn");
     const langEnBtnEl = document.getElementById("langEnBtn");
     let currentLang = localStorage.getItem("bridgeflow_lang") || "zh";
@@ -634,6 +774,128 @@
       localMobileDeviceId = `MOBILE-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
       localStorage.setItem("bridgeflow_mobile_device_id", localMobileDeviceId);
     }
+
+
+    /* ══ 全屏任务列表/详情页 ══ */
+    const taskListPageEl = document.getElementById("taskListPage");
+    const taskListBackBtnEl = document.getElementById("taskListBackBtn");
+    const taskListPageTitleEl = document.getElementById("taskListPageTitle");
+    const fullTaskListEl = document.getElementById("fullTaskList");
+    const taskDetailPageEl = document.getElementById("taskDetailPage");
+    const taskDetailBackBtnEl = document.getElementById("taskDetailBackBtn");
+    const taskDetailPageTitleEl = document.getElementById("taskDetailPageTitle");
+    const fpRecordTabBtnEl = document.getElementById("fpRecordTabBtn");
+    const fpMarkdownTabBtnEl = document.getElementById("fpMarkdownTabBtn");
+    const fpRecordViewEl = document.getElementById("fpRecordView");
+    const fpMarkdownViewEl = document.getElementById("fpMarkdownView");
+    let fpViewMode = "record";
+
+    function isTaskToday(item) {
+      const t = item.time || item.created_at || "";
+      if (!t) return false;
+      const today = new Date().toISOString().slice(0, 10);
+      return t.startsWith(today);
+    }
+    function isTaskReply(item) {
+      const fn = String(item.filename || item.primary_filename || "");
+      return /to-PM|REPORT|NOTIFY/i.test(fn);
+    }
+    function isTaskInProgress(item) {
+      const p = String(item.progress || "");
+      return /等待|wait|接收|received|执行|处理中|doing|progress|pending|in_progress/i.test(p);
+    }
+    function isTaskDone(item) {
+      const p = String(item.progress || "");
+      return /已完成|已回复|done|replied|completed/i.test(p);
+    }
+
+    const STAT_FILTER_LABELS = {
+      zh: { today: "今日任务", reply: "今日回复", progress: "进行中任务", done: "已完成任务", all: "全部任务" },
+      en: { today: "Today Tasks", reply: "Today Replies", progress: "In Progress", done: "Completed", all: "All Tasks" }
+    };
+
+    function openTaskListPage(filter) {
+      const role = selectedRole || "PM";
+      let allItems = tasksForRole(role);
+      const filterLabel = STAT_FILTER_LABELS[currentLang] || STAT_FILTER_LABELS.zh;
+      let title = filterLabel.all;
+      if (filter === "today") { allItems = allItems.filter(isTaskToday); title = filterLabel.today; }
+      else if (filter === "reply") { allItems = allItems.filter(i => isTaskToday(i) && isTaskReply(i)); title = filterLabel.reply; }
+      else if (filter === "progress") { allItems = allItems.filter(isTaskInProgress); title = filterLabel.progress; }
+      else if (filter === "done") { allItems = allItems.filter(isTaskDone); title = filterLabel.done; }
+      taskListPageTitleEl.textContent = `${role} · ${title}`;
+      const items = allItems;
+      fullTaskListEl.innerHTML = items.length ? items.map((item) => {
+        const progress = mapProgress(item.progress);
+        const roles = taskRoles(item);
+        return `<div class="full-task-row" data-file="${item.primary_filename || item.filename}">
+          <div class="task-title">${taskTitle(item)}</div>
+          <span class="badge type">${inferTaskType(item)}</span>
+          <span class="badge priority">${taskPriority(item)}</span>
+          <span class="badge">${roles.sender}</span>
+          <span class="badge">${roles.recipient}</span>
+          <span class="badge ${progress.cls}">${progress.text}</span>
+          <span class="full-task-time">${formatTaskTime(item)}</span>
+        </div>`;
+      }).join("") : `<div class="muted" style="text-align:center;padding:20px;">${t("noTask")}</div>`;
+      fullTaskListEl.querySelectorAll(".full-task-row").forEach((node) => {
+        node.onclick = () => openTaskDetailPage(node.dataset.file);
+      });
+      taskListPageEl.classList.add("open");
+    }
+
+    function closeTaskListPage() { taskListPageEl.classList.remove("open"); }
+
+    function openTaskDetailPage(filename) {
+      if (!filename) return;
+      const item = getTaskByFilename(filename);
+      if (!item) return;
+      const roles = taskRoles(item);
+      const progress = mapProgress(item.progress);
+      taskDetailPageTitleEl.textContent = currentLang === "en" ? "Task Detail" : "任务详情";
+      document.getElementById("fpDetailTaskId").textContent = item.task_id || "--";
+      document.getElementById("fpDetailFileName").textContent = item.filename || "--";
+      document.getElementById("fpDetailPriority").textContent = taskPriority(item);
+      document.getElementById("fpDetailType").textContent = inferTaskType(item);
+      document.getElementById("fpDetailSender").textContent = roles.sender;
+      document.getElementById("fpDetailRecipient").textContent = roles.recipient;
+      document.getElementById("fpDetailTime").textContent = item.time || item.created_at || "--";
+      document.getElementById("fpDetailStatus").textContent = progress.text;
+      document.getElementById("fpDetailFlow").textContent = `${roles.sender} -> ${roles.recipient}`;
+      const messages = Array.isArray(item.messages) ? item.messages : [];
+      document.getElementById("fpMessages").innerHTML = messages.map((m) => `
+        <div class="chat-item ${normalizeRole(m.sender) === "ADMIN" ? "mine" : ""}">
+          <div class="chat-meta">${normalizeRole(m.sender)} -> ${normalizeRole(m.recipient)} | ${m.time || ""}</div>
+          <div>${m.body || m.summary || ""}</div>
+        </div>
+      `).join("") || `<div class="muted">${currentLang === "en" ? "No records" : "暂无记录"}</div>`;
+      document.getElementById("fpMarkdown").textContent = detailMarkdownContent(item);
+      document.getElementById("fpMarkdownFile").textContent = currentLang === "en" ? `Source: ${item.filename || "--"}` : `关联文件：${item.filename || "--"}`;
+      fpViewMode = "record";
+      syncFpTabs();
+      taskDetailPageEl.classList.add("open");
+      requestTaskDetail(filename);
+    }
+
+    function closeTaskDetailPage() { taskDetailPageEl.classList.remove("open"); }
+
+    function syncFpTabs() {
+      fpRecordTabBtnEl.classList.toggle("active", fpViewMode === "record");
+      fpMarkdownTabBtnEl.classList.toggle("active", fpViewMode === "markdown");
+      fpRecordViewEl.classList.toggle("active", fpViewMode === "record");
+      fpMarkdownViewEl.classList.toggle("active", fpViewMode === "markdown");
+    }
+
+    taskListBackBtnEl.onclick = closeTaskListPage;
+    taskDetailBackBtnEl.onclick = closeTaskDetailPage;
+    fpRecordTabBtnEl.onclick = () => { fpViewMode = "record"; syncFpTabs(); };
+    fpMarkdownTabBtnEl.onclick = () => { fpViewMode = "markdown"; syncFpTabs(); };
+
+    document.querySelectorAll(".stat-btn[data-filter]").forEach((btn) => {
+      btn.onclick = () => openTaskListPage(btn.dataset.filter);
+    });
+
+    document.getElementById("taskSectionHead").onclick = () => openTaskListPage();
 
     const I18N = {
       zh: {
@@ -652,22 +914,22 @@
         todayReplies: "今日回复",
         inProgress: "进行中任务",
         replied: "已完成任务",
-        sendTitle: "发送文本",
-        sendDesc: "工作台默认只向 PM 投递任务文本；进入角色页并选中任务后，再查看该角色任务记录。",
+        sendTitle: "发送任务",
+        sendDesc: "选中团队角色后，任务将发送给该角色。",
         sendHint: "未选任务时，本次发送会直接立为新任务；已选任务时，则追加到该任务记录。",
-        send: "发送",
+        send: "发送任务",
         sending: "发送中...",
         priorityPlaceholder: "优先级",
-        messagePlaceholder: "输入任务内容，发送后立即出现在当前任务记录中",
+        messagePlaceholder: "输入任务内容...",
         currentTaskTitle: "当前任务",
         currentTaskEmpty: "请先在 PM 列表中勾选任务。",
         currentTaskBody: "ADMIN 入口负责发布与协调；其他角色统一经 PM 流转。",
         adminListTitle: "ADMIN任务",
         adminListDesc: "发布任务、协调团队、看整体进度。",
-        listTitle: "PM任务",
-        listDesc: "首页只展开 PM 任务；勾选后成为当前任务。",
+        listTitle: "任务清单",
+        listDesc: "默认显示 PM",
         detailTitle: "当前任务详情",
-        detailEmpty: "请选择 PM 任务查看详情。",
+        detailEmpty: "请选择任务查看详情。",
         detailNone: "未选择任务",
         detailRecordTitle: "任务记录 / MD原文",
         detailRecordTab: "任务记录",
@@ -683,16 +945,16 @@
         detailStatusLabel: "状态",
         detailFlowLabel: "流转路径",
         teamTitle: "我的团队",
-        teamDesc: "固定展示 PM / DEV / OPS / QA；点击上面角色，下方任务清单同步切换。",
+        teamDesc: "",
         roleDetailTitle: "角色任务",
         roleConversationTitle: "角色任务记录",
         roleTaskDetailTitle: "角色任务详情",
         roleTaskEmpty: "该角色暂无任务。",
         roleTaskHint: "请先点团队成员，再点该角色名下任务查看记录。",
         myTitle: "我的",
-        myDesc: "这里收口个人信息、部署说明、连接状态和系统日志。",
-        myDeviceTitle: "我的设备",
-        myDeviceDesc: "手机端不走手机号，首次使用通过绑定电脑进入专属工作台。",
+        myDesc: "配置、日志、语言、绑定设备、版本号都在这里。",
+        myDeviceTitle: "绑定设备",
+        myDeviceDesc: "手机扫 PC 端二维码完成绑定。",
         myDeviceNameLabel: "当前设备名",
         myDeviceIdLabel: "当前设备ID",
         myBindStatusLabel: "绑定状态",
@@ -700,10 +962,10 @@
         myBindStatusUnbound: "未绑定",
         myBindStatusBound: "已绑定",
         firstBindTitle: "首次绑定说明",
-        firstBindDesc: "首次使用时，由 PC 生成绑定码或二维码，手机扫码后经 PC 确认完成绑定。",
+        firstBindDesc: "任务+回复是一对。手机端发布任务，PC 端回执后形成完整记录。",
         firstBindStepsTitle: "首次使用步骤",
-        firstBindSteps: "1. 启动 PC 端\n2. 生成绑定码\n3. 手机打开 PWA\n4. 扫码或输入绑定码\n5. PC 确认后完成绑定",
-        deployTitle: "部署配置说明",
+        firstBindSteps: "1. PC 运行 bridgeflow run\n2. 浏览器自动打开仪表盘，显示二维码\n3. 手机打开 PWA → 点「我的」\n4. 点「📷 扫码绑定 PC」对准二维码\n5. 扫描成功，连接灯变绿，绑定完成",
+        deployTitle: "配置与版本",
         deployDesc: "中继、房间、自动连接等参数请由专业人员修改 config.js，普通用户仅查看说明。",
         connectTitle: "连接状态",
         logTitle: "系统日志",
@@ -731,7 +993,7 @@
         statusWaiting: "等待中",
         statusDone: "已完成",
         taskPanelTitle: "任务清单",
-        taskPanelDesc: "默认显示 PM 的任务+回复记录，点击角色后切换。",
+        taskPanelDesc: "默认显示 PM",
         teamBusy: "忙碌",
         teamIdle: "闲着",
         teamWaiting: "等待",
@@ -740,13 +1002,16 @@
         bindStatusPending: "待确认",
         noReplyYet: "暂无回复",
         latestReplyLabel: "最新回复",
-        deviceActionTitle: "执行机控制",
-        bindRead: "读取绑定",
-        bindRequest: "申请绑定码",
-        focusCursor: "聚焦 Cursor",
-        inspectAction: "巡检",
-        startWork: "开工",
-        viewLog: "查看日志"
+        taskListPageTitle: "任务列表",
+        taskDetailPageTitle: "任务详情",
+        back: "← 返回",
+        scanQrBtn: "📷 扫码绑定 PC",
+        scanQrTitle: "扫描 PC 端二维码",
+        sendBtnLabel: "发送任务",
+        fpFlowLabel: "流转路径",
+        fpRecordTab: "任务记录",
+        fpMarkdownTab: "MD原文",
+        myPageTitle: "我的"
       },
       en: {
         title: "BridgeFlow Workspace",
@@ -764,22 +1029,22 @@
         todayReplies: "Today Replies",
         inProgress: "In Progress",
         replied: "Replied",
-        sendTitle: "Send Task Text",
-        sendDesc: "The workspace sends task text to PM by default. Enter a role page and pick a task before viewing that role record.",
+        sendTitle: "Send Task",
+        sendDesc: "Tasks are sent to the selected team role.",
         sendHint: "Without a selected task, this send starts a new task. With one selected, it appends to that task record.",
-        send: "Send",
+        send: "Send Task",
         sending: "Sending...",
         priorityPlaceholder: "Priority",
-        messagePlaceholder: "Enter task content. It will appear in the current task record immediately.",
+        messagePlaceholder: "Enter task content...",
         currentTaskTitle: "Current Task",
         currentTaskEmpty: "Select a PM task first.",
         currentTaskBody: "Admin publishes and coordinates. Other roles flow through PM by default.",
         adminListTitle: "ADMIN Tasks",
         adminListDesc: "Publish tasks, coordinate people, and watch overall progress.",
-        listTitle: "PM Tasks",
-        listDesc: "Only PM tasks expand on the home page; checking one makes it the current task.",
+        listTitle: "Task Records",
+        listDesc: "PM by default",
         detailTitle: "Current Task Detail",
-        detailEmpty: "Select a PM task to view detail.",
+        detailEmpty: "Select a task to view detail.",
         detailNone: "No Task Selected",
         detailRecordTitle: "Task Record / MD Source",
         detailRecordTab: "Task Record",
@@ -795,7 +1060,7 @@
         detailStatusLabel: "Status",
         detailFlowLabel: "Flow Path",
         teamTitle: "My Team",
-        teamDesc: "Other roles stay off the home page. Pick a role, then pick a task to view its record.",
+        teamDesc: "",
         roleDetailTitle: "Role Tasks",
         roleConversationTitle: "Role Task Record",
         roleTaskDetailTitle: "Role Task Detail",
@@ -812,10 +1077,10 @@
         myBindStatusUnbound: "Unbound",
         myBindStatusBound: "Bound",
         firstBindTitle: "First-Time Binding",
-        firstBindDesc: "On first use, the PC generates a QR code or bind code. The phone scans it and the PC confirms the bind.",
+        firstBindDesc: "One task plus one reply forms one record. The phone publishes, and the PC sends the receipt.",
         firstBindStepsTitle: "First-Time Steps",
-        firstBindSteps: "1. Start BridgeFlow on PC\n2. Generate bind code\n3. Open PWA on phone\n4. Scan or enter bind code\n5. Confirm on PC",
-        deployTitle: "Deployment Note",
+        firstBindSteps: "1. Run 'bridgeflow run' on PC\n2. Browser opens dashboard with QR code\n3. Open PWA on phone → tap 'My'\n4. Tap '📷 Scan to Bind PC', aim at QR code\n5. Scan succeeds, light turns green, done",
+        deployTitle: "Config & Version",
         deployDesc: "Relay, room, and auto-connect should be edited by professionals in config.js. This page is read-only.",
         connectTitle: "Connection",
         logTitle: "System Log",
@@ -843,7 +1108,7 @@
         statusWaiting: "Waiting",
         statusDone: "Done",
         taskPanelTitle: "Task Records",
-        taskPanelDesc: "PM is shown by default. Switch role to change the paired task list.",
+        taskPanelDesc: "PM by default",
         teamBusy: "Busy",
         teamIdle: "Idle",
         teamWaiting: "Waiting",
@@ -852,13 +1117,16 @@
         bindStatusPending: "Pending",
         noReplyYet: "No reply yet",
         latestReplyLabel: "Latest Reply",
-        deviceActionTitle: "Desktop Control",
-        bindRead: "Read Bind",
-        bindRequest: "Request Bind Code",
-        focusCursor: "Focus Cursor",
-        inspectAction: "Inspect",
-        startWork: "Start Work",
-        viewLog: "View Log"
+        taskListPageTitle: "Task List",
+        taskDetailPageTitle: "Task Detail",
+        back: "← Back",
+        scanQrBtn: "📷 Scan to Bind PC",
+        scanQrTitle: "Scan PC QR Code",
+        sendBtnLabel: "Send Task",
+        fpFlowLabel: "Flow Path",
+        fpRecordTab: "Task Record",
+        fpMarkdownTab: "MD Source",
+        myPageTitle: "My"
       }
     };
 
@@ -905,7 +1173,6 @@
       setText("detailStatusLabel", t("detailStatusLabel"));
       setText("detailFlowLabel", t("detailFlowLabel"));
       setText("teamTitle", t("teamTitle"));
-      setText("teamDesc", t("teamDesc"));
       if (roleDetailTitleEl) roleDetailTitleEl.textContent = t("roleDetailTitle");
       setText("roleConversationTitle", t("roleConversationTitle"));
       setText("roleTaskDetailTitle", t("roleTaskDetailTitle"));
@@ -929,7 +1196,7 @@
       setText("myDeviceIdLabel", t("myDeviceIdLabel"));
       setText("myBindStatusLabel", t("myBindStatusLabel"));
       setText("myBoundPcLabel", t("myBoundPcLabel"));
-      setText("firstBindDesc", currentLang === "en" ? "One task plus one reply forms one record. The phone publishes, and the PC sends the receipt." : "任务+回复是一对。手机端发布任务，PC 端回执后形成完整记录。");
+      setText("firstBindDesc", t("firstBindDesc"));
       setText("firstBindStepsTitle", t("firstBindStepsTitle"));
       setText("firstBindSteps", t("firstBindSteps"));
       setText("deployTitle", t("deployTitle"));
@@ -938,17 +1205,20 @@
       setText("logTitle", t("logTitle"));
       setText("versionTitle", t("versionTitle"));
       setText("languageTitle", t("languageTitle"));
-      setText("deviceActionTitle", t("deviceActionTitle"));
-      setText("refreshBindBtn", t("bindRead"));
-      setText("bindCodeBtn", t("bindRequest"));
-      setText("focusCursorBtn", t("focusCursor"));
-      setText("inspectBtn", t("inspectAction"));
-      setText("startWorkBtn", t("startWork"));
-      setText("goLogBtn", t("viewLog"));
-      priorityEl.placeholder = t("priorityPlaceholder");
+      setText("taskListBackBtn", t("back"));
+      setText("taskDetailBackBtn", t("back"));
+      setText("myBackBtn", t("back"));
+      setText("myPageTitle", t("myPageTitle"));
+      setText("scanQrBtn", t("scanQrBtn"));
+      setText("scanQrTitle", t("scanQrTitle"));
+      setText("sendBtn", t("sendBtnLabel"));
+      setText("fpRecordTabBtn", t("fpRecordTab"));
+      setText("fpMarkdownTabBtn", t("fpMarkdownTab"));
+      setText("fpFlowTitle", t("fpFlowLabel"));
       messageEl.placeholder = t("messagePlaceholder");
       langZhBtnEl.classList.toggle("active", currentLang == "zh");
       langEnBtnEl.classList.toggle("active", currentLang == "en");
+      sendBtnEl.textContent = sendLocked ? t("sending") : t("sendBtnLabel");
       renderDeployInfo();
       renderMyDeviceInfo();
       renderTeam(onlineDevices, targetRoleEl.value);
@@ -1008,7 +1278,7 @@
 
     function setSendLocked(locked) {
       sendLocked = locked;
-      sendBtnEl.disabled = locked || !targetRoleEl.value;
+      sendBtnEl.disabled = locked;
       sendBtnEl.textContent = locked ? t("sending") : t("send");
     }
 
@@ -1018,26 +1288,17 @@
     }
 
     function clearReconnectTimer() {
-      if (reconnectTimer) {
-        clearTimeout(reconnectTimer);
-        reconnectTimer = null;
-      }
+      if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
     }
 
     function scheduleReconnect() {
-      if (!shouldReconnect || manualDisconnect) {
-        updateConnectInfo(currentLang === "en" ? "Idle" : "未启动");
-        return;
-      }
+      if (!shouldReconnect || manualDisconnect) { updateConnectInfo(currentLang === "en" ? "Idle" : "未启动"); return; }
       clearReconnectTimer();
       reconnectAttempts += 1;
       const delay = Math.min(12000, reconnectAttempts <= 1 ? 2000 : reconnectAttempts * 3000);
       updateConnectInfo(currentLang === "en" ? `Auto reconnect in ${Math.round(delay / 1000)}s (${reconnectAttempts})` : `${Math.round(delay / 1000)} 秒后自动重连（第 ${reconnectAttempts} 次）`);
       appendLog(currentLang === "en" ? `Connection closed, retry in ${Math.round(delay / 1000)}s` : `连接断开，${Math.round(delay / 1000)} 秒后自动重连`);
-      reconnectTimer = setTimeout(() => {
-        reconnectTimer = null;
-        connect(true);
-      }, delay);
+      reconnectTimer = setTimeout(() => { reconnectTimer = null; connect(true); }, delay);
     }
 
     function decodeCloseReason(event) {
@@ -1052,32 +1313,23 @@
 
     async function applyVersionPolicy() {
       const savedVersion = localStorage.getItem("bridgeflow_pwa_version") || "";
-      if (savedVersion === APP_VERSION) {
-        return;
-      }
+      if (savedVersion === APP_VERSION) return;
       localStorage.setItem("bridgeflow_pwa_version", APP_VERSION);
       appendLog(savedVersion ? `检测到新版本 ${APP_VERSION}，正在刷新页面资源` : `当前版本 ${APP_VERSION}`);
       if ("caches" in window) {
         const keys = await caches.keys();
         await Promise.all(keys.filter((key) => key.startsWith("bridgeflow-pwa-") && key !== `bridgeflow-pwa-${APP_VERSION}`).map((key) => caches.delete(key)));
       }
-      if (savedVersion) {
-        setTimeout(() => window.location.reload(), 300);
-      }
+      if (savedVersion) setTimeout(() => window.location.reload(), 300);
     }
 
     async function registerServiceWorker() {
-      if (!("serviceWorker" in navigator)) {
-        appendLog("当前浏览器不支持离线缓存");
-        return;
-      }
+      if (!("serviceWorker" in navigator)) { appendLog("当前浏览器不支持离线缓存"); return; }
       try {
         const registration = await navigator.serviceWorker.register("./sw.js");
         await registration.update();
         appendLog("PWA 缓存服务已启用");
-      } catch (error) {
-        appendLog(`PWA 缓存启用失败: ${error.message}`);
-      }
+      } catch (error) { appendLog(`PWA 缓存启用失败: ${error.message}`); }
     }
 
     function updateMeta() {
@@ -1113,15 +1365,15 @@
 
     function mapProgress(progress) {
       const value = String(progress || "");
-      if (/已完成|已回复|done/i.test(value)) return { text: t("statusDone"), cls: "status-done" };
-      if (/等待|wait/i.test(value)) return { text: t("statusWaiting"), cls: "status-waiting" };
+      if (/已完成|已回复|done|replied|completed/i.test(value)) return { text: t("statusDone"), cls: "status-done" };
+      if (/等待|wait|pending/i.test(value)) return { text: t("statusWaiting"), cls: "status-waiting" };
       if (/接收|received/i.test(value)) return { text: t("statusReceived"), cls: "status-received" };
-      if (/执行|处理中|doing|progress/i.test(value)) return { text: t("statusDoing"), cls: "status-doing" };
+      if (/执行|处理中|doing|progress|in_progress/i.test(value)) return { text: t("statusDoing"), cls: "status-doing" };
       return { text: t("statusPublished"), cls: "status-published" };
     }
 
     function taskTitle(item) {
-      const raw = String(item.summary || item.body || item.task_id || "未命名任务").trim();
+      const raw = String(item.summary || item.body || item.task_id || (currentLang === "en" ? "Untitled" : "未命名任务")).trim();
       return raw.length > 26 ? `${raw.slice(0, 26)}...` : raw;
     }
 
@@ -1130,20 +1382,12 @@
     }
 
     function taskRoles(item) {
-      return {
-        sender: normalizeRole(item.sender),
-        recipient: normalizeRole(item.recipient),
-        owner: normalizeRole(item.owner_role || item.recipient)
-      };
+      return { sender: normalizeRole(item.sender), recipient: normalizeRole(item.recipient), owner: normalizeRole(item.owner_role || item.recipient) };
     }
 
-    function formatTaskTime(item) {
-      return item.time || item.created_at || item.updated_at || "";
-    }
+    function formatTaskTime(item) { return item.time || item.created_at || item.updated_at || ""; }
 
-    function fixedTeamRoles() {
-      return ["PM", "DEV", "OPS", "QA"];
-    }
+    function fixedTeamRoles() { return ["PM", "DEV", "QA", "OPS"]; }
 
     function buildTaskRecords(items) {
       const grouped = new Map();
@@ -1154,7 +1398,7 @@
       });
       return Array.from(grouped.values()).map((messages) => {
         const ordered = [...messages].sort((a, b) => String(formatTaskTime(a)).localeCompare(String(formatTaskTime(b))));
-        const task = ordered.find((item) => /任务/i.test(String(item.type || "")) || normalizeRole(item.sender) === "ADMIN") || ordered[0];
+        const task = ordered.find((item) => /任务|task/i.test(String(item.type || "")) || normalizeRole(item.sender) === "ADMIN") || ordered[0];
         const reply = [...ordered].reverse().find((item) => item !== task && normalizeRole(item.sender) !== "ADMIN") || null;
         const lastItem = ordered[ordered.length - 1] || task;
         return {
@@ -1189,21 +1433,7 @@
 
     function renderWorkspaceRoleStrip() {
       if (!workspaceRoleStripEl) return;
-      workspaceRoleStripEl.innerHTML = fixedTeamRoles().map((role) => {
-        const state = roleStateInfo(role);
-        return `<div class="role-card team-icon-card ${selectedRole === role ? "active" : ""}" data-role="${role}"><div class="team-icon">${role}</div><div class="team-role-name">${role}</div><div class="team-role-state"><span class="badge ${state.cls}">${state.text}</span></div></div>`;
-      }).join("");
-      workspaceRoleStripEl.querySelectorAll("[data-role]").forEach((node) => {
-        node.onclick = () => {
-          selectedRole = node.dataset.role || "PM";
-          localStorage.setItem("bridgeflow_selected_role", selectedRole);
-          renderWorkspaceRoleStrip();
-          renderTaskList();
-          renderTeam(onlineDevices, targetRoleEl.value);
-          renderRolePanel();
-          refreshTargetOptions();
-        };
-      });
+      workspaceRoleStripEl.innerHTML = "";
     }
 
     function syncTabs() {
@@ -1220,7 +1450,6 @@
     function setActiveTab(tab) {
       currentTab = tab;
       syncTabs();
-      if (typeof renderWorkspaceRoleStrip === "function") renderWorkspaceRoleStrip();
       renderRolePanel();
     }
 
@@ -1235,41 +1464,33 @@
       roleMarkdownViewEl.classList.toggle("active", roleDetailViewMode === "markdown");
     }
 
-    function setDetailView(mode) {
-      detailViewMode = mode;
-      localStorage.setItem("bridgeflow_detail_view", mode);
-      syncDetailTabs();
-    }
-
-    function setRoleDetailView(mode) {
-      roleDetailViewMode = mode;
-      localStorage.setItem("bridgeflow_role_detail_view", mode);
-      syncDetailTabs();
-    }
+    function setDetailView(mode) { detailViewMode = mode; localStorage.setItem("bridgeflow_detail_view", mode); syncDetailTabs(); }
+    function setRoleDetailView(mode) { roleDetailViewMode = mode; localStorage.setItem("bridgeflow_role_detail_view", mode); syncDetailTabs(); }
 
     function preferredContextRole() {
-      if (selectedRole && selectedRole !== "ADMIN") {
-        return selectedRole;
-      }
+      if (selectedRole && selectedRole !== "ADMIN") return selectedRole;
       return "PM";
     }
 
     function refreshTargetOptions() {
-      const preferredRole = preferredContextRole();
-      const filtered = onlineDevices.filter((item) => normalizeRole(item.owner_role) === preferredRole);
-      const candidates = filtered.length ? filtered : onlineDevices;
+      const roles = fixedTeamRoles();
+      const current = selectedRole || "PM";
       const savedDeviceId = localStorage.getItem("bridgeflow_target_device_id") || "";
-      targetRoleEl.innerHTML = candidates.map((item) => `<option value="${item.device_id}">${item.owner_role || "Unknown"} / ${item.device_name || item.device_id}</option>`).join("");
-      if (candidates.some((item) => item.device_id === savedDeviceId)) {
-        targetRoleEl.value = savedDeviceId;
-      } else if (candidates.length) {
-        targetRoleEl.value = candidates[0].device_id;
+      if (onlineDevices.length) {
+        const preferredRole = preferredContextRole();
+        const filtered = onlineDevices.filter((item) => normalizeRole(item.owner_role) === preferredRole);
+        const candidates = filtered.length ? filtered : onlineDevices;
+        targetRoleEl.innerHTML = candidates.map((item) => `<option value="${item.device_id}">${item.owner_role || "Unknown"} / ${item.device_name || item.device_id}</option>`).join("");
+        if (candidates.some((item) => item.device_id === savedDeviceId)) {
+          targetRoleEl.value = savedDeviceId;
+        } else if (candidates.length) {
+          targetRoleEl.value = candidates[0].device_id;
+        }
       } else {
-        targetRoleEl.value = "";
+        targetRoleEl.innerHTML = roles.map((r) => `<option value="${r}">${r}</option>`).join("");
+        targetRoleEl.value = current;
       }
-      if (targetRoleEl.value) {
-        localStorage.setItem("bridgeflow_target_device_id", targetRoleEl.value);
-      }
+      if (targetRoleEl.value) localStorage.setItem("bridgeflow_target_device_id", targetRoleEl.value);
       setSendLocked(sendLocked);
       updateMeta();
     }
@@ -1277,77 +1498,59 @@
     function renderTaskCollection(listEl, items, emptyText, scope) {
       if (!listEl) return;
       if (!items.length) {
-        listEl.innerHTML = `<div class='muted'>${emptyText}</div>`;
+        listEl.innerHTML = `<div class='muted' style="text-align:center;padding:12px;">${emptyText}</div>`;
         return;
       }
       listEl.innerHTML = items.map((item) => {
         const progress = mapProgress(item.progress);
         const active = selectedFilename === item.filename;
         const roles = taskRoles(item);
-        const replySummary = item.latest_reply_summary || t("noReplyYet");
         return `
           <div class="task-card ${active ? "active" : ""}" data-file="${item.primary_filename || item.filename}" data-scope="${scope}">
             <div class="task-head">
-              <div class="task-left">
-                <span class="task-check ${active ? "active" : ""}">${active ? "✓" : ""}</span>
-                <div class="task-title">${taskTitle(item)}</div>
-              </div>
-              <div class="muted">${formatTaskTime(item)}</div>
+              <div class="task-title">${taskTitle(item)}</div>
+              <div class="muted" style="font-size:10px;white-space:nowrap;">${formatTaskTime(item)}</div>
             </div>
             <div class="task-meta">
-              <span class="badge priority">${taskPriority(item)}</span>
               <span class="badge type">${inferTaskType(item)}</span>
+              <span class="badge priority">${taskPriority(item)}</span>
+              <span class="badge">${roles.sender} → ${roles.recipient}</span>
               <span class="badge ${progress.cls}">${progress.text}</span>
             </div>
-            <div class="task-line">${roles.sender} -> ${roles.recipient}</div>
-            <div class="pair-summary">${t("latestReplyLabel")}：${replySummary}</div>
           </div>
         `;
       }).join("");
       listEl.querySelectorAll(".task-card").forEach((node) => {
-        node.onclick = () => {
-          const file = node.dataset.file || "";
-          selectedFilename = file;
-          if (scope === "role") {
-            renderRolePanel();
-          } else {
-            renderTaskList();
-          }
-          requestTaskDetail(file);
-        };
+        node.onclick = () => openTaskListPage();
       });
     }
 
     function renderTaskList() {
       const items = tasksForRole(selectedRole || "PM");
-      renderTaskCollection(taskListEl, items, t("noTask"), "workspace");
+      const display = items.slice(0, 2);
+      renderTaskCollection(taskListEl, display, t("noTask"), "workspace");
+      const listDescEl = document.getElementById("listDesc");
+      if (listDescEl) listDescEl.textContent = `${selectedRole || "PM"} · ${items.length} ${currentLang === "en" ? "tasks" : "条"}`;
       updateCurrentTaskSummary();
     }
 
     function renderDevices(devices) {
       onlineDevices = Array.isArray(devices) ? devices : [];
       refreshTargetOptions();
-      renderWorkspaceRoleStrip();
       renderTeam(onlineDevices, targetRoleEl.value);
     }
 
     function renderTeam(devices, currentTarget) {
       const safeDevices = Array.isArray(devices) ? devices : [];
       const roles = fixedTeamRoles();
-      teamCountEl.textContent = currentLang === "en" ? `${roles.length} roles` : `${roles.length} 个角色`;
+      teamCountEl.textContent = currentLang === "en" ? `${roles.length} roles` : `${roles.length} 人`;
       teamListEl.innerHTML = roles.map((role) => {
-        const roleItems = tasksForRole(role);
-        const hasOnline = safeDevices.some((item) => normalizeRole(item.owner_role) === role);
         const state = roleStateInfo(role);
+        const roleItems = tasksForRole(role);
         return `
           <div class="role-card team-icon-card ${selectedRole === role ? "active" : ""}" data-role="${role}">
             <div class="team-icon">${role}</div>
-            <div class="team-role-name">${role}</div>
-            <div class="team-role-state"><span class="badge ${state.cls}">${state.text}</span></div>
-            <div class="role-stats">
-              <span class="role-stat">${currentLang === "en" ? "Tasks" : "任务"}: ${roleItems.length}</span>
-              <span class="role-stat">${currentLang === "en" ? "Online" : "在线"}: ${hasOnline ? 1 : 0}</span>
-            </div>
+            <div class="team-role-state"><span class="badge ${state.cls}">${state.text}</span> <span style="font-size:9px;color:var(--text3);">${roleItems.length}</span></div>
           </div>
         `;
       }).join("");
@@ -1355,11 +1558,10 @@
         node.onclick = () => {
           selectedRole = node.dataset.role || "PM";
           localStorage.setItem("bridgeflow_selected_role", selectedRole);
-          setActiveTab("team");
-          renderWorkspaceRoleStrip();
           renderTeam(onlineDevices, currentTarget);
           renderTaskList();
           renderRolePanel();
+          refreshTargetOptions();
         };
       });
     }
@@ -1374,11 +1576,7 @@
 
     function mergeDashboardItems(serverItems) {
       pendingItems = pendingItems.filter((pending) => {
-        return !serverItems.some((item) =>
-          item.thread_key === pending.thread_key &&
-          item.summary === pending.summary &&
-          item.recipient === pending.recipient
-        );
+        return !serverItems.some((item) => item.thread_key === pending.thread_key && item.summary === pending.summary && item.recipient === pending.recipient);
       });
       taskItems = [...pendingItems, ...serverItems];
       taskRecords = buildTaskRecords(taskItems);
@@ -1390,7 +1588,6 @@
       document.getElementById("todayReplies").textContent = String(payload.stats?.today_replies || 0);
       document.getElementById("inProgressThreads").textContent = String(payload.stats?.in_progress_threads || 0);
       document.getElementById("repliedThreads").textContent = String(payload.stats?.replied_threads || 0);
-      renderWorkspaceRoleStrip();
       renderTaskList();
       renderTeam(onlineDevices, targetRoleEl.value);
       renderRolePanel();
@@ -1405,18 +1602,9 @@
     function addPendingTask(text, recipient, threadKey) {
       const filename = `LOCAL-${Date.now()}`;
       const item = {
-        task_id: `TASK-${Date.now()}`,
-        filename,
-        type: "任务",
-        time: formatNow(),
-        progress: "已发布",
-        sender: "ADMIN",
-        recipient,
-        owner_role: recipient,
-        thread_key: threadKey || "",
-        summary: text,
-        priority: priorityEl.value.trim() || "P1",
-        task_type: inferTaskType({ summary: text })
+        task_id: `TASK-${Date.now()}`, filename, type: "任务", time: formatNow(), progress: "已发布",
+        sender: "ADMIN", recipient, owner_role: recipient, thread_key: threadKey || "",
+        summary: text, priority: priorityEl.value.trim() || "P1", task_type: inferTaskType({ summary: text })
       };
       pendingItems.unshift(item);
       taskItems = [...pendingItems, ...taskItems];
@@ -1424,30 +1612,8 @@
       renderTaskList();
       renderRolePanel();
       renderDetail({
-        task_id: item.task_id,
-        filename: item.filename,
-        type: item.type,
-        time: item.time,
-        progress: item.progress,
-        sender: item.sender,
-        recipient: item.recipient,
-        thread_key: item.thread_key,
-        summary: item.summary,
-        body: text,
-        priority: item.priority,
-        task_type: item.task_type,
-        messages: [
-          {
-            filename: item.filename,
-            sender: item.sender,
-            recipient,
-            time: item.time,
-            type: item.type,
-            summary: item.summary,
-            body: text,
-            task_type: item.task_type
-          }
-        ]
+        ...item, body: text,
+        messages: [{ filename: item.filename, sender: item.sender, recipient, time: item.time, type: item.type, summary: item.summary, body: text, task_type: item.task_type }]
       });
     }
 
@@ -1477,14 +1643,10 @@
         refs.meta.textContent = currentLang === "en" ? "Task detail not found" : "未找到该任务详情";
         refs.body.textContent = "";
         refs.messages.innerHTML = "";
-        refs.taskId.textContent = "--";
-        refs.fileName.textContent = "--";
-        refs.priority.textContent = "--";
-        refs.type.textContent = "--";
-        refs.sender.textContent = "--";
-        refs.recipient.textContent = "--";
-        refs.time.textContent = "--";
-        refs.status.textContent = "--";
+        refs.taskId.textContent = "--"; refs.fileName.textContent = "--";
+        refs.priority.textContent = "--"; refs.type.textContent = "--";
+        refs.sender.textContent = "--"; refs.recipient.textContent = "--";
+        refs.time.textContent = "--"; refs.status.textContent = "--";
         refs.flow.textContent = "--";
         refs.markdown.textContent = currentLang === "en" ? "Select a task to view MD source." : "请选择任务后查看 MD 原文。";
         refs.markdownFile.textContent = "";
@@ -1492,8 +1654,7 @@
       }
       const roles = taskRoles(detail);
       const progress = mapProgress(detail.progress);
-      const metaText = `${taskPriority(detail)} | ${inferTaskType(detail)} | ${roles.sender} -> ${roles.recipient} | ${progress.text} | ${detail.time || ""}`;
-      refs.meta.textContent = metaText;
+      refs.meta.textContent = `${taskPriority(detail)} | ${inferTaskType(detail)} | ${roles.sender} -> ${roles.recipient} | ${progress.text} | ${detail.time || ""}`;
       refs.taskId.textContent = detail.task_id || "--";
       refs.fileName.textContent = detail.filename || "--";
       refs.priority.textContent = taskPriority(detail);
@@ -1517,118 +1678,42 @@
 
     function renderDetail(detail) {
       if (!detail || !detail.filename) {
-        populateDetailFields(null, {
-          meta: detailMetaEl,
-          body: detailBodyEl,
-          messages: detailMessagesEl,
-          taskId: detailTaskIdEl,
-          fileName: detailFileNameEl,
-          priority: detailPriorityValueEl,
-          type: detailTypeValueEl,
-          sender: detailSenderValueEl,
-          recipient: detailRecipientValueEl,
-          time: detailTimeValueEl,
-          status: detailStatusValueEl,
-          flow: detailFlowValueEl,
-          markdown: detailMarkdownEl,
-          markdownFile: detailMarkdownFileEl
-        });
-        populateDetailFields(null, {
-          meta: roleConversationMetaEl,
-          body: roleConversationBodyEl,
-          messages: roleConversationMessagesEl,
-          taskId: roleDetailTaskIdEl,
-          fileName: roleDetailFileNameEl,
-          priority: roleDetailPriorityValueEl,
-          type: roleDetailTypeValueEl,
-          sender: roleDetailSenderValueEl,
-          recipient: roleDetailRecipientValueEl,
-          time: roleDetailTimeValueEl,
-          status: roleDetailStatusValueEl,
-          flow: roleDetailFlowValueEl,
-          markdown: roleMarkdownEl,
-          markdownFile: roleMarkdownFileEl
-        });
+        populateDetailFields(null, { meta: detailMetaEl, body: detailBodyEl, messages: detailMessagesEl, taskId: detailTaskIdEl, fileName: detailFileNameEl, priority: detailPriorityValueEl, type: detailTypeValueEl, sender: detailSenderValueEl, recipient: detailRecipientValueEl, time: detailTimeValueEl, status: detailStatusValueEl, flow: detailFlowValueEl, markdown: detailMarkdownEl, markdownFile: detailMarkdownFileEl });
+        populateDetailFields(null, { meta: roleConversationMetaEl, body: roleConversationBodyEl, messages: roleConversationMessagesEl, taskId: roleDetailTaskIdEl, fileName: roleDetailFileNameEl, priority: roleDetailPriorityValueEl, type: roleDetailTypeValueEl, sender: roleDetailSenderValueEl, recipient: roleDetailRecipientValueEl, time: roleDetailTimeValueEl, status: roleDetailStatusValueEl, flow: roleDetailFlowValueEl, markdown: roleMarkdownEl, markdownFile: roleMarkdownFileEl });
         updateCurrentTaskSummary();
         return;
       }
-      populateDetailFields(detail, {
-        meta: detailMetaEl,
-        body: detailBodyEl,
-        messages: detailMessagesEl,
-        taskId: detailTaskIdEl,
-        fileName: detailFileNameEl,
-        priority: detailPriorityValueEl,
-        type: detailTypeValueEl,
-        sender: detailSenderValueEl,
-        recipient: detailRecipientValueEl,
-        time: detailTimeValueEl,
-        status: detailStatusValueEl,
-        flow: detailFlowValueEl,
-        markdown: detailMarkdownEl,
-        markdownFile: detailMarkdownFileEl
-      });
-      populateDetailFields(detail, {
-        meta: roleConversationMetaEl,
-        body: roleConversationBodyEl,
-        messages: roleConversationMessagesEl,
-        taskId: roleDetailTaskIdEl,
-        fileName: roleDetailFileNameEl,
-        priority: roleDetailPriorityValueEl,
-        type: roleDetailTypeValueEl,
-        sender: roleDetailSenderValueEl,
-        recipient: roleDetailRecipientValueEl,
-        time: roleDetailTimeValueEl,
-        status: roleDetailStatusValueEl,
-        flow: roleDetailFlowValueEl,
-        markdown: roleMarkdownEl,
-        markdownFile: roleMarkdownFileEl
-      });
-      if (detail.thread_key) {
-        threadKeyEl.value = detail.thread_key;
-        localStorage.setItem("bridgeflow_last_thread", detail.thread_key);
-      }
+      populateDetailFields(detail, { meta: detailMetaEl, body: detailBodyEl, messages: detailMessagesEl, taskId: detailTaskIdEl, fileName: detailFileNameEl, priority: detailPriorityValueEl, type: detailTypeValueEl, sender: detailSenderValueEl, recipient: detailRecipientValueEl, time: detailTimeValueEl, status: detailStatusValueEl, flow: detailFlowValueEl, markdown: detailMarkdownEl, markdownFile: detailMarkdownFileEl });
+      populateDetailFields(detail, { meta: roleConversationMetaEl, body: roleConversationBodyEl, messages: roleConversationMessagesEl, taskId: roleDetailTaskIdEl, fileName: roleDetailFileNameEl, priority: roleDetailPriorityValueEl, type: roleDetailTypeValueEl, sender: roleDetailSenderValueEl, recipient: roleDetailRecipientValueEl, time: roleDetailTimeValueEl, status: roleDetailStatusValueEl, flow: roleDetailFlowValueEl, markdown: roleMarkdownEl, markdownFile: roleMarkdownFileEl });
+      if (detail.thread_key) { threadKeyEl.value = detail.thread_key; localStorage.setItem("bridgeflow_last_thread", detail.thread_key); }
       updateMeta();
       updateCurrentTaskSummary(detail);
     }
 
     function sendEvent(eventType, payload) {
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
-        appendLog("尚未连接中继");
-        return false;
-      }
-      ws.send(JSON.stringify({
-        room_key: ROOM_KEY,
-        sender: "ADMIN01",
-        client_type: "mobile_admin",
-        event_type: eventType,
-        payload: payload || {}
-      }));
+      if (!ws || ws.readyState !== WebSocket.OPEN) { appendLog("尚未连接中继"); return false; }
+      ws.send(JSON.stringify({ room_key: ROOM_KEY, sender: "ADMIN01", client_type: "mobile_admin", event_type: eventType, payload: payload || {} }));
       return true;
     }
 
     function requestDashboard() {
       const target = currentTargetDevice() || onlineDevices.find((item) => normalizeRole(item.owner_role) === preferredContextRole()) || onlineDevices[0];
-      if (!target) {
-        appendLog("暂无可用设备，无法刷新任务");
-        return;
-      }
+      if (!target) { appendLog("暂无可用设备，无法刷新任务"); return; }
       sendEvent("request_dashboard", { target_device_id: target.device_id });
     }
 
     function requestTaskDetail(filename) {
       if (!filename) return;
       const target = currentTargetDevice() || onlineDevices.find((item) => normalizeRole(item.owner_role) === preferredContextRole()) || onlineDevices[0];
-      if (!target) {
-        appendLog("暂无可用设备，无法获取详情");
+      if (target) {
+        sendEvent("request_task_detail", { filename, target_device_id: target.device_id });
         return;
       }
-      sendEvent("request_task_detail", { filename, target_device_id: target.device_id });
+      const local = taskItems.find((item) => item.filename === filename);
+      if (local) renderDetail(local);
     }
 
-    function requestDeviceRoster() {
-      sendEvent("request_device_roster", {});
-    }
+    function requestDeviceRoster() { sendEvent("request_device_roster", {}); }
 
     function requestBindState() {
       const target = currentTargetDevice() || onlineDevices[0];
@@ -1638,30 +1723,19 @@
 
     function requestBindCode() {
       const target = currentTargetDevice() || onlineDevices[0];
-      if (!target) {
-        appendLog("暂无可用设备，无法申请绑定码");
-        return;
-      }
+      if (!target) { appendLog("暂无可用设备，无法申请绑定码"); return; }
       sendEvent("request_bind_code", { target_device_id: target.device_id, mobile_device_id: localMobileDeviceId, mobile_device_name: `${currentLang === "en" ? "Mobile" : "手机"} / ${navigator.platform || "Unknown"}` });
     }
 
     function sendDesktopAction(action) {
       const target = currentTargetDevice() || onlineDevices[0];
-      if (!target) {
-        appendLog("暂无可用设备，无法执行动作");
-        return;
-      }
+      if (!target) { appendLog("暂无可用设备，无法执行动作"); return; }
       sendEvent("execute_desktop_action", { action, target_device_id: target.device_id });
     }
 
     function disconnect() {
-      manualDisconnect = true;
-      shouldReconnect = false;
-      clearReconnectTimer();
-      if (ws) {
-        ws.close(1000, "manual_disconnect");
-        ws = null;
-      }
+      manualDisconnect = true; shouldReconnect = false; clearReconnectTimer();
+      if (ws) { ws.close(1000, "manual_disconnect"); ws = null; }
       updateStatus(t("disconnected"), "status-warn");
       lastDisconnectedAt = formatStamp();
       lastDisconnectReason = currentLang === "en" ? "Manual disconnect" : "手动断开";
@@ -1671,89 +1745,45 @@
     function connect(isReconnect = false) {
       if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
         appendLog("连接已存在，无需重复连接");
-        if (ws.readyState === WebSocket.OPEN) {
-          requestDashboard();
-        }
+        if (ws.readyState === WebSocket.OPEN) requestDashboard();
         return;
       }
-      manualDisconnect = false;
-      shouldReconnect = true;
-      clearReconnectTimer();
+      manualDisconnect = false; shouldReconnect = true; clearReconnectTimer();
       updateConnectInfo(isReconnect ? (currentLang === "en" ? "Reconnecting" : "正在重新连接") : (currentLang === "en" ? "Connecting" : "正在连接"));
       updateMeta();
-
       ws = new WebSocket(RELAY_URL);
       updateStatus(t("connecting"), "status-warn");
-
       ws.onopen = () => {
-        reconnectAttempts = 0;
-        lastConnectedAt = formatStamp();
+        reconnectAttempts = 0; lastConnectedAt = formatStamp();
         updateStatus(t("connected"), "status-ok");
         appendLog(currentLang === "en" ? "Connected to relay" : "已连接到中继");
         updateConnectInfo(t("connected"));
         sendEvent("hello", { role: "ADMIN01", device_name: t("mobile"), owner_role: "ADMIN01" });
-        requestDeviceRoster();
-        requestDashboard();
+        requestDeviceRoster(); requestDashboard();
       };
-
       ws.onmessage = (event) => {
         let data = null;
-        try {
-          data = JSON.parse(event.data);
-        } catch (error) {
-          appendLog(`收到无法解析的消息: ${error.message}`);
-          return;
-        }
+        try { data = JSON.parse(event.data); } catch (error) { appendLog(`收到无法解析的消息: ${error.message}`); return; }
         appendLog(`收到事件: ${data.event_type}`);
-        if (data.event_type === "dashboard_state") {
-          applyDashboard(data.payload || {});
-        } else if (data.event_type === "device_roster") {
-          renderDevices(data.payload?.devices || []);
-          if (currentTargetDevice()) {
-            requestDashboard();
-          }
-        } else if (data.event_type === "task_detail") {
-          renderDetail(data.payload || {});
-        } else if (data.event_type === "task_event") {
-          if (data.payload.thread_key) {
-            threadKeyEl.value = data.payload.thread_key;
-            localStorage.setItem("bridgeflow_last_thread", data.payload.thread_key);
-          }
-          setSendLocked(false);
-          requestDashboard();
-        } else if (data.event_type === "bind_state") {
-          bindState = data.payload || {};
-          renderMyDeviceInfo();
-          if (data.payload?.pending_bind_code) appendLog(`绑定码: ${data.payload.pending_bind_code}`);
-        } else if (data.event_type === "desktop_action_result") {
-          appendLog(`执行动作: ${data.payload?.message || ""}`);
-        } else if (data.event_type === "reply_summary") {
-          if (data.payload.thread_key) {
-            threadKeyEl.value = data.payload.thread_key;
-            localStorage.setItem("bridgeflow_last_thread", data.payload.thread_key);
-          }
-          requestDashboard();
-        } else if (data.event_type === "pong") {
-          appendLog("收到 pong");
-        } else if (data.event_type === "alert") {
-          appendLog(`告警: ${data.payload.message}`);
-        }
+        if (data.event_type === "dashboard_state") { applyDashboard(data.payload || {}); }
+        else if (data.event_type === "device_roster") { renderDevices(data.payload?.devices || []); if (currentTargetDevice()) requestDashboard(); }
+        else if (data.event_type === "task_detail") { renderDetail(data.payload || {}); }
+        else if (data.event_type === "task_event") { if (data.payload.thread_key) { threadKeyEl.value = data.payload.thread_key; localStorage.setItem("bridgeflow_last_thread", data.payload.thread_key); } setSendLocked(false); requestDashboard(); }
+        else if (data.event_type === "bind_state") { bindState = data.payload || {}; renderMyDeviceInfo(); if (data.payload?.pending_bind_code) appendLog(`绑定码: ${data.payload.pending_bind_code}`); }
+        else if (data.event_type === "desktop_action_result") { appendLog(`执行动作: ${data.payload?.message || ""}`); }
+        else if (data.event_type === "reply_summary") { if (data.payload.thread_key) { threadKeyEl.value = data.payload.thread_key; localStorage.setItem("bridgeflow_last_thread", data.payload.thread_key); } requestDashboard(); }
+        else if (data.event_type === "pong") { appendLog("收到 pong"); }
+        else if (data.event_type === "alert") { appendLog(`告警: ${data.payload.message}`); }
       };
-
       ws.onclose = (event) => {
         lastDisconnectedAt = formatStamp();
         lastDisconnectReason = manualDisconnect ? (currentLang === "en" ? "Manual disconnect" : "手动断开") : decodeCloseReason(event);
         updateStatus(manualDisconnect ? t("disconnected") : t("disconnectedWarn"), manualDisconnect ? "status-warn" : "status-bad");
         appendLog(currentLang === "en" ? `Connection closed: ${lastDisconnectReason}` : `连接已断开: ${lastDisconnectReason}`);
         ws = null;
-        if (manualDisconnect) {
-          updateConnectInfo(currentLang === "en" ? "Idle" : "未启动");
-          return;
-        }
-        updateConnectInfo();
-        scheduleReconnect();
+        if (manualDisconnect) { updateConnectInfo(currentLang === "en" ? "Idle" : "未启动"); return; }
+        updateConnectInfo(); scheduleReconnect();
       };
-
       ws.onerror = () => {
         updateStatus(t("connectError"), "status-bad");
         appendLog(currentLang === "en" ? "Connection error" : "连接异常");
@@ -1765,20 +1795,13 @@
       const text = messageEl.value.trim();
       if (!text || sendLocked) return;
       const target = currentTargetDevice();
-      if (!target) {
-        appendLog("请选择在线设备后再发送");
-        return;
-      }
+      if (!target) { appendLog("请选择在线设备后再发送"); return; }
       const currentThread = threadKeyEl.value.trim();
       const messageId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       setSendLocked(true);
       if (sendEvent("command_from_admin", {
-        text,
-        priority: priorityEl.value.trim() || "P1",
-        thread_key: currentThread,
-        target_role: target.owner_role,
-        target_device_id: target.device_id,
-        message_id: messageId
+        text, priority: priorityEl.value.trim() || "P1", thread_key: currentThread,
+        target_role: target.owner_role, target_device_id: target.device_id, message_id: messageId
       })) {
         localStorage.setItem("bridgeflow_target_device_id", target.device_id);
         addPendingTask(text, target.owner_role, currentThread);
@@ -1787,9 +1810,7 @@
         setTimeout(requestDashboard, 1200);
         setTimeout(requestDashboard, 3000);
         setTimeout(() => setSendLocked(false), 1200);
-      } else {
-        setSendLocked(false);
-      }
+      } else { setSendLocked(false); }
     }
 
     function newThread() {
@@ -1808,11 +1829,11 @@
     if (connectBtnEl) connectBtnEl.onclick = () => connect(false);
     if (disconnectBtnEl) disconnectBtnEl.onclick = disconnect;
     if (refreshBtnEl) refreshBtnEl.onclick = requestDashboard;
-    if (myQuickBtnEl) myQuickBtnEl.onclick = () => setActiveTab("my");
-    if (refreshBindBtnEl) refreshBindBtnEl.onclick = requestBindState;
-    if (bindCodeBtnEl) bindCodeBtnEl.onclick = requestBindCode;
+    if (myQuickBtnEl) myQuickBtnEl.onclick = () => {
+      const mp = document.getElementById('myPage');
+      if (mp) { mp.classList.add('open'); renderMyDeviceInfo(); renderDeployInfo(); }
+    };
 
-    // 扫码绑定
     const scanQrBtn = document.getElementById('scanQrBtn');
     const qrScanModal = document.getElementById('qrScanModal');
     const qrScanClose = document.getElementById('qrScanClose');
@@ -1834,70 +1855,48 @@
         scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
         qrVideo.srcObject = scanStream;
         await qrVideo.play();
-        qrScanStatus.textContent = '对准 PC 端仪表盘的二维码';
-
-        // 动态加载 jsQR（带备用 CDN）
+        qrScanStatus.textContent = '正在加载识别库…';
         if (!window.jsQR) {
-          const cdns = [
-            'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js',
-            'https://unpkg.com/jsqr@1.4.0/dist/jsQR.min.js'
-          ];
+          const cdns = ['https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js', 'https://unpkg.com/jsqr@1.4.0/dist/jsQR.min.js', 'https://fastly.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js'];
           for (const cdn of cdns) {
-            try {
-              await new Promise((res, rej) => {
-                const s = document.createElement('script');
-                s.src = cdn; s.onload = res; s.onerror = rej;
-                document.head.appendChild(s);
-              });
-              if (window.jsQR) break;
-            } catch(e) {}
+            try { await new Promise((res, rej) => { const s = document.createElement('script'); s.src = cdn; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); if (window.jsQR) break; } catch(e) {}
           }
         }
-        if (!window.jsQR) {
-          qrScanStatus.textContent = '二维码库加载失败，请检查网络后重试';
-          return;
-        }
-
+        if (!window.jsQR) { qrScanStatus.textContent = '二维码识别库加载失败，请检查网络'; return; }
         const ctx = qrCanvas.getContext('2d');
         qrScanStatus.textContent = '对准 PC 浏览器里的二维码';
+        let frameCount = 0;
         scanTimer = setInterval(() => {
           if (qrVideo.readyState !== qrVideo.HAVE_ENOUGH_DATA) return;
-          qrCanvas.width = qrVideo.videoWidth;
-          qrCanvas.height = qrVideo.videoHeight;
+          qrCanvas.width = qrVideo.videoWidth; qrCanvas.height = qrVideo.videoHeight;
           ctx.drawImage(qrVideo, 0, 0);
           const img = ctx.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
-          const code = jsQR(img.data, img.width, img.height);
-          if (code && code.data.startsWith('bridgeflow://bind?')) {
-            stopScan();
-            const params = new URLSearchParams(code.data.replace('bridgeflow://bind?', ''));
-            const machineCode = params.get('machine_code') || '';
-            const deviceId = params.get('device_id') || '';
-            addLog('扫码成功：PC=' + deviceId + ' 机器码=' + machineCode);
-            qrScanStatus.textContent = '扫码成功！';
-            // 发起绑定请求（使用正确的 sendEvent 函数）
-            const ok = sendEvent('request_bind_code', {
-              target_device_id: deviceId,
-              mobile_device_id: myDeviceId || ('mobile-' + Date.now()),
-              mobile_device_name: navigator.userAgent.slice(0, 40)
-            });
-            if (ok) {
-              alert('扫码成功！\nPC设备：' + deviceId + '\n绑定请求已发送，等待 PC 确认。');
+          const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+          frameCount++;
+          if (frameCount % 10 === 0) { qrScanStatus.textContent = '扫描中… (' + frameCount + ' frames)'; }
+          if (code) {
+            const raw = code.data || '';
+            if (raw.startsWith('bridgeflow://bind?')) {
+              stopScan();
+              const params = new URLSearchParams(raw.replace('bridgeflow://bind?', ''));
+              const machineCode = params.get('machine_code') || '';
+              const deviceId = params.get('device_id') || '';
+              appendLog('扫码成功：PC=' + deviceId + ' 机器码=' + machineCode);
+              qrScanStatus.textContent = '扫码成功！';
+              const ok = sendEvent('request_bind_code', { target_device_id: deviceId, mobile_device_id: localMobileDeviceId, mobile_device_name: `${currentLang === "en" ? "Mobile" : "手机"} / ${navigator.platform || "Unknown"}` });
+              if (ok) { alert('扫码成功！\nPC设备：' + deviceId + '\n绑定请求已发送，等待 PC 确认。'); }
+              else { alert('扫码成功，但未连接中继。\n请先确保手机已连接，再重试绑定。\n机器码：' + machineCode); }
             } else {
-              alert('扫码成功，但未连接中继。\n请先确保手机已连接，再重试绑定。\n机器码：' + machineCode);
+              qrScanStatus.textContent = '检测到二维码，但不是 BridgeFlow 码';
+              appendLog('检测到非BF二维码: ' + raw.substring(0, 60));
             }
           }
-        }, 300);
-      } catch(e) {
-        qrScanStatus.textContent = '摄像头启动失败：' + e.message;
-      }
+        }, 200);
+      } catch(e) { qrScanStatus.textContent = '摄像头启动失败：' + e.message; }
     }
 
     if (scanQrBtn) scanQrBtn.onclick = startScan;
     if (qrScanClose) qrScanClose.onclick = stopScan;
-    if (focusCursorBtnEl) focusCursorBtnEl.onclick = () => sendDesktopAction("focus_cursor");
-    if (inspectBtnEl) inspectBtnEl.onclick = () => sendDesktopAction("inspect");
-    if (startWorkBtnEl) startWorkBtnEl.onclick = () => sendDesktopAction("start_work");
-    if (goLogBtnEl) goLogBtnEl.onclick = () => setActiveTab("my");
     document.getElementById("sendBtn").onclick = sendMessage;
     if (newThreadBtnEl) newThreadBtnEl.onclick = newThread;
     detailRecordTabBtnEl.onclick = () => setDetailView("record");
@@ -1907,25 +1906,13 @@
     tabWorkspaceBtnEl.onclick = () => setActiveTab("workspace");
     tabTeamBtnEl.onclick = () => setActiveTab("team");
     tabMyBtnEl.onclick = () => setActiveTab("my");
-    langZhBtnEl.onclick = () => {
-      currentLang = "zh";
-      localStorage.setItem("bridgeflow_lang", currentLang);
-      applyLanguage();
-    };
-    langEnBtnEl.onclick = () => {
-      currentLang = "en";
-      localStorage.setItem("bridgeflow_lang", currentLang);
-      applyLanguage();
-    };
-    targetRoleEl.onchange = () => {
-      localStorage.setItem("bridgeflow_target_device_id", targetRoleEl.value);
-      renderTeam(onlineDevices, targetRoleEl.value);
-      updateMeta();
-      requestDashboard();
-    };
+    langZhBtnEl.onclick = () => { currentLang = "zh"; localStorage.setItem("bridgeflow_lang", currentLang); applyLanguage(); };
+    langEnBtnEl.onclick = () => { currentLang = "en"; localStorage.setItem("bridgeflow_lang", currentLang); applyLanguage(); };
+    targetRoleEl.onchange = () => { localStorage.setItem("bridgeflow_target_device_id", targetRoleEl.value); renderTeam(onlineDevices, targetRoleEl.value); updateMeta(); requestDashboard(); };
     threadKeyEl.oninput = updateMeta;
     renderDevices([]);
     syncTabs();
+
     applyLanguage();
     syncDetailTabs();
     updateStatus(t("notConnected"), "status-warn");
@@ -1933,26 +1920,14 @@
     updateMeta();
     renderRolePanel();
 
-    // ── 我的页面：打开/关闭 ──
-    const myPageEl = document.getElementById('myPage');
     const myBackBtnEl = document.getElementById('myBackBtn');
-    if (myQuickBtnEl && myPageEl) {
-      myQuickBtnEl.addEventListener('click', () => {
-        myPageEl.classList.add('open');
-        renderMyDeviceInfo();
-        renderDeployInfo();
-      });
+    if (myBackBtnEl) {
+      myBackBtnEl.addEventListener('click', () => { const mp = document.getElementById('myPage'); if (mp) mp.classList.remove('open'); });
     }
-    if (myBackBtnEl && myPageEl) {
-      myBackBtnEl.addEventListener('click', () => myPageEl.classList.remove('open'));
-    }
-    // taskDetailCard 点击任务后显示
     const taskDetailCardEl = document.getElementById('taskDetailCard');
 
     applyVersionPolicy().then(registerServiceWorker);
-    if (AUTO_CONNECT) {
-      connect();
-    }
+    if (AUTO_CONNECT) connect();
   </script>
 </body>
 </html>
