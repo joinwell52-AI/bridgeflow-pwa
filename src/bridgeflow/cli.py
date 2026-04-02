@@ -243,7 +243,7 @@ def _make_launcher(project_root: Path, config_path: Path) -> None:
     system = platform.system()
 
     if system == "Windows":
-        bat = project_root / "启动BridgeFlow.bat"
+        bat = project_root / "start.bat"
         bat.write_text(
             "@echo off\n"
             "chcp 65001 > nul\n"
@@ -263,9 +263,9 @@ def _make_launcher(project_root: Path, config_path: Path) -> None:
             encoding="utf-8",
         )
         print(f"  已生成启动脚本：{bat}")
-        print(f"  ★ 下次直接双击 【启动BridgeFlow.bat】 即可，无需敲命令")
+        print(f"  ★ 下次直接双击 【start.bat】 即可启动，无需敲命令")
     else:
-        sh = project_root / "start_bridgeflow.sh"
+        sh = project_root / "start.sh"
         sh.write_text(
             "#!/bin/bash\n"
             "pip install --upgrade bridgeflow -q 2>/dev/null\n"
@@ -278,7 +278,7 @@ def _make_launcher(project_root: Path, config_path: Path) -> None:
         except Exception:
             pass
         print(f"  已生成启动脚本：{sh}")
-        print(f"  ★ 下次直接运行 bash start_bridgeflow.sh 即可")
+        print(f"  ★ 下次直接运行 bash start.sh 即可启动")
 
 
 def cmd_run(args: argparse.Namespace) -> int:

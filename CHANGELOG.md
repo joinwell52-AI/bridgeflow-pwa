@@ -21,7 +21,7 @@ BridgeFlow 版本历史，遵循 [语义化版本](https://semver.org/lang/zh-CN
 - 房间号嵌入 QR 二维码，手机扫码后自动同步，无需手填
 - 启动横幅增加房间号显示
 - init 完成后提示"手机扫描二维码可自动同步房间号"
-- `scripts/一键安装启动.bat`（Windows）/ `scripts/一键安装启动.sh`（macOS/Linux）：
+- `scripts/bfstart.bat`（Windows）/ `scripts/bfstart.sh`（macOS/Linux）：
   检查 Python → 安装 bridgeflow → 自动运行，双击一步到位
 
 ---
@@ -34,8 +34,8 @@ BridgeFlow 版本历史，遵循 [语义化版本](https://semver.org/lang/zh-CN
   - `--auto-upgrade` 参数：跳过确认直接升级（无人值守/脚本场景）
 - `bridgeflow run` 找不到配置文件时自动执行 `init`（无需手动两步操作）
 - `bridgeflow init` 自动生成双击启动脚本
-  - Windows：`启动BridgeFlow.bat`
-  - macOS / Linux：`start_bridgeflow.sh`
+  - Windows：`start.bat`
+  - macOS / Linux：`start.sh`
 - 启动横幅显示当前版本号（`v0.1.x`）
 - `bridgeflow init` 完成后打印当前版本号和升级命令
 - `__init__.py` 版本号修正为 `0.1.8`（之前误写为 `0.1.0`）
