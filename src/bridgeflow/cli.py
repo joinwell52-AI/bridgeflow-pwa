@@ -132,10 +132,12 @@ def cmd_init(args: argparse.Namespace) -> int:
             shutil.copy2(mdc, rules_dst / mdc.name)
         print(f"已安装 Cursor 规则：{rules_dst}")
 
+    from bridgeflow import __version__
     print(f"已生成配置：{target}")
     print(f"设备ID：{config.device_id}")
     print(f"机器码：{config.machine_code}")
     print(f"运行态目录：{config.runtime_dir}")
+    print(f"当前版本：v{__version__}  （升级：pip install --upgrade bridgeflow）")
     return 0
 
 
@@ -221,14 +223,16 @@ def cmd_relay_connect(args: argparse.Namespace) -> int:
 
 def cmd_run(args: argparse.Namespace) -> int:
     import webbrowser
+    from bridgeflow import __version__
     from bridgeflow.dashboard.server import DASHBOARD_PORT, start_dashboard, update_status
     from bridgeflow.env_check import check_env
+    from bridgeflow.version_check import check_update_async
 
     config = load_config(args.config)
 
     # 环境检测
     print("=" * 52)
-    print("  BridgeFlow PC 执行机")
+    print(f"  BridgeFlow PC 执行机  v{__version__}")
     print("=" * 52)
     env = check_env()
     print(f"  操作系统  : {env.os_name} {env.os_version[:30]}")
@@ -238,6 +242,9 @@ def cmd_run(args: argparse.Namespace) -> int:
     print(f"  机器码    : {config.machine_code}")
     print(f"  中继      : {config.relay_url}")
     print("=" * 52)
+
+    # 后台检查是否有新版本（非阻塞，最多等 0.3s 让提示在横幅后打印）
+    check_update_async(runtime_dir=config.runtime_dir)
 
     # 启动本地仪表盘
     start_dashboard(config)
