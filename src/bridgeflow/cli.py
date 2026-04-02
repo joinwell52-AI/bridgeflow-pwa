@@ -319,6 +319,27 @@ def cmd_run(args: argparse.Namespace) -> int:
     print(f"  房间号    : {config.room_key}")
     print("=" * 52)
 
+    # ── Cursor 未安装：警告并询问是否继续 ────────────────────────────────────
+    if not env.cursor_installed:
+        print()
+        print("  ╔═════════════════════════════════════════════════╗")
+        print("  ║  ⚠️  未检测到 Cursor                            ║")
+        print("  ║                                                 ║")
+        print("  ║  BridgeFlow 依赖 Cursor 运行 AI 角色。          ║")
+        print("  ║  没有 Cursor，任务发出后将无人处理。            ║")
+        print("  ║                                                 ║")
+        print("  ║  请先安装：https://cursor.com                   ║")
+        print("  ╚═════════════════════════════════════════════════╝")
+        print()
+        try:
+            ans = input("  是否仍然继续启动（仅调试用）？[y/N] ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            ans = "n"
+        if ans not in ("y", "yes"):
+            print("  已退出。安装 Cursor 后重新运行。")
+            return 1
+        print()
+
     # ── 版本检查：有新版则交互询问，--auto-upgrade 则直接升级重启 ─────────────
     check_update_interactive(
         runtime_dir=config.runtime_dir,
