@@ -1,6 +1,12 @@
 # BridgeFlow
 
-`BridgeFlow` 是一套面向多 AI 角色团队的**人机协作桥接工具**。
+[![PyPI version](https://img.shields.io/pypi/v/bridgeflow.svg)](https://pypi.org/project/bridgeflow/)
+[![Python](https://img.shields.io/pypi/pyversions/bridgeflow.svg)](https://pypi.org/project/bridgeflow/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![PWA](https://img.shields.io/badge/PWA-GitHub%20Pages-green)](https://joinwell52-ai.github.io/bridgeflow-pwa/)
+[![GitHub](https://img.shields.io/badge/GitHub-joinwell52--ai%2FBridgeFlow-black)](https://github.com/joinwell52-ai/BridgeFlow)
+
+**BridgeFlow** 是一套面向多 AI 角色团队的**人机协作桥接工具**。
 
 手机是主控台，PC 是执行机，中继是文本传输层。  
 每一条消息都落成标准任务文件，不形成第二套聊天协议。
@@ -23,10 +29,10 @@
 ## 快速开始（PC 端）
 
 ```powershell
-# 1. 安装
+# 1. 安装（来自 PyPI）
 pip install bridgeflow
 
-# 2. 初始化（生成配置 + 复制 Cursor 规则文件）
+# 2. 初始化（生成配置 + 复制 Cursor 规则文件到 .cursor/rules/）
 bridgeflow init
 
 # 3. 启动（自动打开浏览器仪表盘 localhost:18765）
@@ -43,6 +49,8 @@ bridgeflow run
 ## 手机端 PWA
 
 **访问地址：** https://joinwell52-ai.github.io/bridgeflow-pwa/
+
+> 用手机浏览器打开，点"添加到主屏幕"即可像 App 一样使用。
 
 页面布局（v1.6.0）：
 
@@ -64,12 +72,23 @@ bridgeflow run
 
 ---
 
+## 发布渠道
+
+| 渠道 | 地址 | 说明 |
+|------|------|------|
+| **PyPI** | https://pypi.org/project/bridgeflow/ | PC 端 Python 包 |
+| **GitHub** | https://github.com/joinwell52-ai/BridgeFlow | 源码仓库 |
+| **GitHub Pages (PWA)** | https://joinwell52-ai.github.io/bridgeflow-pwa/ | 手机端 PWA |
+
+---
+
 ## 目录结构
 
 ```text
 BridgeFlow/
-├── pyproject.toml               # Python 包配置（当前版本 0.1.8）
+├── pyproject.toml               # Python 包配置
 ├── README.md                    # 本文件
+├── CHANGELOG.md                 # 版本历史
 │
 ├── src/bridgeflow/              # Python 包源码
 │   ├── cli.py                   # CLI 入口（init / run / write-* / bind-*）
@@ -89,50 +108,51 @@ BridgeFlow/
 │   └── data/
 │       ├── bridgeflow_config.json   # 默认配置模板
 │       └── rules/
-│           ├── admin-human-bridge.mdc  # ADMIN01 Cursor 规则
-│           ├── pm-bridge.mdc           # PM01 Cursor 规则
-│           ├── dev-bridge.mdc          # DEV01 Cursor 规则
-│           ├── ops-bridge.mdc          # OPS01 Cursor 规则
-│           └── qa-bridge.mdc           # QA01 Cursor 规则
+│           ├── admin-human-bridge.mdc
+│           ├── pm-bridge.mdc
+│           ├── dev-bridge.mdc
+│           ├── ops-bridge.mdc
+│           └── qa-bridge.mdc
 │
 ├── web/pwa/                     # 手机端 PWA 源码
-│   ├── index.html               # 主页面（v1.6.0，单页 App 布局）
+│   ├── index.html               # 主页面（v1.6.0）
 │   ├── config.js                # 前端配置（中继地址/房间/版本）
 │   ├── sw.js                    # Service Worker（离线缓存）
 │   └── manifest.json            # PWA 清单
 │
-├── bridgeflow-pwa/              # GitHub Pages 部署目录（git submodule）
-│   └── ...                      # 与 web/pwa/ 同步后推送
+├── .github/
+│   └── workflows/
+│       ├── publish.yml          # tag 触发 → 自动发布到 PyPI
+│       └── deploy-pwa.yml       # main 推送 → 自动部署 PWA 到 GitHub Pages
 │
 ├── docs/
-│   ├── 产品设计说明.md           # 产品定位与设计原则
-│   ├── 联调启动说明.md           # 本地开发联调步骤
-│   ├── BridgeFlow-PC执行机落地说明.md  # PC 端能力详解
-│   ├── 公网部署说明.md           # 中继公网部署（已集成到 saige-ai）
-│   ├── PyPI发布说明.md          # PyPI 发布操作
+│   ├── 产品设计说明.md
+│   ├── 联调启动说明.md
+│   ├── BridgeFlow-PC执行机落地说明.md
+│   ├── 公网部署说明.md
+│   ├── PyPI发布说明.md
+│   ├── GitHub发布说明.md        # GitHub 仓库 + Pages + 分支策略
 │   └── agents/
-│       ├── README.md            # Agent 文件结构协议
-│       ├── ADMIN-01.md          # 真人角色 ADMIN01
-│       ├── PM-01.md             # 项目经理角色
-│       ├── DEV-01.md            # 开发工程师角色
-│       ├── OPS-01.md            # 运维工程师角色
-│       ├── QA-01.md             # 测试工程师角色
-│       ├── tasks/               # 任务文件目录
-│       ├── reports/             # 回执文件目录
-│       ├── log/                 # 日志归档
+│       ├── README.md
+│       ├── ADMIN-01.md          # 真人角色
+│       ├── PM-01.md / DEV-01.md / OPS-01.md / QA-01.md
+│       ├── tasks/               # 任务文件
+│       ├── reports/             # 回执文件
+│       ├── log/                 # 日志
 │       └── issues/              # 问题记录
 │
 ├── server/relay/
-│   └── server.py                # 独立中继服务（本地联调用）
-│                                # 公网已集成到 saige-ai FastAPI 后端
-├── .cursor/rules/
-│   └── admin-human-bridge.mdc   # 项目级 Cursor 规则
+│   └── server.py                # 本地联调用独立中继
 │
-├── _smoke_test/                 # 烟雾测试目录
-│   └── bridgeflow_config.json
+├── .cursor/rules/               # Cursor AI 规则（bridgeflow init 自动复制）
+│   ├── bridgeflow-project.mdc   # 项目总规范
+│   ├── admin-human-bridge.mdc
+│   ├── pm-bridge.mdc
+│   ├── dev-bridge.mdc
+│   ├── ops-bridge.mdc
+│   └── qa-bridge.mdc
 │
-└── scripts/
-    └── deploy_public_relay.py   # 公网中继部署脚本
+└── _smoke_test/                 # 本地烟雾测试目录
 ```
 
 ---
@@ -148,23 +168,6 @@ BridgeFlow/
 
 ---
 
-## 默认配置
-
-`bridgeflow init` 生成的 `bridgeflow_config.json` 默认使用：
-
-```json
-{
-  "relay": {
-    "url": "wss://ai.chedian.cc/bridgeflow/ws/",
-    "room_key": "bridgeflow-default"
-  }
-}
-```
-
-生产环境建议把 `room_key` 改成自己的随机房间名，避免与其他用户共用同一房间。
-
----
-
 ## CLI 命令速查
 
 ```powershell
@@ -175,7 +178,7 @@ bridgeflow write-admin-task --text "请 PM 安排下一步"
 bridgeflow write-reply --sender PM01 --text "已接单" --thread-key "xxx"
 
 bridgeflow bind-status             # 查看绑定状态
-bridgeflow bind-code               # 生成绑定码（PC 端确认用）
+bridgeflow bind-code               # 生成绑定码（手动绑定备用方案）
 bridgeflow approve-bind --code A1B2 --mobile-device-id mobile-xxx
 bridgeflow unbind                  # 解除绑定
 
@@ -204,10 +207,6 @@ bridgeflow desktop-action --action start_work
 TASK-YYYYMMDD-序号-发送方-to-接收方.md
 ```
 
-示例：
-- `TASK-20260401-001-ADMIN01-to-PM01.md`
-- `TASK-20260401-002-PM01-to-ADMIN01.md`
-
 每个文件包含标准元数据头：
 
 ```yaml
@@ -231,16 +230,13 @@ created_at: 2026-04-01 12:30:00
 - PC 端负责桥接、巡检、文件生成
 - 中继只传文本 JSON，不落盘、不执行、不传大文件
 - 每条消息必须文件化，不形成第二套聊天协议
-- 角色与显示名分离，支持后续 `PM/CTO` 等别名扩展
+- 角色与显示名分离，支持后续扩展
 
 ---
 
-## 命名约定
+## 贡献与发布
 
-| 名称 | 含义 |
-|------|------|
-| `BridgeFlow` | 应用名 |
-| `agent_bridge` | 文件协作协议名 |
-| `bridgeflow` | Python 包名 / CLI 命令 |
-| `ADMIN01` | 真人操作角色（手机端） |
-| `PM01/DEV01/OPS01/QA01` | AI 执行角色（PC 端） |
+- 源码：[github.com/joinwell52-ai/BridgeFlow](https://github.com/joinwell52-ai/BridgeFlow)
+- 版本历史：[CHANGELOG.md](CHANGELOG.md)
+- PyPI 发布说明：[docs/PyPI发布说明.md](docs/PyPI发布说明.md)
+- GitHub 发布说明：[docs/GitHub发布说明.md](docs/GitHub发布说明.md)

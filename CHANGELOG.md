@@ -4,13 +4,30 @@ BridgeFlow 版本历史，遵循 [语义化版本](https://semver.org/lang/zh-CN
 
 ---
 
-## [0.1.8] - 2026-03-xx
+## [Unreleased]
+
+### 计划中
+- GitHub Actions CI/CD（已配置 `.github/workflows/`）
+- PyPI 正式上传（准备中）
+- PWA GitHub Pages 自动部署
+
+---
+
+## [0.1.8] - 2026-03-21
 
 ### 新增
 - 服务端二维码生成（`segno` 库），本地仪表盘直接展示 QR 图片
 - 二维码内容为 deep link（`bridgeflow://bind?...`），包含中继地址/机器码/房间/设备 ID
-- 手机端 PWA 扫码功能（`jsQR`，双 CDN 备用）
+- 手机端 PWA 扫码功能（`jsQR`，双 CDN 备用：`cdn.jsdelivr.net` + `unpkg.com`）
 - 扫码后自动解析参数并发送绑定请求
+- 全部角色 `.mdc` 规则文件补全至 `.cursor/rules/`
+- 项目独立化：`D:\BridgeFlow` 作为独立 Git 仓库
+- `pyproject.toml` 添加 GitHub/PyPI/文档 URLs
+- `README.md` 添加 PyPI/GitHub 徽章
+- 新增 `docs/GitHub发布说明.md`
+- 完善 `docs/PyPI发布说明.md`（含 GitHub Actions 流程）
+- 新增 `.github/workflows/publish.yml`（tag 触发自动发布 PyPI）
+- 新增 `.github/workflows/deploy-pwa.yml`（main 推送自动部署 PWA）
 
 ### 修复
 - 扫码绑定：`sendMsg` 错误调用改为正确的 `sendEvent`
@@ -18,7 +35,7 @@ BridgeFlow 版本历史，遵循 [语义化版本](https://semver.org/lang/zh-CN
 
 ---
 
-## [0.1.7] - 2026-03-xx
+## [0.1.7] - 2026-03-17
 
 ### 新增
 - Windows 注册表检测 Cursor 安装路径（`winreg` 模块）
@@ -29,7 +46,7 @@ BridgeFlow 版本历史，遵循 [语义化版本](https://semver.org/lang/zh-CN
 
 ---
 
-## [0.1.6] - 2026-03-xx
+## [0.1.6] - 2026-03-15
 
 ### 新增
 - 本地 HTTP 仪表盘（`localhost:18765`）
@@ -39,7 +56,7 @@ BridgeFlow 版本历史，遵循 [语义化版本](https://semver.org/lang/zh-CN
 
 ---
 
-## [0.1.5] - 2026-03-xx
+## [0.1.5] - 2026-03-12
 
 ### 修复
 - `bridgeflow run` 连接状态回调，不再静默失败
@@ -47,7 +64,7 @@ BridgeFlow 版本历史，遵循 [语义化版本](https://semver.org/lang/zh-CN
 
 ---
 
-## [0.1.4] - 2026-03-xx
+## [0.1.4] - 2026-03-10
 
 ### 新增
 - `bridgeflow run` 启动横幅（OS / Python / Cursor 检测 / 设备 ID / 机器码）
@@ -55,7 +72,7 @@ BridgeFlow 版本历史，遵循 [语义化版本](https://semver.org/lang/zh-CN
 
 ---
 
-## [0.1.3] - 2026-03-xx
+## [0.1.3] - 2026-03-08
 
 ### 新增
 - `bridgeflow init` 自动复制 `.cursor/rules/` 规则文件（5 个角色）
@@ -63,7 +80,7 @@ BridgeFlow 版本历史，遵循 [语义化版本](https://semver.org/lang/zh-CN
 
 ---
 
-## [0.1.2] - 2026-03-xx
+## [0.1.2] - 2026-03-06
 
 ### 修复
 - `bridgeflow init` 从已安装包的 `data/` 目录正确读取 `bridgeflow_config.json`
@@ -71,14 +88,14 @@ BridgeFlow 版本历史，遵循 [语义化版本](https://semver.org/lang/zh-CN
 
 ---
 
-## [0.1.1] - 2026-03-xx
+## [0.1.1] - 2026-03-04
 
 ### 修复
 - 包数据文件路径修正（`data/*.json`、`data/rules/*.mdc`）
 
 ---
 
-## [0.1.0] - 2026-03-xx
+## [0.1.0] - 2026-03-01
 
 ### 初版发布
 - Python CLI：`bridgeflow init` / `run` / `write-admin-task` / `write-reply`

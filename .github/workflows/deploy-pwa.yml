@@ -1,0 +1,30 @@
+name: 部署 PWA 到 GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "web/pwa/**"
+
+jobs:
+  deploy-pwa:
+    name: 同步 PWA 到 bridgeflow-pwa 仓库
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v4
+
+      - name: 部署到 bridgeflow-pwa 仓库
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          # 需要在 Settings → Secrets 中添加 PAGES_DEPLOY_TOKEN
+          # Token 为 Personal Access Token（classic），勾选 repo 权限
+          personal_token: ${{ secrets.PAGES_DEPLOY_TOKEN }}
+          external_repository: joinwell52-ai/bridgeflow-pwa
+          publish_branch: main
+          publish_dir: ./web/pwa
+          commit_message: "deploy: ${{ github.event.head_commit.message }}"
+          user_name: "github-actions[bot]"
+          user_email: "github-actions[bot]@users.noreply.github.com"
