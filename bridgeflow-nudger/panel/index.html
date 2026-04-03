@@ -509,6 +509,7 @@ function fetchStatus(){
       $('btnStart').innerHTML=t('btn_start');$('btnStart').disabled=false;
       $('btnStop').disabled=true;
     }
+    if(d.version)$('ver').textContent='PC v'+d.version;
     if(d.team_name)$('teamName').textContent=d.team_name;
     if(d.roles)$('teamRoles').textContent=d.roles.map(r=>r.code).join(' / ');
     if(d.room_key){$('roomKey').textContent=d.room_key;renderQR(d.relay_url||'',d.room_key);}

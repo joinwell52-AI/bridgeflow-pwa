@@ -380,6 +380,8 @@ class PanelHandler(BaseHTTPRequestHandler):
             else:
                 status["need_setup"] = True
         status["panel_time"] = datetime.now().strftime("%H:%M:%S")
+        from main import VERSION
+        status["version"] = VERSION
         self._json(status)
 
     def _api_preflight(self):
