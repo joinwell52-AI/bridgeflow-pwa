@@ -553,7 +553,7 @@ class PanelHandler(BaseHTTPRequestHandler):
             "roles": [{"code": r["code"], "label": r["label"]} for r in tmpl["roles"]],
             "leader": tmpl["leader"],
             "room_key": room_key,
-            "relay_url": "wss://ai.chedian.cc/relay/",
+            "relay_url": "wss://ai.chedian.cc/bridgeflow/ws/",
             "lang": "zh",
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "devices": [],

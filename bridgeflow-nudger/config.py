@@ -10,7 +10,7 @@ from pathlib import Path
 @dataclass
 class NudgerConfig:
     project_dir: Path = field(default_factory=lambda: Path.cwd())
-    relay_url: str = "ws://127.0.0.1:5252"
+    relay_url: str = "wss://ai.chedian.cc/bridgeflow/ws/"
     room_key: str = ""
     device_id: str = "bridgeflow-nudger"
     poll_interval: float = 2.0
