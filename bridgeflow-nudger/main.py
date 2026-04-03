@@ -178,9 +178,23 @@ def main():
         project_dir = select_project_dir()
 
     if not project_dir:
-        logger.error("未选择项目目录，退出")
-        input("按回车键退出...")
-        sys.exit(1)
+        logger.info("未选择项目目录，启动面板引导配置")
+        from config import NudgerConfig
+        from web_panel import start_panel
+        config = NudgerConfig()
+        start_panel(None, start_nudger, stop_nudger)
+        url = "http://127.0.0.1:18765"
+        logger.info("面板地址: %s", url)
+        try:
+            webbrowser.open(url)
+        except Exception:
+            pass
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            pass
+        return
 
     project_dir = project_dir.resolve()
     save_config({"project_dir": str(project_dir)})
@@ -201,7 +215,13 @@ def main():
             if "room_key" in data:
                 config.room_key = data["room_key"]
             if "relay_url" in data:
-                config.relay_url = data["relay_url"]
+                url = data["relay_url"]
+                if "/relay/" in url:
+                    url = url.replace("/relay/", "/bridgeflow/ws/")
+                    data["relay_url"] = url
+                    bf_json.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+                    logger.info("已自动修正 relay_url: %s", url)
+                config.relay_url = url
             if "lang" in data:
                 config.lang = data["lang"]
             if "roles" in data and isinstance(data["roles"], list):

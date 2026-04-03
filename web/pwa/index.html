@@ -560,6 +560,7 @@
       </div>
       <div class="action-grid">
         <button id="scanQrBtn" type="button" style="grid-column:1/-1;background:var(--blue);border-color:rgba(96,165,250,.4);color:#fff;">📷 扫码绑定 PC</button>
+        <button id="unbindPcBtn" type="button" style="grid-column:1/-1;background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);color:#f87171;display:none;">解除绑定</button>
       </div>
     </div>
 
@@ -1043,6 +1044,7 @@
         taskDetailPageTitle: "任务详情",
         back: "← 返回",
         scanQrBtn: "📷 扫码绑定 PC",
+        unbindPcBtn: "解除绑定",
         scanQrTitle: "扫描 PC 端二维码",
         sendBtnLabel: "发送任务",
         fpFlowLabel: "流转路径",
@@ -1172,6 +1174,7 @@
         taskDetailPageTitle: "Task Detail",
         back: "← Back",
         scanQrBtn: "📷 Scan to Bind PC",
+        unbindPcBtn: "Unbind PC",
         scanQrTitle: "Scan PC QR Code",
         sendBtnLabel: "Send Task",
         fpFlowLabel: "Flow Path",
@@ -1274,6 +1277,7 @@
       setText("myBackBtn", t("back"));
       setText("myPageTitle", t("myPageTitle"));
       setText("scanQrBtn", t("scanQrBtn"));
+      setText("unbindPcBtn", t("unbindPcBtn"));
       setText("scanQrTitle", t("scanQrTitle"));
       setText("patrolTitle", t("patrolTitle"));
       setText("patrolDesc", t("patrolDesc"));
@@ -1398,6 +1402,20 @@
       myDeviceIdValueEl.textContent = localMobileDeviceId;
       myBindStatusValueEl.textContent = bindText;
       myBoundPcValueEl.textContent = boundPcCode ? `${boundPcName} / ${boundPcCode}` : "--";
+      const unbindBtn = document.getElementById("unbindPcBtn");
+      if (unbindBtn) {
+        unbindBtn.style.display = boundPcCode ? "block" : "none";
+        unbindBtn.textContent = t("unbindPcBtn");
+      }
+    }
+
+    function unbindPc() {
+      localStorage.removeItem("bridgeflow_bound_pc_code");
+      localStorage.removeItem("bridgeflow_bound_pc_name");
+      localStorage.removeItem("bridgeflow_room_key");
+      bindState = {};
+      renderMyDeviceInfo();
+      appendLog(currentLang === "en" ? "PC unbound" : "已解除绑定");
     }
 
     function setSendLocked(locked) {
@@ -1600,21 +1618,8 @@
     function refreshTargetOptions() {
       const roles = fixedTeamRoles();
       const current = selectedRole || "PM";
-      const savedDeviceId = localStorage.getItem("bridgeflow_target_device_id") || "";
-      if (onlineDevices.length) {
-        const preferredRole = preferredContextRole();
-        const filtered = onlineDevices.filter((item) => normalizeRole(item.owner_role) === preferredRole);
-        const candidates = filtered.length ? filtered : onlineDevices;
-        targetRoleEl.innerHTML = candidates.map((item) => `<option value="${item.device_id}">${item.owner_role || "Unknown"} / ${item.device_name || item.device_id}</option>`).join("");
-        if (candidates.some((item) => item.device_id === savedDeviceId)) {
-          targetRoleEl.value = savedDeviceId;
-        } else if (candidates.length) {
-          targetRoleEl.value = candidates[0].device_id;
-        }
-      } else {
-        targetRoleEl.innerHTML = roles.map((r) => `<option value="${r}">${r}</option>`).join("");
-        targetRoleEl.value = current;
-      }
+      targetRoleEl.innerHTML = roles.map((r) => `<option value="${r}">${r}</option>`).join("");
+      targetRoleEl.value = roles.includes(current) ? current : roles[0] || "PM";
       if (targetRoleEl.value) localStorage.setItem("bridgeflow_target_device_id", targetRoleEl.value);
       setSendLocked(sendLocked);
       updateMeta();
@@ -1861,6 +1866,8 @@
     const patrolRoundValue = document.getElementById("patrolRoundValue");
     const patrolLogBox = document.getElementById("patrolLogBox");
     let patrolPolling = null;
+    let rosterPolling = null;
+    let _pcWasOnline = false;
 
     function applyPatrolState(p) {
       if (!patrolStatusBadge) return;
@@ -1883,7 +1890,7 @@
       sendEvent("start_patrol", { target_device_id: did });
       appendLog(currentLang === "en" ? "Sent: Start Patrol" : "已发送: 开始巡检");
       addMsgRecord("pwa", currentLang === "en" ? "Start Patrol" : "开始巡检");
-      if (!patrolPolling) patrolPolling = setInterval(requestPatrolStatus, 8000);
+      if (!patrolPolling) patrolPolling = setInterval(requestPatrolStatus, 30000);
     }
     function requestPatrolStop() {
       const did = _pcDeviceId();
@@ -1969,23 +1976,38 @@
         updateConnectInfo(t("connected"));
         sendEvent("hello", { device_id: localMobileDeviceId, device_name: t("mobile"), owner_role: "ADMIN01" });
         requestDeviceRoster();
+        if (rosterPolling) clearInterval(rosterPolling);
+        rosterPolling = setInterval(requestDeviceRoster, 15000);
       };
+      const _silentEvents = new Set(["pong","patrol_state","dashboard_state","device_roster","bind_state"]);
       ws.onmessage = (event) => {
         let data = null;
         try { data = JSON.parse(event.data); } catch (error) { appendLog(`收到无法解析的消息: ${error.message}`); return; }
-        appendLog(`收到事件: ${data.event_type}`);
-        if (data.event_type === "dashboard_state") { applyDashboard(data.payload || {}); }
-        else if (data.event_type === "device_roster") {
+        const et = data.event_type;
+        if (!_silentEvents.has(et)) appendLog(`收到事件: ${et}`);
+        if (et === "dashboard_state") { applyDashboard(data.payload || {}); }
+        else if (et === "device_roster") {
           renderDevices(data.payload?.devices || []);
-          if (_pcDeviceId()) {
+          const pcNow = !!_pcDeviceId();
+          if (pcNow) {
+            if (!_pcWasOnline) appendLog(currentLang === "en" ? "PC online" : "PC 已上线");
+            _pcWasOnline = true;
             requestDashboard();
             requestPatrolStatus();
-            if (!patrolPolling) patrolPolling = setInterval(requestPatrolStatus, 8000);
+            if (!patrolPolling) patrolPolling = setInterval(requestPatrolStatus, 30000);
+          } else {
+            if (_pcWasOnline) {
+              appendLog(currentLang === "en" ? "PC went offline, polling stopped" : "PC 已离线，停止轮询");
+              addMsgRecord("sys", currentLang === "en" ? "PC offline" : "PC 已离线");
+            }
+            _pcWasOnline = false;
+            if (patrolPolling) { clearInterval(patrolPolling); patrolPolling = null; }
+            applyPatrolState({ running: false, round: 0, log: "" });
           }
         }
-        else if (data.event_type === "task_detail") { renderDetail(data.payload || {}); }
-        else if (data.event_type === "task_event") { if (data.payload.thread_key) { threadKeyEl.value = data.payload.thread_key; localStorage.setItem("bridgeflow_last_thread", data.payload.thread_key); } setSendLocked(false); requestDashboard(); }
-        else if (data.event_type === "bind_state") {
+        else if (et === "task_detail") { renderDetail(data.payload || {}); }
+        else if (et === "task_event") { if (data.payload.thread_key) { threadKeyEl.value = data.payload.thread_key; localStorage.setItem("bridgeflow_last_thread", data.payload.thread_key); } setSendLocked(false); requestDashboard(); }
+        else if (et === "bind_state") {
           bindState = data.payload || {};
           if (bindState.status === "bound" && bindState.machine_code) {
             localStorage.setItem("bridgeflow_bound_pc_code", bindState.machine_code);
@@ -1995,15 +2017,20 @@
           renderMyDeviceInfo();
           if (bindState.pending_bind_code) appendLog("绑定码: " + bindState.pending_bind_code);
         }
-        else if (data.event_type === "patrol_state") { applyPatrolState(data.payload || {}); }
-        else if (data.event_type === "desktop_action_result") { appendLog(`PC动作: ${data.payload?.message || ""}`); addMsgRecord("pc", data.payload?.message || "动作完成"); }
-        else if (data.event_type === "reply_summary") { addMsgRecord("pc", `回复: ${data.payload?.summary || ""}`); if (data.payload.thread_key) { threadKeyEl.value = data.payload.thread_key; localStorage.setItem("bridgeflow_last_thread", data.payload.thread_key); } requestDashboard(); }
-        else if (data.event_type === "pong") { }
-        else if (data.event_type === "alert") { appendLog(`告警: ${data.payload.message}`); addMsgRecord("pc", `告警: ${data.payload.message}`); }
+        else if (et === "patrol_state") { applyPatrolState(data.payload || {}); }
+        else if (et === "desktop_action_result") { appendLog(`PC动作: ${data.payload?.message || ""}`); addMsgRecord("pc", data.payload?.message || "动作完成"); }
+        else if (et === "reply_summary") { addMsgRecord("pc", `回复: ${data.payload?.summary || ""}`); if (data.payload.thread_key) { threadKeyEl.value = data.payload.thread_key; localStorage.setItem("bridgeflow_last_thread", data.payload.thread_key); } requestDashboard(); }
+        else if (et === "pong") { }
+        else if (et === "alert") {
+          const msg = data.payload?.message || "";
+          if (msg.includes("不支持的事件类型")) return;
+          appendLog(`告警: ${msg}`); addMsgRecord("pc", `告警: ${msg}`);
+        }
       };
       ws.onclose = (event) => {
-        onlineDevices = []; renderTeam([], "");
+        onlineDevices = []; renderTeam([], ""); _pcWasOnline = false;
         if (patrolPolling) { clearInterval(patrolPolling); patrolPolling = null; }
+        if (rosterPolling) { clearInterval(rosterPolling); rosterPolling = null; }
         applyPatrolState({ running: false, round: 0, log: "" });
         lastDisconnectedAt = formatStamp();
         lastDisconnectReason = manualDisconnect ? (currentLang === "en" ? "Manual disconnect" : "手动断开") : decodeCloseReason(event);
@@ -2023,18 +2050,18 @@
     function sendMessage() {
       const text = messageEl.value.trim();
       if (!text || sendLocked) return;
-      const target = currentTargetDevice();
-      if (!target) { appendLog("请选择在线设备后再发送"); return; }
+      const targetRole = targetRoleEl.value || "PM";
       const currentThread = threadKeyEl.value.trim();
       const messageId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const pcDevice = onlineDevices.find((d) => d.client_type !== "mobile_admin") || onlineDevices[0];
+      const targetDeviceId = pcDevice ? pcDevice.device_id : "";
       setSendLocked(true);
       if (sendEvent("command_from_admin", {
         text, priority: priorityEl.value.trim() || "P1", thread_key: currentThread,
-        target_role: target.owner_role, target_device_id: target.device_id, message_id: messageId
+        target_role: targetRole, target_device_id: targetDeviceId, message_id: messageId
       })) {
-        localStorage.setItem("bridgeflow_target_device_id", target.device_id);
-        addPendingTask(text, target.owner_role, currentThread);
-        addMsgRecord("pwa", `→${target.owner_role}: ${text.substring(0, 80)}`);
+        addPendingTask(text, targetRole, currentThread);
+        addMsgRecord("pwa", `→${targetRole}: ${text.substring(0, 80)}`);
         messageEl.value = "";
         requestDashboard();
         setTimeout(requestDashboard, 1200);
@@ -2171,6 +2198,8 @@
 
     if (scanQrBtn) scanQrBtn.onclick = startScan;
     if (qrScanClose) qrScanClose.onclick = stopScan;
+    const unbindPcBtnEl = document.getElementById("unbindPcBtn");
+    if (unbindPcBtnEl) unbindPcBtnEl.onclick = () => { if (confirm(currentLang === "en" ? "Unbind this PC?" : "确认解除绑定？")) unbindPc(); };
     document.getElementById("sendBtn").onclick = sendMessage;
     if (newThreadBtnEl) newThreadBtnEl.onclick = newThread;
     detailRecordTabBtnEl.onclick = () => setDetailView("record");

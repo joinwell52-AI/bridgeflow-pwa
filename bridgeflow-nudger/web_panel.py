@@ -28,6 +28,17 @@ if TYPE_CHECKING:
 logger = logging.getLogger("bridgeflow.panel")
 
 PANEL_PORT = 18765
+_VERSION = "1.2.0"
+
+
+def _get_version() -> str:
+    return _VERSION
+
+
+def _get_machine_code() -> str:
+    import platform, hashlib
+    raw = platform.node() + "-" + str(platform.machine())
+    return hashlib.md5(raw.encode()).hexdigest()[:12]
 
 _log_queue: queue.Queue[str] = queue.Queue(maxsize=500)
 _nudger_ref: Nudger | None = None
@@ -371,6 +382,8 @@ class PanelHandler(BaseHTTPRequestHandler):
             status["leader"] = cfg.get("leader", "")
             status["room_key"] = cfg.get("room_key", "")
             status["relay_url"] = cfg.get("relay_url", "")
+            status["device_id"] = _get_device_id()
+            status["machine_code"] = _get_machine_code()
         else:
             pd = _project_dir()
             if pd:
@@ -380,8 +393,13 @@ class PanelHandler(BaseHTTPRequestHandler):
             else:
                 status["need_setup"] = True
         status["panel_time"] = datetime.now().strftime("%H:%M:%S")
-        from main import VERSION
-        status["version"] = VERSION
+        status["version"] = _get_version()
+        if _nudger_ref and hasattr(_nudger_ref, 'config'):
+            status["device_id"] = _nudger_ref.config.device_id
+        else:
+            import platform
+            status["device_id"] = platform.node()
+        status["machine_code"] = _get_machine_code()
         self._json(status)
 
     def _api_preflight(self):

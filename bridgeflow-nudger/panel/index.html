@@ -192,7 +192,7 @@ a:hover{text-decoration:underline}
   <div class="header">
     <img src="logo-sm.png" alt="BF" onerror="this.style.display='none'">
     <div class="brand"><b>Bridge</b>Flow</div>
-    <span class="ver" id="ver">v1.0.0</span>
+    <span class="ver" id="ver">PC v1.2.0</span>
     <div class="header-right">
       <div class="hd-dot"><span class="dot off" id="dN"></span><span data-i18n="hd_nudger">巡检器</span></div>
       <div class="hd-dot"><span class="dot off" id="dC"></span>Cursor</div>
@@ -512,7 +512,7 @@ function fetchStatus(){
     if(d.version)$('ver').textContent='PC v'+d.version;
     if(d.team_name)$('teamName').textContent=d.team_name;
     if(d.roles)$('teamRoles').textContent=d.roles.map(r=>r.code).join(' / ');
-    if(d.room_key){$('roomKey').textContent=d.room_key;renderQR(d.relay_url||'',d.room_key);}
+    if(d.room_key){$('roomKey').textContent=d.room_key;renderQR(d.relay_url||'',d.room_key,d.machine_code||'',d.device_id||'');}
     if(d.relay_url)$('cfgRelay').textContent=d.relay_url;
   }).catch(()=>{});
 }
@@ -731,9 +731,9 @@ function connectSSE(){
 
 /* QR Code */
 let _lastQR='';
-function renderQR(relay,key){
+function renderQR(relay,key,mc,did){
   if(!key)return;
-  const data=JSON.stringify({relay:relay,room_key:key,type:'bridgeflow'});
+  const data='bf:'+(mc||'')+'|'+(did||'')+'|'+key;
   if(data===_lastQR)return;
   _lastQR=data;
   try{
