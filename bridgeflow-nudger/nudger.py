@@ -137,14 +137,17 @@ def parse_recipient(filename: str) -> str | None:
     return m.group(4).upper() if m else None
 
 
-def build_nudge_message(filename: str, directory: str) -> str:
+def build_nudge_message(filename: str, directory: str, recipient: str = "") -> str:
+    role_code = re.sub(r'\d+$', '', recipient.upper()) if recipient else ""
+    role_ref = f"@{role_code}.md " if role_code else ""
+
     if "tasks" in directory:
-        return f"[BridgeFlow] 新任务: {filename}，请调用 read_task 查看并执行"
+        return f"{role_ref}[BridgeFlow] 新任务: {filename}，请查看并执行"
     elif "reports" in directory:
-        return f"[BridgeFlow] 新报告: {filename}，请审核"
+        return f"{role_ref}[BridgeFlow] 新报告: {filename}，请审核"
     elif "issues" in directory:
-        return f"[BridgeFlow] 新问题: {filename}，请查看"
-    return f"[BridgeFlow] 新文件: {filename}"
+        return f"{role_ref}[BridgeFlow] 新问题: {filename}，请查看"
+    return f"{role_ref}[BridgeFlow] 新文件: {filename}"
 
 
 # ─── 文件监听 ─────────────────────────────────────────────
@@ -341,7 +344,7 @@ class Nudger:
                 continue
 
             win = find_cursor_window()
-            msg = build_nudge_message(filename, dir_name)
+            msg = build_nudge_message(filename, dir_name, recipient)
             nudged = False
 
             if win:
