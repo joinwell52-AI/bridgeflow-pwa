@@ -60,10 +60,26 @@ def find_cursor_window() -> tuple[int, str] | None:
 
 def focus_window(hwnd: int) -> bool:
     try:
+        import ctypes
+        user32 = ctypes.windll.user32
         if win32gui.IsIconic(hwnd):
             win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
             time.sleep(0.3)
-        win32gui.SetForegroundWindow(hwnd)
+        fg = user32.GetForegroundWindow()
+        fg_tid = user32.GetWindowThreadProcessId(fg, None)
+        cur_tid = user32.GetWindowThreadProcessId(hwnd, None)
+        if fg_tid != cur_tid:
+            user32.AttachThreadInput(fg_tid, cur_tid, True)
+        user32.BringWindowToTop(hwnd)
+        user32.ShowWindow(hwnd, 5)
+        VK_ALT = 0x12
+        KEYEVENTF_EXTENDEDKEY = 0x0001
+        KEYEVENTF_KEYUP = 0x0002
+        user32.keybd_event(VK_ALT, 0, KEYEVENTF_EXTENDEDKEY, 0)
+        user32.SetForegroundWindow(hwnd)
+        user32.keybd_event(VK_ALT, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0)
+        if fg_tid != cur_tid:
+            user32.AttachThreadInput(fg_tid, cur_tid, False)
         time.sleep(0.3)
         return True
     except Exception as e:

@@ -318,6 +318,7 @@ class PanelHandler(BaseHTTPRequestHandler):
             "/api/start": self._api_start,
             "/api/stop": self._api_stop,
             "/api/reset": self._api_reset,
+            "/api/quit": self._api_quit,
             "/api/setup": self._api_setup,
             "/api/config": self._api_config,
             "/api/regenerate_key": self._api_regenerate_key,
@@ -373,7 +374,11 @@ class PanelHandler(BaseHTTPRequestHandler):
                      "meipass": str(meipass), "files": files})
 
     def _api_status(self):
-        status = _nudger_ref.get_status() if _nudger_ref else {"running": False}
+        try:
+            status = _nudger_ref.get_status() if _nudger_ref else {"running": False}
+        except Exception as e:
+            logger.warning("get_status error: %s", e)
+            status = {"running": False}
         cfg = _load_bf_config()
         if cfg:
             status["team_name"] = cfg.get("team_name", "")
@@ -382,8 +387,6 @@ class PanelHandler(BaseHTTPRequestHandler):
             status["leader"] = cfg.get("leader", "")
             status["room_key"] = cfg.get("room_key", "")
             status["relay_url"] = cfg.get("relay_url", "")
-            status["device_id"] = _get_device_id()
-            status["machine_code"] = _get_machine_code()
         else:
             pd = _project_dir()
             if pd:
@@ -394,12 +397,8 @@ class PanelHandler(BaseHTTPRequestHandler):
                 status["need_setup"] = True
         status["panel_time"] = datetime.now().strftime("%H:%M:%S")
         status["version"] = _get_version()
-        if _nudger_ref and hasattr(_nudger_ref, 'config'):
-            status["device_id"] = _nudger_ref.config.device_id
-        else:
-            import platform
-            status["device_id"] = platform.node()
         status["machine_code"] = _get_machine_code()
+        status["device_id"] = _nudger_ref.config.device_id if _nudger_ref and hasattr(_nudger_ref, 'config') else __import__("platform").node()
         self._json(status)
 
     def _api_preflight(self):
@@ -536,6 +535,19 @@ class PanelHandler(BaseHTTPRequestHandler):
             self._json({"ok": True, "message": "巡检已停止"})
         else:
             self._json({"ok": False, "message": "回调未注册"}, 500)
+
+    def _api_quit(self):
+        if _stop_callback:
+            try:
+                _stop_callback()
+            except Exception:
+                pass
+        self._json({"ok": True, "message": "正在退出"})
+        import threading, os
+        def _shutdown():
+            time.sleep(0.8)
+            os._exit(0)
+        threading.Thread(target=_shutdown, daemon=True).start()
 
     def _api_reset(self):
         if _stop_callback:

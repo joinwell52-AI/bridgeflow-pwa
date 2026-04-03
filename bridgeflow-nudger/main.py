@@ -189,8 +189,14 @@ def main():
             webbrowser.open(url)
         except Exception:
             pass
+        import signal
+        _quit_flag_setup = False
+        def _on_quit_setup(signum, frame):
+            nonlocal _quit_flag_setup
+            _quit_flag_setup = True
+        signal.signal(signal.SIGTERM, _on_quit_setup)
         try:
-            while True:
+            while not _quit_flag_setup:
                 time.sleep(1)
         except KeyboardInterrupt:
             pass
@@ -269,13 +275,21 @@ def main():
 
     start_relay(config)
 
+    import signal
+    _quit_flag = False
+    def _on_quit(signum, frame):
+        nonlocal _quit_flag
+        _quit_flag = True
+    signal.signal(signal.SIGTERM, _on_quit)
+
     logger.info("BridgeFlow Desktop 运行中（Ctrl+C 退出）")
     try:
-        while True:
+        while not _quit_flag:
             time.sleep(1)
     except KeyboardInterrupt:
-        stop_nudger()
-        logger.info("BridgeFlow Desktop 已退出")
+        pass
+    stop_nudger()
+    logger.info("BridgeFlow Desktop 已退出")
 
 
 if __name__ == "__main__":

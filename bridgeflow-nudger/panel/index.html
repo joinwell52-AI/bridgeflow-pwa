@@ -211,6 +211,7 @@ a:hover{text-decoration:underline}
       <button class="btn" onclick="runPreflight()"><span data-i18n="btn_preflight">&#10003; 环境预检</span></button>
       <span style="flex:1"></span>
       <button class="btn red" onclick="doReset()"><span data-i18n="btn_reset">&#8635; 重置</span></button>
+      <button class="btn red" onclick="doQuit()" style="margin-left:6px"><span data-i18n="btn_quit">&#x23FB; 退出</span></button>
     </div>
   </div>
 
@@ -373,7 +374,7 @@ const I18N={
     hd_nudger:'巡检器', hd_relay:'中继',
     patrol_ctrl:'巡检控制',
     btn_start:'\u25B6 启动巡检', btn_start_running:'\u25CF 运行中',
-    btn_stop:'\u25A0 停止', btn_preflight:'\u2713 环境预检', btn_reset:'\u21BB 重置',
+    btn_stop:'\u25A0 停止', btn_preflight:'\u2713 环境预检', btn_reset:'\u21BB 重置', btn_quit:'\u23FB 退出',
     sec_preflight:'预检状态', pf_pass:'全部通过', pf_fail:'有异常',
     card_tasks:'待处理任务', card_reports:'完成报告', card_issues:'问题记录', card_nudges:'唤醒统计',
     nudge_stats:'成功 {ok} / 失败 {fail}',
@@ -394,6 +395,9 @@ const I18N={
     confirm_reset_title:'确定要重置吗？',
     confirm_reset_desc:'将清除本地配置，重新进入设置向导。<br>项目文件和团队文件不会被删除。',
     confirm_reset_ok:'确定重置',
+    confirm_quit_title:'确定要退出 BridgeFlow 吗？',
+    confirm_quit_desc:'退出后巡检器将停止运行，手机端将断开连接。',
+    confirm_quit_ok:'确定退出',
     confirm_regen_title:'重新生成密钥？', confirm_regen_desc:'所有已绑定设备需要重新扫码。', confirm_regen_ok:'确定生成',
     pip_in_progress:'执行中', pip_maybe_stuck:'可能卡住', pip_timeout:'超时', pip_completed:'已完成', pip_expired:'已过期',
     empty_loading:'加载中...', empty_no_task:'暂无任务', empty_no_file:'暂无文件', empty_no_device:'暂无绑定设备',
@@ -412,7 +416,7 @@ const I18N={
     hd_nudger:'Nudger', hd_relay:'Relay',
     patrol_ctrl:'Patrol Controls',
     btn_start:'\u25B6 Start Patrol', btn_start_running:'\u25CF Running',
-    btn_stop:'\u25A0 Stop', btn_preflight:'\u2713 Preflight', btn_reset:'\u21BB Reset',
+    btn_stop:'\u25A0 Stop', btn_preflight:'\u2713 Preflight', btn_reset:'\u21BB Reset', btn_quit:'\u23FB Quit',
     sec_preflight:'Preflight', pf_pass:'All Passed', pf_fail:'Issues Found',
     card_tasks:'Pending Tasks', card_reports:'Reports', card_issues:'Issues', card_nudges:'Nudges',
     nudge_stats:'OK {ok} / Fail {fail}',
@@ -433,6 +437,9 @@ const I18N={
     confirm_reset_title:'Reset configuration?',
     confirm_reset_desc:'This will clear local config and restart the setup wizard.<br>Project files and team files will not be deleted.',
     confirm_reset_ok:'Confirm Reset',
+    confirm_quit_title:'Quit BridgeFlow?',
+    confirm_quit_desc:'The nudger will stop and mobile connection will be lost.',
+    confirm_quit_ok:'Confirm Quit',
     confirm_regen_title:'Regenerate room key?', confirm_regen_desc:'All bound devices will need to re-scan.', confirm_regen_ok:'Confirm',
     pip_in_progress:'In Progress', pip_maybe_stuck:'Maybe Stuck', pip_timeout:'Timeout', pip_completed:'Completed', pip_expired:'Expired',
     empty_loading:'Loading...', empty_no_task:'No tasks', empty_no_file:'No files', empty_no_device:'No bound devices',
@@ -709,6 +716,22 @@ function doReset(){
     }
   );
 }
+
+/* Quit */
+function doQuit(){
+  showConfirm(
+    t('confirm_quit_title'),
+    t('confirm_quit_desc'),
+    t('confirm_quit_ok'),'red',
+    ()=>{
+      fetch('/api/quit',{method:'POST'}).then(()=>{
+        document.title='BridgeFlow - 已退出';
+        document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#94a3b8;font-size:1.2rem;">BridgeFlow 已退出，可关闭此页面。</div>';
+      }).catch(()=>{});
+    }
+  );
+}
+window.addEventListener('beforeunload',function(e){e.preventDefault();e.returnValue='';});
 
 /* API */
 function api(u){fetch(u,{method:'POST'}).then(r=>r.json()).then(d=>{addLog('INFO',d.message||'OK');fetchStatus();});}
