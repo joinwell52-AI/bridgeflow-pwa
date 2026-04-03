@@ -382,7 +382,7 @@ class PanelHandler(BaseHTTPRequestHandler):
         self._json(status)
 
     def _api_preflight(self):
-        from nudger import find_cursor_window, ensure_keybindings
+        from nudger import find_cursor_window, check_keybindings
         checks = []
 
         pd = _project_dir()
@@ -424,8 +424,17 @@ class PanelHandler(BaseHTTPRequestHandler):
         checks.append({"name": "Cursor 窗口", "ok": win is not None,
                         "detail": win[1][:60] if win else "未找到 Cursor，请先打开"})
 
-        kb_ok = ensure_keybindings(_nudger_ref.config.hotkeys) if _nudger_ref else False
-        checks.append({"name": "快捷键", "ok": bool(kb_ok), "detail": "已配置" if kb_ok else "未配置"})
+        kb_info = check_keybindings(_nudger_ref.config.hotkeys) if _nudger_ref else {"ok": False, "detail": "Nudger 未启动"}
+        if kb_info["ok"]:
+            kb_detail = "已绑定: " + ", ".join(f'{b["key"]}→{b["role"]}' for b in kb_info.get("bound", []))
+        else:
+            missing = kb_info.get("missing", [])
+            if missing:
+                kb_detail = "需手动绑定: " + " / ".join(f'{m["key"]}→Agent标签{m["role"]}' for m in missing)
+                kb_detail += "。在 Cursor 中右键 Agent 标签 → 配置快捷键"
+            else:
+                kb_detail = kb_info.get("detail", "未配置")
+        checks.append({"name": "快捷键", "ok": kb_info["ok"], "detail": kb_detail})
 
         all_ok = all(c["ok"] for c in checks)
         self._json({"checks": checks, "all_ok": all_ok})

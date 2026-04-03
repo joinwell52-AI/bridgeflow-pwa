@@ -154,7 +154,7 @@ def main():
     init_project_dirs(project_dir)
 
     from config import NudgerConfig
-    from nudger import Nudger, ensure_keybindings
+    from nudger import Nudger, check_keybindings
     from web_panel import start_panel
 
     config = NudgerConfig(project_dir=project_dir)
@@ -191,7 +191,11 @@ def main():
         except Exception as e:
             logger.warning("高级配置加载失败: %s", e)
 
-    ensure_keybindings(config.hotkeys)
+    kb_info = check_keybindings(config.hotkeys)
+    if kb_info["ok"]:
+        logger.info("keybindings.json 已包含所有 Agent 快捷键")
+    else:
+        logger.warning("Agent 快捷键需要手动绑定: %s", kb_info.get("detail", ""))
 
     global _nudger_instance
     _nudger_instance = Nudger(config)

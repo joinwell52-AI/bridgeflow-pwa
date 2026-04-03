@@ -95,7 +95,6 @@ def switch_and_send(hwnd: int, role: str, message: str,
         pyautogui.hotkey(*keys)
         time.sleep(0.8)
 
-        # Ctrl+L 聚焦 Cursor AI 对话输入框（不用猜坐标）
         pyautogui.hotkey("ctrl", "l")
         time.sleep(0.5)
 
@@ -178,12 +177,8 @@ class FileWatcher:
 
 # ─── keybindings 自动配置 ─────────────────────────────────
 
-def ensure_keybindings(hotkeys: dict[str, tuple]):
+def _read_keybindings() -> tuple[Path, list[dict]]:
     kb_path = Path(os.environ.get("APPDATA", "")) / "Cursor" / "User" / "keybindings.json"
-    if not kb_path.parent.exists():
-        logger.warning("Cursor 配置目录不存在: %s", kb_path.parent)
-        return False
-
     existing = []
     if kb_path.exists():
         try:
@@ -192,28 +187,43 @@ def ensure_keybindings(hotkeys: dict[str, tuple]):
             existing = json.loads("\n".join(lines))
         except Exception:
             existing = []
+    return kb_path, existing
 
-    existing_keys = {item.get("key", "").lower() for item in existing if isinstance(item, dict)}
 
-    sorted_roles = sorted(hotkeys.items(), key=lambda kv: kv[1])
-    new_entries = []
-    for idx, (role, keys) in enumerate(sorted_roles, start=1):
+def check_keybindings(hotkeys: dict[str, tuple]) -> dict:
+    """检查快捷键绑定状态，返回详细信息供预检使用"""
+    kb_path, existing = _read_keybindings()
+    if not kb_path.parent.exists():
+        return {"ok": False, "detail": "Cursor 配置目录不存在"}
+
+    result = {"ok": True, "bound": [], "missing": []}
+    for role, keys in sorted(hotkeys.items(), key=lambda kv: kv[1]):
         key_str = "+".join(keys)
-        if key_str.lower() in existing_keys:
-            continue
-        new_entries.append({
-            "key": key_str,
-            "command": f"workbench.action.openEditorAtIndex{idx}",
-        })
+        found = any(
+            item.get("key", "").lower() == key_str.lower()
+            and "aichat" in item.get("command", "")
+            for item in existing if isinstance(item, dict)
+        )
+        if found:
+            result["bound"].append({"role": role, "key": key_str})
+        else:
+            result["missing"].append({"role": role, "key": key_str})
 
-    if not new_entries:
+    if result["missing"]:
+        result["ok"] = False
+        missing_str = ", ".join(f'{m["key"]}→{m["role"]}' for m in result["missing"])
+        result["detail"] = f"缺少绑定: {missing_str}"
+    return result
+
+
+def ensure_keybindings(hotkeys: dict[str, tuple]):
+    """检查快捷键是否已绑定到 aichat 命令，返回检查结果"""
+    info = check_keybindings(hotkeys)
+    if info["ok"]:
         logger.info("keybindings.json 已包含所有 Agent 快捷键")
-        return True
-
-    merged = existing + new_entries
-    kb_path.write_text(json.dumps(merged, indent=4, ensure_ascii=False), encoding="utf-8")
-    logger.info("已写入 %d 条 Agent 快捷键到 %s", len(new_entries), kb_path)
-    return True
+    else:
+        logger.warning("Agent 快捷键未完全绑定: %s", info.get("detail", ""))
+    return info["ok"]
 
 
 # ─── 唤醒器核心 ───────────────────────────────────────────
