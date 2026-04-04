@@ -19,7 +19,7 @@ import time
 import webbrowser
 from pathlib import Path
 
-VERSION = "1.9.6"
+VERSION = "1.9.7"
 
 logger = logging.getLogger("bridgeflow")
 

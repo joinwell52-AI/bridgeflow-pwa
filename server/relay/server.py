@@ -42,6 +42,7 @@ ALLOWED_EVENTS = {
     "bind_state",
     "execute_desktop_action",
     "desktop_action_result",
+    "task_created",
 }
 MAX_MESSAGE_BYTES = 8 * 1024
 TRANSPORT_MAX_BYTES = 16 * 1024

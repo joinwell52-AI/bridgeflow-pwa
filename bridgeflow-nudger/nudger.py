@@ -1015,11 +1015,34 @@ async def relay_client(config, nudger: Nudger, stop_event: asyncio.Event | None 
                         payload = data.get("payload", {}) if isinstance(data.get("payload"), dict) else {}
 
                         if et in ("command_from_admin", "admin_command"):
-                            if not nudger.running:
-                                logger.info("收到指令但巡检未启动，忽略")
-                                continue
-                            target_role = str(payload.get("target_role", "PM")).strip() or "PM"
-                            _relay_say_to_cursor(nudger, config, target_role, "")
+                            admin_text = str(payload.get("text", payload.get("body", ""))).strip()
+                            target_role = str(payload.get("target_role", "")).strip()
+                            admin_priority = str(payload.get("priority", "P1")).strip() or "P1"
+
+                            if admin_text:
+                                filename = _handle_admin_command(
+                                    config, admin_text,
+                                    target_role=target_role,
+                                    priority=admin_priority,
+                                )
+                                file_list = nudger.get_file_list()
+                                await _send("file_list", file_list)
+                                await _send("task_created", {
+                                    "target_role": target_role or "PM",
+                                    "filename": filename,
+                                    "text": admin_text[:80],
+                                    "status": "ok",
+                                })
+                                if nudger.running:
+                                    resolved = target_role or "PM"
+                                    _relay_say_to_cursor(nudger, config, resolved,
+                                                         f"收到新任务 {filename}，请查看 docs/agents/tasks/ 并执行")
+                            else:
+                                if nudger.running:
+                                    _relay_say_to_cursor(nudger, config,
+                                                         target_role or "PM", "")
+                                else:
+                                    logger.info("收到空指令但巡检未启动，忽略")
 
                         elif et == "request_dashboard":
                             await _send("dashboard_state", _build_dashboard(config, nudger))
@@ -1240,16 +1263,56 @@ def _handle_desktop_action(action: str, nudger: Nudger) -> dict:
         return {"action": action, "ok": False, "message": f"未知动作: {action}"}
 
 
+def _handle_admin_command(config, text: str, target_role: str = "",
+                          priority: str = "P1") -> str:
+    """PWA 发来指令 → 写任务文件到 docs/agents/tasks/，返回文件名"""
+    logger.info("收到 PWA 指令: %s", text[:80])
+    config.tasks_dir.mkdir(parents=True, exist_ok=True)
+
+    today = datetime.now().strftime("%Y%m%d")
+    existing = list(config.tasks_dir.glob(f"TASK-{today}-*.md"))
+    seq = len(existing) + 1
+    task_id = f"TASK-{today}-{seq:03d}"
+
+    leader = target_role.strip().upper() if target_role else "PM"
+    if not leader:
+        bf_config = config.agents_dir / "bridgeflow.json"
+        if bf_config.exists():
+            try:
+                leader = json.loads(bf_config.read_text(encoding="utf-8")).get("leader", "PM")
+            except Exception:
+                leader = "PM"
+
+    filename = f"{task_id}-ADMIN01-to-{leader}.md"
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    content = (
+        f"---\nprotocol: agent_bridge\nversion: 1\nkind: task\n"
+        f"task_id: {task_id}\nsender: ADMIN01\nrecipient: {leader}\n"
+        f"created_at: {now_str}\npriority: {priority}\n"
+        f"type: admin_command\nsource: ADMIN01-mobile\n---\n\n"
+        f"# {text[:60]}\n\n"
+        f"- 任务类型：`ADMIN请求`\n"
+        f"- 发送方：`ADMIN01`\n"
+        f"- 接收方：`{leader}`\n"
+        f"- 优先级：`{priority}`\n"
+        f"- 时间：`{now_str}`\n\n"
+        f"## 正文\n\n{text}\n"
+    )
+    (config.tasks_dir / filename).write_text(content, encoding="utf-8")
+    logger.info("已写入任务文件: %s", filename)
+    return filename
+
+
 def _relay_say_to_cursor(nudger: 'Nudger', config, role: str, text: str):
-    """PWA 触发 → 切到 Cursor 对应角色窗口 → 说：巡检，开工"""
-    logger.info("PWA 触发唤醒 → %s", role)
+    """切到 Cursor 对应角色窗口发送消息"""
+    logger.info("通知 Cursor → %s: %s", role, text[:80] if text else "(开工)")
     win = find_cursor_window()
     if not win:
-        logger.warning("未找到 Cursor 窗口，无法唤醒")
+        logger.warning("未找到 Cursor 窗口，无法通知 Agent")
         return
     hwnd, title = win
-    msg = "巡检，开工" if config.lang == "zh" else "Patrol, let's go"
+    msg = text if text else ("巡检，开工" if config.lang == "zh" else "Patrol, let's go")
     if switch_and_send(hwnd, role, msg, config.hotkeys, config.input_offset):
-        logger.info("已唤醒 %s", role)
+        logger.info("已通知 %s", role)
     else:
-        logger.warning("唤醒 %s 失败", role)
+        logger.warning("通知 %s 失败", role)

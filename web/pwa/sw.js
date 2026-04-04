@@ -1,4 +1,4 @@
-// build: 20260404-100200
+// build: 20260404-180000
 importScripts("./config.js");
 
 const APP_VERSION = (self.BRIDGEFLOW_CONFIG && self.BRIDGEFLOW_CONFIG.appVersion) || "1.0.0";

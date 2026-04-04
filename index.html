@@ -385,9 +385,16 @@
       .detail-grid { grid-template-columns:1fr; }
       .my-grid { grid-template-columns:1fr; }
     }
+    .toast-container { position:fixed; top:env(safe-area-inset-top,16px); left:50%; transform:translateX(-50%); z-index:9999; display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none; padding-top:8px; }
+    .toast-msg { background:rgba(0,0,0,.82); color:#fff; padding:10px 22px; border-radius:20px; font-size:13px; line-height:1.4; max-width:80vw; text-align:center; pointer-events:auto; box-shadow:0 4px 16px rgba(0,0,0,.3); animation: toastIn .25s ease, toastOut .3s ease 2.2s forwards; }
+    .toast-msg.toast-warn { background:rgba(220,80,40,.9); }
+    .toast-msg.toast-ok { background:rgba(34,150,80,.9); }
+    @keyframes toastIn { from { opacity:0; transform:translateY(-12px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes toastOut { from { opacity:1; } to { opacity:0; transform:translateY(-8px); } }
   </style>
 </head>
 <body>
+<div id="toastContainer" class="toast-container"></div>
 <div class="app-shell">
 
   <!-- ════ 固定顶部 Header（两行） ════ -->
@@ -1346,6 +1353,15 @@
     function appendLog(text) {
       logEl.textContent = `${new Date().toLocaleTimeString()}  ${text}\n` + logEl.textContent;
     }
+    function showToast(text, type) {
+      const c = document.getElementById("toastContainer");
+      if (!c) return;
+      const el = document.createElement("div");
+      el.className = "toast-msg" + (type === "warn" ? " toast-warn" : type === "ok" ? " toast-ok" : "");
+      el.textContent = text;
+      c.appendChild(el);
+      setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 2800);
+    }
 
     function updatePatrolUI(data) {
       if (!data) return;
@@ -2010,22 +2026,31 @@
     }
 
     function _pcDeviceId() {
-      const target = currentTargetDevice() || onlineDevices[0];
-      return target ? target.device_id : "";
+      const pcDevices = onlineDevices.filter((d) => d.client_type !== "mobile_admin");
+      const target = currentTargetDevice() || pcDevices[0];
+      return (target && target.client_type !== "mobile_admin") ? target.device_id : "";
     }
     function requestPatrolStart() {
       const did = _pcDeviceId();
-      if (!did) { appendLog(currentLang === "en" ? "PC not online" : "PC 不在线，无法启动巡检"); return; }
+      if (!did) {
+        const msg = currentLang === "en" ? "PC not online, cannot start patrol" : "PC 不在线，无法启动巡检";
+        appendLog(msg); showToast(msg, "warn"); return;
+      }
       sendEvent("start_patrol", { target_device_id: did });
-      appendLog(currentLang === "en" ? "Sent: Start Patrol" : "已发送: 开始巡检");
+      const msg2 = currentLang === "en" ? "Sent: Start Patrol" : "已发送: 开始巡检";
+      appendLog(msg2); showToast(msg2, "ok");
       addMsgRecord("pwa", currentLang === "en" ? "Start Patrol" : "开始巡检");
       if (!patrolPolling) patrolPolling = setInterval(requestPatrolStatus, 30000);
     }
     function requestPatrolStop() {
       const did = _pcDeviceId();
-      if (!did) { appendLog(currentLang === "en" ? "PC not online" : "PC 不在线"); return; }
+      if (!did) {
+        const msg = currentLang === "en" ? "PC not online" : "PC 不在线";
+        appendLog(msg); showToast(msg, "warn"); return;
+      }
       sendEvent("stop_patrol", { target_device_id: did });
-      appendLog(currentLang === "en" ? "Sent: Stop Patrol" : "已发送: 停止巡检");
+      const msg2 = currentLang === "en" ? "Sent: Stop Patrol" : "已发送: 停止巡检";
+      appendLog(msg2); showToast(msg2, "ok");
       addMsgRecord("pwa", currentLang === "en" ? "Stop Patrol" : "停止巡检");
     }
     function requestPatrolStatus() {
@@ -2151,6 +2176,14 @@
         }
         else if (et === "patrol_state") { applyPatrolState(data.payload || {}); }
         else if (et === "file_list") { applyFileList(data.payload || {}); }
+        else if (et === "task_created") {
+          const tc = data.payload || {};
+          const fn = tc.filename || "";
+          appendLog(`任务文件已生成: ${fn} → ${tc.target_role || "?"}`);
+          addMsgRecord("pc", `✓ ${fn} → ${tc.target_role}: ${tc.text || ""}`);
+          showToast(currentLang === "en" ? `Task file created: ${fn}` : `任务文件已创建: ${fn}`, "ok");
+          requestDashboard();
+        }
         else if (et === "desktop_action_result") { appendLog(`PC动作: ${data.payload?.message || ""}`); addMsgRecord("pc", data.payload?.message || "动作完成"); }
         else if (et === "reply_summary") { addMsgRecord("pc", `回复: ${data.payload?.summary || ""}`); if (data.payload.thread_key) { threadKeyEl.value = data.payload.thread_key; localStorage.setItem("bridgeflow_last_thread", data.payload.thread_key); } requestDashboard(); }
         else if (et === "pong") { }
@@ -2188,8 +2221,13 @@
       const targetRole = targetRoleEl.value || "PM";
       const currentThread = threadKeyEl.value.trim();
       const messageId = `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const pcDevice = onlineDevices.find((d) => d.client_type !== "mobile_admin") || onlineDevices[0];
-      const targetDeviceId = pcDevice ? pcDevice.device_id : "";
+      const pcDevices = onlineDevices.filter((d) => d.client_type !== "mobile_admin");
+      const pcDevice = pcDevices[0];
+      if (!pcDevice) {
+        showToast(currentLang === "en" ? "PC not online, task cannot be created" : "PC 不在线，无法创建任务文件", "warn");
+        return;
+      }
+      const targetDeviceId = pcDevice.device_id;
       setSendLocked(true);
       if (sendEvent("command_from_admin", {
         text, priority: priorityEl.value.trim() || "P1", thread_key: currentThread,
@@ -2197,12 +2235,16 @@
       })) {
         addPendingTask(text, targetRole, currentThread);
         addMsgRecord("pwa", `→${targetRole}: ${text.substring(0, 80)}`);
+        showToast(currentLang === "en" ? `Task sent → ${targetRole}` : `任务已发送 → ${targetRole}`, "ok");
         messageEl.value = "";
         requestDashboard();
         setTimeout(requestDashboard, 1200);
         setTimeout(requestDashboard, 3000);
         setTimeout(() => setSendLocked(false), 1200);
-      } else { setSendLocked(false); }
+      } else {
+        showToast(currentLang === "en" ? "Send failed, not connected" : "发送失败，未连接", "warn");
+        setSendLocked(false);
+      }
     }
 
     function newThread() {

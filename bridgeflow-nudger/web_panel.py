@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger("bridgeflow.panel")
 
 PANEL_PORT = 18765
-_VERSION = "1.9.6"
+_VERSION = "1.9.7"
 
 
 def _get_version() -> str:
