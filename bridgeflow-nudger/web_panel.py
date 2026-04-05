@@ -1,5 +1,5 @@
 """
-BridgeFlow 本地 Web 面板
+码流（CodeFlow）本地 Web 面板
 
 基于 Python 内置 http.server + ThreadingMixIn，零额外依赖。
 """
@@ -25,10 +25,10 @@ from urllib.parse import urlparse, parse_qs
 if TYPE_CHECKING:
     from nudger import Nudger
 
-logger = logging.getLogger("bridgeflow.panel")
+logger = logging.getLogger("codeflow.panel")
 
 PANEL_PORT = 18765
-_VERSION = "1.9.7"
+_VERSION = "2.0.0"
 
 
 def _get_version() -> str:
@@ -114,23 +114,40 @@ def _agents_dir() -> Path | None:
     return _nudger_ref.config.agents_dir if _nudger_ref else None
 
 
+def _team_config_path_read(ad: Path) -> Path | None:
+    primary, legacy = ad / "codeflow.json", ad / "bridgeflow.json"
+    if primary.exists():
+        return primary
+    if legacy.exists():
+        return legacy
+    return None
+
+
+def _team_config_path_write(ad: Path) -> Path:
+    primary, legacy = ad / "codeflow.json", ad / "bridgeflow.json"
+    if primary.exists() or not legacy.exists():
+        return primary
+    return legacy
+
+
 def _load_bf_config() -> dict | None:
     ad = _agents_dir()
-    if ad:
-        cfg = ad / "bridgeflow.json"
-        if cfg.exists():
-            try:
-                return json.loads(cfg.read_text(encoding="utf-8"))
-            except Exception:
-                pass
+    if not ad:
+        return None
+    path = _team_config_path_read(ad)
+    if path and path.exists():
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
     return None
 
 
 def _save_bf_config(data: dict):
     ad = _agents_dir()
     if ad:
-        (ad / "bridgeflow.json").write_text(
-            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        path = _team_config_path_write(ad)
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def _scan_files(directory: Path) -> list[dict]:
@@ -309,6 +326,7 @@ class PanelHandler(BaseHTTPRequestHandler):
         routes = {
             "/": lambda: self._serve_file("index.html", "text/html"),
             "/index.html": lambda: self._serve_file("index.html", "text/html"),
+            "/favicon.ico": lambda: self._serve_file("app.ico", "image/x-icon"),
             "/qrcode.min.js": lambda: self._serve_file("qrcode.min.js", "application/javascript"),
             "/logo-sm.png": lambda: self._serve_file("logo-sm.png", "image/png"),
             "/logo.png": lambda: self._serve_file("logo.png", "image/png"),
@@ -316,6 +334,7 @@ class PanelHandler(BaseHTTPRequestHandler):
             "/api/status": self._api_status,
             "/api/cursor-state": self._api_cursor_state,
             "/api/preflight": self._api_preflight,
+            "/api/patrol_trace": self._api_patrol_trace,
             "/api/teams": self._api_teams,
             "/api/devices": self._api_devices,
             "/api/pipeline": self._api_pipeline,
@@ -379,6 +398,8 @@ class PanelHandler(BaseHTTPRequestHandler):
             ct = "text/css"
         elif filename.endswith(".png"):
             ct = "image/png"
+        elif filename.endswith(".ico"):
+            ct = "image/x-icon"
         elif filename.endswith(".jpg") or filename.endswith(".jpeg"):
             ct = "image/jpeg"
         if "image/" in ct:
@@ -465,8 +486,10 @@ class PanelHandler(BaseHTTPRequestHandler):
         agents_ok = False
         if pd:
             cursor_dir = pd / ".cursor"
-            rules_ok = (cursor_dir / "rules" / "bridgeflow-core.mdc").exists() and \
-                        (cursor_dir / "rules" / "bridgeflow-patrol.mdc").exists() and \
+            rdir = cursor_dir / "rules"
+            has_core = (rdir / "codeflow-core.mdc").exists() or (rdir / "bridgeflow-core.mdc").exists()
+            has_patrol = (rdir / "codeflow-patrol.mdc").exists() or (rdir / "bridgeflow-patrol.mdc").exists()
+            rules_ok = has_core and has_patrol and \
                         (cursor_dir / "skills" / "file-protocol" / "SKILL.md").exists()
             if ad:
                 agents_ok = any(ad.glob("*.md"))
@@ -481,7 +504,10 @@ class PanelHandler(BaseHTTPRequestHandler):
                         "detail": detail,
                         "action": "copy_templates"})
 
-        win = find_cursor_window()
+        t0 = time.perf_counter()
+        cfg_pf = _nudger_ref.config if _nudger_ref else None
+        win = find_cursor_window(cfg_pf)
+        cursor_probe_ms = int((time.perf_counter() - t0) * 1000)
         checks.append({"name": "Cursor 窗口", "ok": win is not None,
                         "detail": win[1][:60] if win else "未找到 Cursor，请先打开"})
 
@@ -498,7 +524,27 @@ class PanelHandler(BaseHTTPRequestHandler):
         checks.append({"name": "快捷键", "ok": kb_info["ok"], "detail": kb_detail})
 
         all_ok = all(c["ok"] for c in checks)
-        self._json({"checks": checks, "all_ok": all_ok})
+        attempts = 4
+        if cfg_pf is not None:
+            attempts = max(1, int(getattr(cfg_pf, "find_cursor_max_attempts", 4)))
+        self._json({
+            "checks": checks,
+            "all_ok": all_ok,
+            "preflight_meta": {
+                "cursor_probe_ms": cursor_probe_ms,
+                "find_cursor_attempts": attempts,
+            },
+        })
+
+    def _api_patrol_trace(self):
+        from nudger import get_patrol_trace
+        params = parse_qs(urlparse(self.path).query)
+        lim = 80
+        try:
+            lim = int(params.get("limit", [80])[0])
+        except Exception:
+            pass
+        self._json({"events": get_patrol_trace(lim)})
 
     def _api_files(self, dir_name: str):
         ad = _agents_dir()
@@ -633,7 +679,7 @@ class PanelHandler(BaseHTTPRequestHandler):
             "roles": [{"code": r["code"], "label": r["label"]} for r in tmpl["roles"]],
             "leader": tmpl["leader"],
             "room_key": room_key,
-            "relay_url": "wss://ai.chedian.cc/bridgeflow/ws/",
+            "relay_url": "wss://ai.chedian.cc/codeflow/ws/",
             "lang": "zh",
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "devices": [],
@@ -717,8 +763,9 @@ def start_panel(nudger, on_start, on_stop, port: int = PANEL_PORT):
     _stop_callback = on_stop
 
     handler = QueueLogHandler()
-    handler.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s %(message)s", datefmt="%H:%M:%S"))
-    logging.getLogger("bridgeflow").addHandler(handler)
+    fmt = logging.Formatter("[%(asctime)s] %(levelname)s %(message)s", datefmt="%H:%M:%S")
+    handler.setFormatter(fmt)
+    logging.getLogger("codeflow").addHandler(handler)
 
     server = ThreadedHTTPServer(("127.0.0.1", port), PanelHandler)
     logger.info("本地面板: http://127.0.0.1:%d", port)

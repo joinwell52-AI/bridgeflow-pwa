@@ -1,5 +1,5 @@
 """
-BridgeFlow Nudger — Agent 唤醒器核心模块
+CodeFlow Nudger — Agent 唤醒器核心模块
 
 职责：
 1. 监听 docs/agents/tasks/ 和 reports/ 文件变化
@@ -14,21 +14,57 @@ BridgeFlow Nudger — Agent 唤醒器核心模块
 from __future__ import annotations
 
 import asyncio
+import collections
 import json
 import logging
 import os
 import re
+import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 import pyautogui
 import pyperclip
 import win32con
 import win32gui
 
-logger = logging.getLogger("bridgeflow.nudger")
+logger = logging.getLogger("codeflow.nudger")
+
+# ─── 巡检轨迹（结构化可查询，与实时日志同源）────────────────
+_PATROL_TRACE_MAX = 120
+_patrol_trace_deque: collections.deque = collections.deque(maxlen=_PATROL_TRACE_MAX)
+_patrol_trace_lock = threading.Lock()
+
+
+def patrol_trace(stage: str, detail: str, **fields: Any) -> None:
+    """
+    记录巡检器在做什么：写 INFO 日志（前缀 [巡检]）+ 环形缓冲。
+    stage 建议固定英文键，便于面板做筛选；detail 为人读中文说明。
+    """
+    ts = time.time()
+    extra = {k: v for k, v in fields.items() if v is not None and v != ""}
+    line = f"[巡检] {stage} | {detail}"
+    if extra:
+        line += " | " + " ".join(f"{k}={extra[k]}" for k in sorted(extra))
+    logger.info(line)
+    rec = {
+        "t": datetime.fromtimestamp(ts).strftime("%H:%M:%S"),
+        "ts": ts,
+        "stage": stage,
+        "detail": detail,
+        **extra,
+    }
+    with _patrol_trace_lock:
+        _patrol_trace_deque.append(rec)
+
+
+def get_patrol_trace(limit: int = 80) -> list[dict]:
+    with _patrol_trace_lock:
+        n = max(1, min(int(limit), _PATROL_TRACE_MAX))
+        return list(_patrol_trace_deque)[-n:]
+
 
 try:
     import websockets
@@ -45,13 +81,25 @@ try:
         click_role as vision_click_role,
         find_keyword_position,
         CursorState,
+        get_process_exe_path,
     )
     HAS_VISION = True
 except ImportError:
     HAS_VISION = False
+    get_process_exe_path = None  # type: ignore
     logger.warning("cursor_vision 未加载，回退到盲操作模式")
 
 _relay_connected = False
+
+try:
+    from watchdog.events import FileSystemEventHandler
+    from watchdog.observers import Observer
+
+    HAS_WATCHDOG = True
+except ImportError:
+    HAS_WATCHDOG = False
+    Observer = None  # type: ignore
+    FileSystemEventHandler = object  # type: ignore
 
 pyautogui.FAILSAFE = True
 pyautogui.PAUSE = 0.05
@@ -64,10 +112,21 @@ _ROLE_ALIASES = {
     "4-OPS": "OPS", "I-OPS": "OPS",
 }
 
+# 命令面板（Ctrl+Shift+P）里搜索的串，需与 Cursor Pinned Agent 显示名一致
+_PALETTE_ROLE_LABELS: dict[str, str] = {
+    "PM": "1-PM",
+    "DEV": "2-DEV",
+    "QA": "3-QA",
+    "OPS": "4-OPS",
+}
+
+# 切换 Agent：整轮重试次数（每轮内依次 快捷键 → 点击 → 命令面板）
+_SWITCH_ROUNDS = 3
+
 
 # ─── 窗口操作 ─────────────────────────────────────────────
 
-def find_cursor_window() -> tuple[int, str] | None:
+def _find_cursor_window_once() -> tuple[int, str] | None:
     if HAS_VISION:
         win = vision_find_window()
         if win:
@@ -82,7 +141,12 @@ def find_cursor_window() -> tuple[int, str] | None:
 
     results = []
 
-    def _get_process_name(hwnd) -> str:
+    def _resolve_exe(hwnd) -> str:
+        if get_process_exe_path:
+            try:
+                return get_process_exe_path(hwnd).lower()
+            except Exception:
+                pass
         pid = wintypes.DWORD()
         user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
         handle = kernel32.OpenProcess(0x0410, False, pid.value)
@@ -100,12 +164,14 @@ def find_cursor_window() -> tuple[int, str] | None:
     def _enum(hwnd, _):
         if not win32gui.IsWindowVisible(hwnd):
             return
-        title = win32gui.GetWindowText(hwnd)
-        if not title:
-            return
-        exe_path = _get_process_name(hwnd)
+        title = win32gui.GetWindowText(hwnd) or ""
+        exe_path = _resolve_exe(hwnd)
         if exe_path.endswith("cursor.exe"):
-            results.append((hwnd, title))
+            l, t, r, b = win32gui.GetWindowRect(hwnd)
+            if (r - l) <= 100 or (b - t) <= 100:
+                return
+            display = title if title.strip() else "Cursor"
+            results.append((hwnd, display))
 
     win32gui.EnumWindows(_enum, None)
     if not results:
@@ -114,6 +180,26 @@ def find_cursor_window() -> tuple[int, str] | None:
         if " - Cursor" in title:
             return (hwnd, title)
     return results[0]
+
+
+def find_cursor_window(config: Any | None = None) -> tuple[int, str] | None:
+    """
+    查找 Cursor 主窗口。枚举与 OpenProcess 在部分环境下偶发失败，故短暂重试几次，
+    避免预检「明明已开 Cursor 却显示未找到」。
+    重试次数与间隔可由 NudgerConfig / codeflow-nudger.json 配置。
+    """
+    attempts = 4
+    delay = 0.12
+    if config is not None:
+        attempts = max(1, int(getattr(config, "find_cursor_max_attempts", attempts)))
+        delay = max(0.02, float(getattr(config, "find_cursor_retry_delay_s", delay)))
+    for attempt in range(attempts):
+        w = _find_cursor_window_once()
+        if w:
+            return w
+        if attempt < attempts - 1:
+            time.sleep(delay)
+    return None
 
 
 def focus_window(hwnd: int) -> bool:
@@ -161,16 +247,56 @@ def _normalize_role(ocr_role: str) -> str:
     return _ROLE_ALIASES.get(upper, upper)
 
 
+def _role_key_for_task(recipient: str) -> str:
+    """任务文件名中的收件人（如 PM01、DEV01）→ 与 hotkeys 一致的角色键 PM/DEV/..."""
+    if not recipient:
+        return ""
+    s = recipient.upper().strip()
+    s = re.sub(r"\d+$", "", s)
+    return _ROLE_ALIASES.get(s, s)
+
+
 def _is_role_active(state: 'CursorState', target_role: str) -> bool:
     """判断目标角色是否已激活（在 Tab 栏第一个或 agent_role 匹配）"""
     if not state or not state.found:
         return False
-    target_std = _normalize_role(target_role)
+    target_std = _role_key_for_task(target_role)
+    if not target_std:
+        return False
     if state.agent_role:
-        current_std = _normalize_role(state.agent_role)
+        current_raw = _normalize_role(state.agent_role)
+        current_std = _role_key_for_task(current_raw)
         if current_std == target_std:
             return True
     return False
+
+
+def _run_command_palette_goto_agent(label: str) -> None:
+    """
+    Ctrl+Shift+P 打开命令面板，粘贴 label 后回车（与手动搜「2-DEV」进 Agent 一致）。
+    用剪贴板避免连字符与键盘布局问题。
+    """
+    pyautogui.hotkey("ctrl", "shift", "p")
+    time.sleep(0.65)
+    pyautogui.hotkey("ctrl", "a")
+    time.sleep(0.05)
+    old_clip = ""
+    try:
+        old_clip = pyperclip.paste()
+    except Exception:
+        pass
+    try:
+        pyperclip.copy(label)
+        time.sleep(0.05)
+        pyautogui.hotkey("ctrl", "v")
+        time.sleep(0.28)
+        pyautogui.press("enter")
+    finally:
+        try:
+            if old_clip:
+                pyperclip.copy(old_clip)
+        except Exception:
+            pass
 
 
 # ─── 核心操作：看→判断→操作→验证 ─────────────────────────
@@ -181,15 +307,23 @@ def switch_and_send(hwnd: int, role: str, message: str,
     resolved = _resolve_role(role, hotkeys)
     if not resolved:
         logger.warning("角色 %s 没有配置快捷键，跳过", role)
+        patrol_trace("send_fail", "角色无快捷键映射", role=role)
         return False
 
     if not focus_window(hwnd):
+        patrol_trace("send_fail", "无法聚焦 Cursor 窗口", role=resolved)
         return False
 
     if HAS_VISION:
-        return _switch_and_send_with_vision(hwnd, role, resolved, message, hotkeys)
+        ok = _switch_and_send_with_vision(hwnd, role, resolved, message, hotkeys)
     else:
-        return _switch_and_send_blind(hwnd, resolved, message, hotkeys)
+        ok = _switch_and_send_blind(hwnd, resolved, message, hotkeys)
+    if ok:
+        prev = (message or "").replace("\n", " ").strip()[:48]
+        patrol_trace("send_ok", "已向 Agent 输入框发送", role=resolved, preview=prev)
+    else:
+        patrol_trace("send_fail", "切换 Tab 或粘贴发送失败", role=resolved, vision=HAS_VISION)
+    return ok
 
 
 def _switch_and_send_blind(hwnd: int, resolved: str, message: str,
@@ -233,11 +367,13 @@ def _switch_and_send_with_vision(hwnd: int, role: str, resolved: str,
     """
     快捷键执行 + 视觉验证，每步都确认。
 
-    流程：看 → 快捷键切换 → 看（验证） → 快捷键打开面板 → 看（找输入框）
-         → 点击输入框 → 粘贴发送 → 看（最终确认）
-    """
-    MAX_RETRY = 2
+    切换阶段（多轮重试，每轮内依次降级）：
+      ① Ctrl+Alt+1..4 → OCR 验证
+      ② 点击 Tab/Pinned 上的角色名 → OCR 验证
+      ③ Ctrl+Shift+P → 粘贴「1-PM」「2-DEV」等与界面一致的串 → Enter → OCR 验证
 
+    之后：Ctrl+L → 点输入框 → 粘贴发送。
+    """
     try:
         # ── Step 1: 先看一眼当前状态 ──
         state = vision_scan()
@@ -248,52 +384,82 @@ def _switch_and_send_with_vision(hwnd: int, role: str, resolved: str,
         logger.info("vision[看] 当前角色=%s 目标=%s 全部=%s 忙碌=%s",
                      state.agent_role, role, state.all_roles, state.is_busy)
 
-        # ── Step 2: 快捷键切换角色 ──
+        # ── Step 2: 切换到目标 Agent（多轮 × 每层降级） ──
         if _is_role_active(state, role):
             logger.info("vision[看] 角色已是 %s，无需切换", state.agent_role)
         else:
             switched_ok = False
-            for attempt in range(MAX_RETRY):
-                # 动作：按快捷键
-                keys = hotkeys.get(resolved)
-                if keys:
-                    logger.info("vision[按] Ctrl+Alt+%s 切换到 %s (第%d次)",
-                                keys[-1], resolved, attempt + 1)
-                    pyautogui.hotkey(*keys)
-                    time.sleep(1.0)
+            palette_label = _PALETTE_ROLE_LABELS.get(resolved)
 
-                # 验证：看一眼确认
+            for round_i in range(_SWITCH_ROUNDS):
                 state = vision_scan()
                 if state.found and _is_role_active(state, role):
-                    logger.info("vision[看] 切换成功 → %s", state.agent_role)
+                    logger.info("vision[看] 第%d轮前已切到目标 → %s",
+                                round_i + 1, state.agent_role)
                     switched_ok = True
                     break
 
-                # 快捷键没切成功 → 尝试点击角色名兜底
-                logger.info("vision[看] 快捷键未生效(当前=%s)，尝试点击",
-                            state.agent_role)
-                role_variants = [role.upper()]
+                # ① 快捷键
+                keys = hotkeys.get(resolved)
+                if keys:
+                    logger.info("vision[按] Ctrl+Alt+%s → %s (第%d轮)",
+                                keys[-1], resolved, round_i + 1)
+                    pyautogui.hotkey(*keys)
+                    time.sleep(1.0)
+                state = vision_scan()
+                if state.found and _is_role_active(state, role):
+                    logger.info("vision[看] 快捷键切换成功 → %s", state.agent_role)
+                    switched_ok = True
+                    break
+
+                # ② 点击角色名
+                logger.info("vision[看] 快捷键未命中(当前=%s)，尝试点击",
+                            getattr(state, "agent_role", None))
+                role_variants = [role.upper(), resolved.upper()]
                 stripped = re.sub(r'\d+$', '', role.upper())
                 for known in _ROLE_ALIASES:
                     if _ROLE_ALIASES[known] == stripped:
                         role_variants.append(known)
-                for rv in role_variants:
-                    if vision_click_role(state, rv):
-                        logger.info("vision[点] 点击角色 %s", rv)
-                        break
-                time.sleep(1.0)
-
-                # 再验证
+                role_variants = list(dict.fromkeys(role_variants))
+                if state.found:
+                    for rv in role_variants:
+                        if vision_click_role(state, rv):
+                            logger.info("vision[点] 点击角色 %s", rv)
+                            break
+                    time.sleep(1.0)
                 state = vision_scan()
                 if state.found and _is_role_active(state, role):
                     logger.info("vision[看] 点击切换成功 → %s", state.agent_role)
                     switched_ok = True
                     break
 
+                # ③ 命令面板搜索「2-DEV」等（与手动 Ctrl+Shift+P 一致）
+                if palette_label:
+                    logger.info("vision[命令面板] 搜索 %s (第%d轮)", palette_label, round_i + 1)
+                    _run_command_palette_goto_agent(palette_label)
+                    time.sleep(1.2)
+                state = vision_scan()
+                if state.found and _is_role_active(state, role):
+                    logger.info("vision[看] 命令面板切换成功 → %s", state.agent_role)
+                    switched_ok = True
+                    break
+
+                logger.warning(
+                    "vision: 第%d轮仍未命中目标=%s 当前=%s",
+                    round_i + 1, role, getattr(state, "agent_role", None),
+                )
+
             if not switched_ok:
-                logger.warning("vision: %d次切换均失败！目标=%s 当前=%s，放弃",
-                               MAX_RETRY, role, state.agent_role)
+                logger.warning(
+                    "vision: %d轮切换均失败！目标=%s 当前=%s，放弃",
+                    _SWITCH_ROUNDS, role, getattr(state, "agent_role", None),
+                )
                 return False
+
+        state = vision_scan()
+        if not state.found:
+            logger.warning("vision: 切换后窗口不可见，放弃发送")
+            return False
 
         # ── Step 3: 快捷键打开面板 + 视觉确认输入框 ──
         if not state.chat_panel_open or not state.input_box:
@@ -398,6 +564,16 @@ _greeted_roles: set[str] = set()
 # ADMIN 是人类操作员，不自动催办 Cursor；其他角色都是 Agent
 _NO_NUDGE_RECIPIENTS = frozenset({"ADMIN01", "ADMIN"})
 
+# 单次巡检周期内，同一文件最多自动重试次数（冷却/忙碌/发送失败）
+_MAX_NUDGE_ATTEMPTS_PER_FILE = 40
+
+
+def _fmt_tpl(tpl_str: str, **kwargs) -> str:
+    """模板字符串格式化；无占位符时直接返回，避免 first_hello 等纯文案触发 ValueError。"""
+    if "{" not in tpl_str:
+        return tpl_str
+    return tpl_str.format(**kwargs)
+
 
 def build_nudge_message(filename: str, directory: str, recipient: str = "",
                         lang: str = "zh", minutes: int = 0) -> str:
@@ -412,19 +588,25 @@ def build_nudge_message(filename: str, directory: str, recipient: str = "",
     tpl = _MSG_TEMPLATES.get(lang, _MSG_TEMPLATES["zh"])
 
     if minutes > 0:
-        return tpl["remind"].format(role_file=role_file, filename=filename, minutes=minutes)
+        return _fmt_tpl(
+            tpl["remind"],
+            role_file=role_file, filename=filename, minutes=minutes,
+        )
 
     if role_code and role_code not in _greeted_roles:
         _greeted_roles.add(role_code)
-        return tpl["first_hello"].format(role_file=role_file, filename=filename)
+        return _fmt_tpl(
+            tpl["first_hello"],
+            role_file=role_file, filename=filename,
+        )
 
     if "tasks" in directory:
-        return tpl["new_task"].format(role_file=role_file, filename=filename)
+        return _fmt_tpl(tpl["new_task"], role_file=role_file, filename=filename)
     elif "reports" in directory:
-        return tpl["new_report"].format(role_file=role_file, filename=filename)
+        return _fmt_tpl(tpl["new_report"], role_file=role_file, filename=filename)
     elif "issues" in directory:
-        return tpl["new_issue"].format(role_file=role_file, filename=filename)
-    return tpl["new_file"].format(role_file=role_file, filename=filename)
+        return _fmt_tpl(tpl["new_issue"], role_file=role_file, filename=filename)
+    return _fmt_tpl(tpl["new_file"], role_file=role_file, filename=filename)
 
 
 # ─── 文件监听 ─────────────────────────────────────────────
@@ -584,7 +766,12 @@ class Nudger:
         self.config = config
         self.watcher = FileWatcher(config.tasks_dir, config.reports_dir, config.issues_dir)
         self.tracker = TaskTracker(config)
+        self._wake_event = threading.Event()
+        self._observer: Any = None  # watchdog.Observer when HAS_WATCHDOG
         self._notified: set[str] = set()
+        # 因冷却 / Agent 忙碌 / 发送失败而未能完成催办的文件，下一轮继续处理（否则 FileWatcher 已记入 _known 后会永久丢失）
+        self._nudge_pending: list[tuple[str, str, str]] = []
+        self._nudge_attempts: dict[str, int] = {}
         self._last_nudge_time: float = 0
         self._running = False
         self._on_event = on_event or (lambda ev: None)
@@ -592,23 +779,130 @@ class Nudger:
         self._tick_count = 0
         self._kick_times: dict[str, float] = {}  # 角色 → 上次自动 kick 时间
 
+    def _start_file_observer(self):
+        if not HAS_WATCHDOG or not getattr(self.config, "use_file_watcher", True):
+            return
+        if self._observer is not None:
+            return
+        try:
+
+            class _MdHandler(FileSystemEventHandler):
+                def __init__(self, ev: threading.Event):
+                    self._ev = ev
+
+                def on_created(self, event):
+                    self._go(event)
+
+                def on_modified(self, event):
+                    self._go(event)
+
+                def _go(self, event):
+                    if event.is_directory:
+                        return
+                    if str(event.src_path).lower().endswith(".md"):
+                        self._ev.set()
+
+            obs = Observer()
+            for d in (self.config.tasks_dir, self.config.reports_dir, self.config.issues_dir):
+                if d.exists():
+                    obs.schedule(_MdHandler(self._wake_event), str(d), recursive=False)
+            obs.start()
+            self._observer = obs
+            logger.info("watchdog: 已监听 tasks/reports/issues（.md 变更将加速下一轮检测）")
+            patrol_trace("watchdog_on", "已启用目录监听，新 .md 会打断轮询等待", dirs="tasks,reports,issues")
+        except Exception as e:
+            logger.warning("watchdog 未启用（仍用轮询）: %s", e)
+
+    def _stop_file_observer(self):
+        if self._observer is None:
+            return
+        try:
+            self._observer.stop()
+            self._observer.join(timeout=3)
+        except Exception:
+            pass
+        self._observer = None
+
     @property
     def running(self) -> bool:
         return self._running
 
+    def _merge_pending_and_scan(
+        self, scan_new: list[tuple[str, str, str]],
+    ) -> list[tuple[str, str, str]]:
+        """合并待重试队列与本轮 scan 结果，按文件名去重（pending 优先）。"""
+        merged: list[tuple[str, str, str]] = []
+        seen: set[str] = set()
+        for item in self._nudge_pending + scan_new:
+            fn = item[0]
+            if fn in seen:
+                continue
+            seen.add(fn)
+            merged.append(item)
+        self._nudge_pending.clear()
+        return merged
+
+    def _schedule_retry(self, filename: str, dir_name: str, full_path: str, reason: str) -> bool:
+        """返回 True 表示已加入重试；False 表示超过重试上限，放弃并记入 _notified。"""
+        n = self._nudge_attempts.get(filename, 0) + 1
+        self._nudge_attempts[filename] = n
+        if n >= _MAX_NUDGE_ATTEMPTS_PER_FILE:
+            logger.warning(
+                "催办 %s 已达最大重试次数 (%d)，原因=%s，标记为已处理",
+                filename, _MAX_NUDGE_ATTEMPTS_PER_FILE, reason,
+            )
+            patrol_trace(
+                "giveup",
+                "同一文件重试次数用尽，停止催办",
+                filename=filename,
+                reason=reason,
+                attempts=n,
+            )
+            self._notified.add(filename)
+            self._nudge_attempts.pop(filename, None)
+            return False
+        self._nudge_pending.append((filename, dir_name, full_path))
+        logger.debug("催办延后重试 (%d/%d): %s 原因=%s", n, _MAX_NUDGE_ATTEMPTS_PER_FILE, filename, reason)
+        _defer_reason_zh = {
+            "cooldown": "全局唤醒冷却中，下一轮再试",
+            "agent_busy": "Agent 正忙，下一轮再试",
+            "send_failed": "切换或粘贴失败，下一轮再试",
+            "no_cursor_window": "未找到 Cursor 窗口，下一轮再试",
+        }
+        patrol_trace(
+            "defer",
+            _defer_reason_zh.get(reason, f"延后重试: {reason}"),
+            filename=filename,
+            reason=reason,
+            attempt=n,
+            max_attempts=_MAX_NUDGE_ATTEMPTS_PER_FILE,
+        )
+        return True
+
     def check_and_nudge(self) -> list[dict]:
         if not self._running:
             return []
-        new_files = self.watcher.scan()
+        scan_new = self.watcher.scan()
+        new_files = self._merge_pending_and_scan(scan_new)
         events = []
         did_switch = False
 
         for filename, dir_name, full_path in new_files:
-            self.stats["files_detected"] += 1
             if filename in self._notified:
                 continue
+            # 仅首次进入队列算「检测到新文件」；重试队列不重复累计
+            if self._nudge_attempts.get(filename, 0) == 0:
+                self.stats["files_detected"] += 1
 
             recipient = parse_recipient(filename)
+            patrol_trace(
+                "file_in",
+                "处理文件",
+                filename=filename,
+                dir=dir_name,
+                recipient=recipient or "?",
+                retry=self._nudge_attempts.get(filename, 0),
+            )
 
             ev = {
                 "action": "file_detected",
@@ -619,6 +913,7 @@ class Nudger:
             }
 
             if not recipient:
+                patrol_trace("skip", "文件名无法解析收件人，跳过", filename=filename)
                 events.append(ev)
                 self._on_event(ev)
                 self._notified.add(filename)
@@ -626,6 +921,7 @@ class Nudger:
 
             if recipient.upper() in _NO_NUDGE_RECIPIENTS:
                 logger.info("文件 %s → %s（人工角色，仅通知 PWA，不催办）", filename, recipient)
+                patrol_trace("skip", "人工/ADMIN 类收件人不自动催办", filename=filename, recipient=recipient)
                 events.append(ev)
                 self._on_event(ev)
                 self._notified.add(filename)
@@ -634,6 +930,10 @@ class Nudger:
             now = time.time()
             if now - self._last_nudge_time < self.config.nudge_cooldown:
                 logger.debug("冷却中，延后唤醒 %s", filename)
+                if self._schedule_retry(filename, dir_name, full_path, "cooldown"):
+                    ev["action"] = "deferred_cooldown"
+                    events.append(ev)
+                    self._on_event(ev)
                 continue
 
             # 先看 Agent 是否在忙 — 忙碌时不打断，等它干完
@@ -645,32 +945,52 @@ class Nudger:
                                     peek.busy_hint, filename)
                         ev["action"] = "deferred_busy"
                         ev["busy_hint"] = peek.busy_hint
-                        events.append(ev)
-                        self._on_event(ev)
+                        if self._schedule_retry(filename, dir_name, full_path, "agent_busy"):
+                            events.append(ev)
+                            self._on_event(ev)
                         continue
                 except Exception as e:
                     logger.debug("忙碌检测异常: %s", e)
 
-            win = find_cursor_window()
+            win = find_cursor_window(self.config)
             msg = build_nudge_message(filename, dir_name, recipient, self.config.lang)
 
             if win:
                 hwnd, title = win
                 logger.info("催办 %s ← %s", recipient, filename)
+                patrol_trace("cursor_ok", "已找到 Cursor 窗口", title=(title or "")[:56])
                 if switch_and_send(hwnd, recipient, msg,
                                    self.config.hotkeys, self.config.input_offset):
                     self._notified.add(filename)
+                    self._nudge_attempts.pop(filename, None)
                     self._last_nudge_time = time.time()
                     self.stats["nudge_ok"] += 1
                     ev["nudged"] = True
                     did_switch = True
                     logger.info("已发送: %s", msg[:60])
+                    patrol_trace(
+                        "task_done",
+                        "该任务文件已完成催办闭环",
+                        filename=filename,
+                        recipient=recipient,
+                    )
                 else:
                     self.stats["nudge_fail"] += 1
                     logger.warning("发送失败: %s", recipient)
+                    if self._schedule_retry(filename, dir_name, full_path, "send_failed"):
+                        ev["action"] = "deferred_send_failed"
+                        events.append(ev)
+                        self._on_event(ev)
+                    continue
             else:
                 self.stats["nudge_fail"] += 1
                 logger.warning("找不到 Cursor 窗口")
+                patrol_trace("cursor_fail", "未找到 Cursor 窗口，无法催办", filename=filename, recipient=recipient)
+                if self._schedule_retry(filename, dir_name, full_path, "no_cursor_window"):
+                    ev["action"] = "deferred_no_window"
+                    events.append(ev)
+                    self._on_event(ev)
+                continue
 
             events.append(ev)
             self._on_event(ev)
@@ -736,7 +1056,7 @@ class Nudger:
 
         logger.info("idle 检测: %s 在等确认 (命中: \"%s\")，自动发「继续」", role, waiting_hit)
 
-        win = find_cursor_window()
+        win = find_cursor_window(self.config)
         if not win:
             return []
 
@@ -757,6 +1077,12 @@ class Nudger:
             events.append(ev)
             self._on_event(ev)
             logger.info("已自动 kick %s", role_std)
+            patrol_trace(
+                "idle_kick",
+                "检测到「等待确认」类文案，已自动发送继续",
+                role=role_std,
+                keyword=waiting_hit,
+            )
 
         return events
 
@@ -787,7 +1113,7 @@ class Nudger:
             if recipient.upper() in _NO_NUDGE_RECIPIENTS:
                 continue
 
-            win = find_cursor_window()
+            win = find_cursor_window(self.config)
             if not win:
                 break
 
@@ -797,6 +1123,14 @@ class Nudger:
                 item["filename"], "tasks", recipient, self.config.lang, minutes=mins
             )
             logger.info("自动催促 %s: %s", recipient, item["task_id"])
+            patrol_trace(
+                "stuck_check",
+                "对长时间无报告的任务发催促",
+                task_id=item["task_id"],
+                filename=item["filename"],
+                recipient=recipient,
+                age_min=int(item["age_seconds"] / 60),
+            )
             if switch_and_send(hwnd, recipient, auto_msg,
                                self.config.hotkeys, self.config.input_offset):
                 self.tracker.mark_nudged(item["task_id"])
@@ -811,25 +1145,34 @@ class Nudger:
                 }
                 events.append(ev)
                 self._on_event(ev)
+                patrol_trace(
+                    "stuck_nudge_ok",
+                    "卡住任务催促已发送",
+                    task_id=item["task_id"],
+                    recipient=recipient,
+                )
             time.sleep(self.config.nudge_cooldown)
 
         return events
 
     def greet_all_roles(self):
         """启动时逐个角色发打招呼消息，让每个 Agent 知道自己的身份并开始巡检。"""
-        win = find_cursor_window()
+        win = find_cursor_window(self.config)
         if not win:
             logger.warning("未找到 Cursor 窗口，跳过打招呼")
+            patrol_trace("greet_skip", "打招呼跳过：无 Cursor 窗口")
             return
 
         hwnd, title = win
         logger.info("找到 Cursor 窗口: %s", title[:60])
+        patrol_trace("greet_begin", "开始向各 Agent 打招呼", roles=len(self.config.hotkeys))
 
         greeted = 0
 
         for role, keys in sorted(self.config.hotkeys.items(), key=lambda kv: kv[1]):
             msg = build_nudge_message("", "", role, self.config.lang)
             logger.info("打招呼 → %s", role)
+            patrol_trace("greet_role", "正在打招呼", role=role)
             if switch_and_send(hwnd, role, msg, self.config.hotkeys, self.config.input_offset):
                 greeted += 1
                 time.sleep(self.config.nudge_cooldown)
@@ -845,7 +1188,15 @@ class Nudger:
             return
         self._running = True
         self._tick_count = 0
+        self._start_file_observer()
         logger.info("巡检已启动，监听: %s", self.config.agents_dir)
+        patrol_trace(
+            "patrol_on",
+            "巡检已启动：将扫描任务文件、可选 idle/stuck 检测",
+            poll_interval=self.config.poll_interval,
+            nudge_cooldown=self.config.nudge_cooldown,
+            file_watcher=bool(self._observer),
+        )
 
     def stop_patrol(self):
         """停止巡检 — 清除所有运行时状态"""
@@ -853,30 +1204,45 @@ class Nudger:
         self._tick_count = 0
         self._kick_times.clear()
         self._last_nudge_time = 0
+        self._nudge_pending.clear()
+        self._nudge_attempts.clear()
         _greeted_roles.clear()
+        self._stop_file_observer()
         logger.info("巡检已停止，所有状态已清除")
+        patrol_trace("patrol_off", "巡检已停止：不再处理新文件与自动 kick")
 
     def start_loop(self):
         """后台轮询线程（仅当 _running=True 时才真正执行操作）"""
-        SCAN_INTERVAL = 5.0      # 文件扫描间隔（秒）
-        IDLE_CHECK_EVERY = 6     # 每 6 轮检测一次 idle（~30 秒）
-        STUCK_CHECK_EVERY = 30   # 每 30 轮检测一次超时催促（~150 秒）
+        scan_s = max(0.5, float(getattr(self.config, "poll_interval", 5.0)))
+        idle_n = max(1, int(getattr(self.config, "idle_check_every_n", 6)))
+        stuck_n = max(1, int(getattr(self.config, "stuck_check_every_n", 30)))
 
-        logger.info("轮询线程已就绪（等待启动巡检指令）")
+        logger.info(
+            "轮询线程已就绪（间隔 %.1fs，idle 每 %d 轮，stuck 每 %d 轮）",
+            scan_s, idle_n, stuck_n,
+        )
         try:
             while True:
                 if self._running:
                     self.check_and_nudge()
                     self._tick_count += 1
-                    if self._tick_count % STUCK_CHECK_EVERY == 0:
+                    if self._tick_count % stuck_n == 0:
                         self.auto_nudge_stuck()
-                    if self._tick_count % IDLE_CHECK_EVERY == 0:
+                    if self._tick_count % idle_n == 0:
                         self.detect_and_kick_idle()
-                time.sleep(SCAN_INTERVAL)
+                deadline = time.time() + scan_s
+                while time.time() < deadline:
+                    rem = deadline - time.time()
+                    if rem <= 0:
+                        break
+                    if self._wake_event.wait(timeout=min(0.25, rem)):
+                        self._wake_event.clear()
+                        break
         except KeyboardInterrupt:
             pass
         finally:
             self._running = False
+            self._stop_file_observer()
             logger.info("轮询线程已退出")
 
     def stop(self):
@@ -923,7 +1289,7 @@ class Nudger:
         return result
 
     def get_status(self) -> dict:
-        win = find_cursor_window()
+        win = find_cursor_window(self.config)
         tasks_count = len(list(self.config.tasks_dir.glob("*.md"))) if self.config.tasks_dir.exists() else 0
         reports_count = len(list(self.config.reports_dir.glob("*.md"))) if self.config.reports_dir.exists() else 0
         issues_count = len(list(self.config.issues_dir.glob("*.md"))) if self.config.issues_dir.exists() else 0
@@ -941,6 +1307,16 @@ class Nudger:
             "stats": dict(self.stats),
             "hotkeys": {k: "+".join(v) for k, v in self.config.hotkeys.items()},
             "has_vision": HAS_VISION,
+            "poll_interval_s": float(getattr(self.config, "poll_interval", 5.0)),
+            "file_observer_active": bool(self._observer),
+            "has_watchdog": HAS_WATCHDOG,
+            "patrol_tuning": {
+                "find_cursor_max_attempts": int(getattr(self.config, "find_cursor_max_attempts", 4)),
+                "find_cursor_retry_delay_s": float(getattr(self.config, "find_cursor_retry_delay_s", 0.12)),
+                "idle_check_every_n": int(getattr(self.config, "idle_check_every_n", 6)),
+                "stuck_check_every_n": int(getattr(self.config, "stuck_check_every_n", 30)),
+                "use_file_watcher": bool(getattr(self.config, "use_file_watcher", True)),
+            },
         }
         return status
 
@@ -984,7 +1360,7 @@ async def relay_client(config, nudger: Nudger, stop_event: asyncio.Event | None 
                     "event_type": "hello",
                     "payload": {
                         "device_id": config.device_id,
-                        "device_name": "BridgeFlow Desktop",
+                        "device_name": "CodeFlow Desktop",
                         "owner_role": "SYSTEM",
                     },
                 }
@@ -1189,7 +1565,9 @@ def _relay_stop_patrol(nudger: Nudger):
 
 
 def _build_bind_state(config) -> dict:
-    bf_path = config.agents_dir / "bridgeflow.json"
+    bf_path = config.agents_dir / "codeflow.json"
+    if not bf_path.exists():
+        bf_path = config.agents_dir / "bridgeflow.json"
     devices = []
     if bf_path.exists():
         try:
@@ -1205,7 +1583,9 @@ def _build_bind_state(config) -> dict:
 
 
 def _handle_bind_request(config, mobile_id: str, mobile_name: str) -> dict:
-    bf_path = config.agents_dir / "bridgeflow.json"
+    bf_path = config.agents_dir / "codeflow.json"
+    if not bf_path.exists():
+        bf_path = config.agents_dir / "bridgeflow.json"
     cfg = {}
     if bf_path.exists():
         try:
@@ -1235,10 +1615,12 @@ def _handle_bind_request(config, mobile_id: str, mobile_name: str) -> dict:
 
 def _handle_desktop_action(action: str, nudger: Nudger) -> dict:
     if action == "focus_cursor":
-        win = find_cursor_window()
+        win = find_cursor_window(nudger.config)
         if win:
             focus_window(win[0])
+            patrol_trace("desktop", "手机/面板请求：聚焦 Cursor", action=action, ok=True)
             return {"action": action, "ok": True, "message": "Cursor 已聚焦"}
+        patrol_trace("desktop", "手机/面板请求：聚焦 Cursor 失败", action=action, ok=False)
         return {"action": action, "ok": False, "message": "未找到 Cursor 窗口"}
     elif action == "inspect":
         status = nudger.get_status()
@@ -1258,6 +1640,7 @@ def _handle_desktop_action(action: str, nudger: Nudger) -> dict:
         import time as _time
         _time.sleep(1)
         _relay_start_patrol(nudger)
+        patrol_trace("desktop", "手机/面板请求：重启巡检进程", action=action, ok=True)
         return {"action": action, "ok": True, "message": "巡检已重启"}
     else:
         return {"action": action, "ok": False, "message": f"未知动作: {action}"}
@@ -1276,10 +1659,12 @@ def _handle_admin_command(config, text: str, target_role: str = "",
 
     leader = target_role.strip().upper() if target_role else "PM"
     if not leader:
-        bf_config = config.agents_dir / "bridgeflow.json"
-        if bf_config.exists():
+        cfg_path = config.agents_dir / "codeflow.json"
+        if not cfg_path.exists():
+            cfg_path = config.agents_dir / "bridgeflow.json"
+        if cfg_path.exists():
             try:
-                leader = json.loads(bf_config.read_text(encoding="utf-8")).get("leader", "PM")
+                leader = json.loads(cfg_path.read_text(encoding="utf-8")).get("leader", "PM")
             except Exception:
                 leader = "PM"
 
@@ -1306,7 +1691,13 @@ def _handle_admin_command(config, text: str, target_role: str = "",
 def _relay_say_to_cursor(nudger: 'Nudger', config, role: str, text: str):
     """切到 Cursor 对应角色窗口发送消息"""
     logger.info("通知 Cursor → %s: %s", role, text[:80] if text else "(开工)")
-    win = find_cursor_window()
+    patrol_trace(
+        "relay_notify",
+        "中继下发：尝试通知 Cursor",
+        role=role,
+        preview=(text or "")[:60],
+    )
+    win = find_cursor_window(config)
     if not win:
         logger.warning("未找到 Cursor 窗口，无法通知 Agent")
         return

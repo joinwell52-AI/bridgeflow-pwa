@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BridgeFlow 控制面板</title>
+<title>码流（CodeFlow）控制面板</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/logo-sm.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -219,7 +221,24 @@ a:hover{text-decoration:underline}
   <div class="sec" id="secPreflight">
     <div class="sec-head" onclick="toggle('pfBody')"><span class="sec-title" data-i18n="sec_preflight">预检状态</span><span class="sec-badge" id="pfBadge">--</span><span class="sec-toggle" id="pfToggle">&#9660;</span></div>
     <div class="sec-body" id="pfBody" style="max-height:500px">
+      <div id="pfProbe" style="font-size:12px;color:var(--muted);padding:0 4px 8px;display:none"></div>
       <div id="pfList"><div class="empty" data-i18n="empty_loading">加载中...</div></div>
+    </div>
+  </div>
+
+  <!-- 2b. 巡检轨迹（结构化：与 [巡检] 日志一致） -->
+  <div class="sec" id="secTrace" style="margin-bottom:22px">
+    <div class="sec-head" onclick="toggle('traceBody')"><span class="sec-title" data-i18n="sec_trace">巡检轨迹</span><span class="sec-badge" id="traceBadge">0</span><span class="sec-toggle" id="traceToggle">&#9660;</span></div>
+    <div class="sec-body" id="traceBody" style="max-height:320px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px" data-i18n="trace_hint">最近动作（阶段 stage + 说明）；与下方实时日志中带 [巡检] 的行同源。</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px" id="traceTable">
+          <thead><tr style="text-align:left;color:var(--muted);border-bottom:1px solid var(--border)">
+            <th style="padding:6px 4px">时间</th><th style="padding:6px 4px">阶段</th><th style="padding:6px 4px">说明</th><th style="padding:6px 4px">参数</th>
+          </tr></thead>
+          <tbody id="traceRows"><tr><td colspan="4" class="empty" data-i18n="empty_loading">加载中...</td></tr></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -296,7 +315,8 @@ a:hover{text-decoration:underline}
       <div class="box">
         <div class="cfg-row"><span class="cfg-label" data-i18n="cfg_relay">中继地址</span><span class="cfg-val" id="cfgRelay">--</span></div>
         <div class="cfg-row"><span class="cfg-label" data-i18n="cfg_offset">输入偏移</span><span class="cfg-val">X=80% Y=55px</span></div>
-        <div class="cfg-row"><span class="cfg-label" data-i18n="cfg_poll">轮询间隔</span><span class="cfg-val" data-i18n="cfg_poll_val">2 秒</span></div>
+        <div class="cfg-row"><span class="cfg-label" data-i18n="cfg_poll">轮询间隔</span><span class="cfg-val" id="cfgPollVal">5 s</span></div>
+        <div class="cfg-row"><span class="cfg-label" data-i18n="cfg_watchdog">文件加速</span><span class="cfg-val" id="cfgWatchdog">--</span></div>
         <div class="cfg-row"><span class="cfg-label" data-i18n="cfg_cooldown">唤醒冷却</span><span class="cfg-val" data-i18n="cfg_cooldown_val">5 秒</span></div>
       </div>
     </div>
@@ -383,8 +403,10 @@ const I18N={
     sec_team:'团队', team_tpl:'模板', team_roles:'角色', team_switch:'切换团队',
     sec_phone:'手机连接', phone_room_key:'房间密钥：', phone_regen:'重新生成',
     phone_scan_hint:'手机 PWA 扫描绑定', phone_bound:'已绑定设备',
-    sec_log:'实时日志', sec_config:'配置',
+    sec_log:'实时日志', sec_trace:'巡检轨迹', trace_hint:'最近动作（阶段 stage + 说明）；与下方实时日志中带 [巡检] 的行同源。',
+    sec_config:'配置',
     cfg_relay:'中继地址', cfg_offset:'输入偏移', cfg_poll:'轮询间隔', cfg_poll_val:'2 秒',
+    cfg_watchdog:'文件加速', cfg_watchdog_on:'watchdog 已启用', cfg_watchdog_off:'仅轮询',
     cfg_cooldown:'唤醒冷却', cfg_cooldown_val:'5 秒',
     wiz_step1_title:'步骤 1/2 — 项目文件夹',
     wiz_step1_desc:'请输入你的代码项目根目录（包含 .cursor/ 的文件夹）。<br>系统会自动创建 docs/agents/ 子目录并拷贝协作规则文件。',
@@ -395,16 +417,17 @@ const I18N={
     confirm_reset_title:'确定要重置吗？',
     confirm_reset_desc:'将清除本地配置，重新进入设置向导。<br>项目文件和团队文件不会被删除。',
     confirm_reset_ok:'确定重置',
-    confirm_quit_title:'确定要退出 BridgeFlow 吗？',
+    confirm_quit_title:'确定要退出码流（CodeFlow）吗？',
     confirm_quit_desc:'退出后巡检器将停止运行，手机端将断开连接。',
     confirm_quit_ok:'确定退出',
     confirm_regen_title:'重新生成密钥？', confirm_regen_desc:'所有已绑定设备需要重新扫码。', confirm_regen_ok:'确定生成',
     pip_in_progress:'执行中', pip_maybe_stuck:'可能卡住', pip_timeout:'超时', pip_completed:'已完成', pip_expired:'已过期',
-    empty_loading:'加载中...', empty_no_task:'暂无任务', empty_no_file:'暂无文件', empty_no_device:'暂无绑定设备',
+    empty_loading:'加载中...', empty_no_trace:'暂无轨迹（启动巡检并产生文件后会显示）',
+    empty_no_task:'暂无任务', empty_no_file:'暂无文件', empty_no_device:'暂无绑定设备',
     file_view:'查看', file_err_prefix:'错误: ', file_empty:'(空文件)', file_load_fail:'加载失败: ',
     setup_path_err:'请输入项目路径',
     unbind:'解绑',
-    page_title:'BridgeFlow 控制面板',
+    page_title:'码流（CodeFlow）控制面板',
     lang_btn:'EN',
     pf_n_项目目录:'项目目录', pf_n_目录结构:'目录结构', pf_n_团队配置:'团队配置',
     pf_n_角色文件:'角色文件', pf_n_Cursor窗口:'Cursor 窗口', pf_n_快捷键:'快捷键',
@@ -425,8 +448,10 @@ const I18N={
     sec_team:'Team', team_tpl:'Template', team_roles:'Roles', team_switch:'Switch Team',
     sec_phone:'Mobile', phone_room_key:'Room Key:', phone_regen:'Regenerate',
     phone_scan_hint:'Scan QR with PWA to bind', phone_bound:'Bound Devices',
-    sec_log:'Live Logs', sec_config:'Config',
+    sec_log:'Live Logs', sec_trace:'Patrol trace', trace_hint:'Recent steps (stage + detail); same source as [巡检] lines in logs below.',
+    sec_config:'Config',
     cfg_relay:'Relay URL', cfg_offset:'Input Offset', cfg_poll:'Poll Interval', cfg_poll_val:'2 sec',
+    cfg_watchdog:'File boost', cfg_watchdog_on:'watchdog on', cfg_watchdog_off:'poll only',
     cfg_cooldown:'Nudge Cooldown', cfg_cooldown_val:'5 sec',
     wiz_step1_title:'Step 1/2 — Project Folder',
     wiz_step1_desc:'Enter your project root directory (containing .cursor/ folder).<br>The system will create docs/agents/ and copy collaboration rules.',
@@ -437,16 +462,17 @@ const I18N={
     confirm_reset_title:'Reset configuration?',
     confirm_reset_desc:'This will clear local config and restart the setup wizard.<br>Project files and team files will not be deleted.',
     confirm_reset_ok:'Confirm Reset',
-    confirm_quit_title:'Quit BridgeFlow?',
+    confirm_quit_title:'Quit CodeFlow?',
     confirm_quit_desc:'The nudger will stop and mobile connection will be lost.',
     confirm_quit_ok:'Confirm Quit',
     confirm_regen_title:'Regenerate room key?', confirm_regen_desc:'All bound devices will need to re-scan.', confirm_regen_ok:'Confirm',
     pip_in_progress:'In Progress', pip_maybe_stuck:'Maybe Stuck', pip_timeout:'Timeout', pip_completed:'Completed', pip_expired:'Expired',
-    empty_loading:'Loading...', empty_no_task:'No tasks', empty_no_file:'No files', empty_no_device:'No bound devices',
+    empty_loading:'Loading...', empty_no_trace:'No trace yet (start patrol and add tasks).',
+    empty_no_task:'No tasks', empty_no_file:'No files', empty_no_device:'No bound devices',
     file_view:'View', file_err_prefix:'Error: ', file_empty:'(empty)', file_load_fail:'Load failed: ',
     setup_path_err:'Please enter project path',
     unbind:'Unbind',
-    page_title:'BridgeFlow Control Panel',
+    page_title:'CodeFlow Control Panel',
     lang_btn:'中文',
     pf_n_项目目录:'Project Dir', pf_n_目录结构:'Dir Structure', pf_n_团队配置:'Team Config',
     pf_n_角色文件:'Role Files', pf_n_Cursor窗口:'Cursor Window', pf_n_快捷键:'Hotkeys',
@@ -521,6 +547,12 @@ function fetchStatus(){
     if(d.roles)$('teamRoles').textContent=d.roles.map(r=>r.code).join(' / ');
     if(d.room_key){$('roomKey').textContent=d.room_key;renderQR(d.relay_url||'',d.room_key,d.machine_code||'',d.device_id||'');}
     if(d.relay_url)$('cfgRelay').textContent=d.relay_url;
+    if(d.poll_interval_s!=null&&$('cfgPollVal'))$('cfgPollVal').textContent=d.poll_interval_s+' s';
+    if($('cfgWatchdog')){
+      if(d.file_observer_active===true)$('cfgWatchdog').textContent=t('cfg_watchdog_on');
+      else if(d.file_observer_active===false)$('cfgWatchdog').textContent=t('cfg_watchdog_off');
+      else $('cfgWatchdog').textContent='--';
+    }
   }).catch(()=>{});
 }
 
@@ -586,6 +618,8 @@ function pfName(n){return t('pf_n_'+n)||n;}
 function pfDetail(d){const k=PF_DETAIL_KEYS[d];return k?t(k):d;}
 function runPreflight(){
   $('pfBadge').textContent='...';
+  const probeEl=$('pfProbe');
+  if(probeEl){probeEl.style.display='none';probeEl.textContent='';}
   fetch('/api/preflight').then(r=>r.json()).then(d=>{
     $('pfList').innerHTML=(d.checks||[]).map(c=>
       '<div class="ck-row"><span class="ck-icon '+(c.ok?'ok':'fail')+'">'+(c.ok?'&#10003;':'&#10007;')+
@@ -593,6 +627,11 @@ function runPreflight(){
     ).join('');
     $('pfBadge').textContent=d.all_ok?t('pf_pass'):t('pf_fail');
     $('pfBadge').style.background=d.all_ok?'var(--green)':'var(--red)';
+    const m=d.preflight_meta;
+    if(probeEl&&m&&m.cursor_probe_ms!=null){
+      probeEl.style.display='block';
+      probeEl.textContent='Cursor 窗口探测 '+m.cursor_probe_ms+' ms · 最多尝试 '+(m.find_cursor_attempts!=null?m.find_cursor_attempts:'?')+' 次';
+    }
   }).catch(()=>{});
 }
 
@@ -725,8 +764,8 @@ function doQuit(){
     t('confirm_quit_ok'),'red',
     ()=>{
       fetch('/api/quit',{method:'POST'}).then(()=>{
-        document.title='BridgeFlow - 已退出';
-        document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#94a3b8;font-size:1.2rem;">BridgeFlow 已退出，可关闭此页面。</div>';
+        document.title='码流（CodeFlow）- 已退出';
+        document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#94a3b8;font-size:1.2rem;">码流（CodeFlow）已退出，可关闭此页面。</div>';
       }).catch(()=>{});
     }
   );
@@ -756,7 +795,7 @@ function connectSSE(){
 let _lastQR='';
 function renderQR(relay,key,mc,did){
   if(!key)return;
-  const data='bf:'+(mc||'')+'|'+(did||'')+'|'+key;
+  const data='cf:'+(mc||'')+'|'+(did||'')+'|'+key;
   if(data===_lastQR)return;
   _lastQR=data;
   try{
@@ -777,12 +816,39 @@ function renderQR(relay,key,mc,did){
   }catch(e){console.warn('QR error:',e);}
 }
 
+function esc(s){if(s==null)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
+function fetchPatrolTrace(){
+  fetch('/api/patrol_trace?limit=80').then(r=>r.json()).then(d=>{
+    const evs=d.events||[];
+    const tb=$('traceRows');const badge=$('traceBadge');
+    if(badge)badge.textContent=String(evs.length);
+    if(!tb)return;
+    if(!evs.length){tb.innerHTML='<tr><td colspan="4" class="empty">'+t('empty_no_trace')+'</td></tr>';return;}
+    tb.innerHTML=evs.slice().reverse().map(e=>{
+      const keys=['filename','recipient','role','task_id','reason','preview','title','keyword','attempt','poll_interval','file_watcher'];
+      const extras=[];
+      keys.forEach(k=>{if(e[k]!=null&&e[k]!=='')extras.push(k+'='+esc(e[k]));});
+      Object.keys(e).forEach(k=>{
+        if(['t','ts','stage','detail'].indexOf(k)>=0)return;
+        if(keys.indexOf(k)>=0)return;
+        if(e[k]!=null&&e[k]!=='')extras.push(k+'='+esc(String(e[k]).substring(0,80)));
+      });
+      return '<tr style="border-bottom:1px solid rgba(148,163,184,.15)"><td style="padding:6px 4px;white-space:nowrap;color:var(--muted)">'+esc(e.t)+'</td>'+
+        '<td style="padding:6px 4px;font-family:ui-monospace,monospace;color:var(--cyan)">'+esc(e.stage)+'</td>'+
+        '<td style="padding:6px 4px">'+esc(e.detail)+'</td>'+
+        '<td style="padding:6px 4px;color:var(--muted);word-break:break-all">'+esc(extras.join(' '))+'</td></tr>';
+    }).join('');
+  }).catch(()=>{});
+}
+
 /* Init */
 _lang=localStorage.getItem('bf_lang')||'zh';
 applyLang();
 fetchStatus();fetchFiles('tasks');fetchPipeline();fetchDevices();connectSSE();
+fetchPatrolTrace();
 setTimeout(runPreflight,600);
 setInterval(fetchStatus,4000);setInterval(()=>fetchFiles(_dir),8000);setInterval(fetchPipeline,6000);setInterval(fetchDevices,10000);
+setInterval(fetchPatrolTrace,3000);
 </script>
 </body>
 </html>

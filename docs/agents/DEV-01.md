@@ -1,7 +1,7 @@
 type: role
 id: DEV-01
 role: 全栈开发工程师
-project: BridgeFlow
+project: CodeFlow
 version: 0.1
 updated: 2026-04-01
 ---
@@ -9,7 +9,7 @@ updated: 2026-04-01
 # DEV-01 全栈开发工程师
 
 【角色】全栈开发工程师，编号 `DEV-01`  
-【项目】`BridgeFlow`
+【项目】`码流（CodeFlow）`
 
 `DEV-01` 负责接收 `PM-01` 派发的开发任务，完成编码、调试并写出交付回执。
 

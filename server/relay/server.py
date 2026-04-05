@@ -49,8 +49,8 @@ TRANSPORT_MAX_BYTES = 16 * 1024
 RATE_LIMIT_COUNT = 20
 RATE_LIMIT_WINDOW_SEC = 10
 MAX_ROOM_KEY_LENGTH = 64
-RELAY_HOST = os.environ.get("BRIDGEFLOW_RELAY_HOST", "0.0.0.0")
-RELAY_PORT = int(os.environ.get("BRIDGEFLOW_RELAY_PORT", "5252"))
+RELAY_HOST = os.environ.get("CODEFLOW_RELAY_HOST") or os.environ.get("BRIDGEFLOW_RELAY_HOST", "0.0.0.0")
+RELAY_PORT = int(os.environ.get("CODEFLOW_RELAY_PORT") or os.environ.get("BRIDGEFLOW_RELAY_PORT", "5252"))
 
 
 async def send_alert(websocket, message: str, room_key: str = "") -> None:
@@ -282,7 +282,7 @@ async def main() -> None:
         ping_timeout=20,
         max_size=TRANSPORT_MAX_BYTES,
     ):
-        print(f"BridgeFlow relay running on {RELAY_HOST}:{RELAY_PORT}")
+        print(f"CodeFlow relay running on {RELAY_HOST}:{RELAY_PORT}")
         await asyncio.Future()
 
 

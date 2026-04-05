@@ -1,11 +1,11 @@
 {
-  "name": "BridgeFlow Workspace",
-  "short_name": "BridgeFlow",
+  "name": "码流（CodeFlow）工作台",
+  "short_name": "码流",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#162540",
   "theme_color": "#1c2e4a",
-  "description": "BridgeFlow 人机协作工作台 / Human-AI collaboration workspace",
+  "description": "码流（CodeFlow）——AI 驱动的人机协作中枢，用手机轻松驾驭 AI，让指令高效流转、直达团队。 CodeFlow — AI-powered human-machine collaboration hub. Master AI from your mobile device, make commands flow efficiently and reach your team directly.",
   "icons": [
     {
       "src": "./logo-BridgeFlow-125.png",

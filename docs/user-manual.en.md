@@ -1,6 +1,6 @@
-# BridgeFlow User Manual
+# CodeFlow User Manual (码流)
 
-**Version:** v1.9.0 | **Updated:** 2026-04-03
+**Version:** v2.0.0 | **Updated:** 2026-04-04
 
 ---
 
@@ -42,9 +42,9 @@ This folder will contain:
 
 > **Any drive letter, any path** — just remember where it is.
 
-### 2.3 Get BridgeFlow Desktop
+### 2.3 Get CodeFlow Desktop
 
-Get `BridgeFlow-Desktop.exe` (~50MB), place it anywhere.
+Get `CodeFlow-Desktop.exe` (~50MB), place it anywhere.
 
 ---
 
@@ -52,7 +52,7 @@ Get `BridgeFlow-Desktop.exe` (~50MB), place it anywhere.
 
 ### Step 1: Run the EXE
 
-Double-click `BridgeFlow-Desktop.exe`. The browser opens the control panel:
+Double-click `CodeFlow-Desktop.exe`. The browser opens the control panel:
 
 ```
 http://127.0.0.1:18765
@@ -77,11 +77,11 @@ Click **Save**. The system auto-generates:
 ```
 Your project folder/
 ├── .cursor/
-│   ├── rules/bridgeflow-core.mdc
-│   ├── rules/bridgeflow-patrol.mdc
+│   ├── rules/codeflow-core.mdc (legacy: bridgeflow-core.mdc)
+│   ├── rules/codeflow-patrol.mdc (legacy: bridgeflow-patrol.mdc)
 │   └── skills/file-protocol/SKILL.md
 ├── docs/agents/
-│   ├── bridgeflow.json
+│   ├── codeflow.json (legacy: bridgeflow.json)
 │   ├── PM.md / PM.en.md              ← Role docs (bilingual)
 │   ├── DEV.md / DEV.en.md
 │   ├── QA.md / QA.en.md
@@ -97,7 +97,7 @@ The panel runs 6 checks automatically:
 |-------|-------------|-------------|
 | Project Directory | Folder exists | Re-select folder |
 | Directory Structure | tasks / reports / issues / log exist | Click "Fix" |
-| Team Config | bridgeflow.json generated | Re-select team |
+| Team Config | codeflow.json generated | Re-select team |
 | Role Files | rules + skills + role docs ready | Click "Copy" |
 | Cursor Window | Cursor is running | Open Cursor first |
 | Hotkeys | Ctrl+Alt+1~4 configured | Auto-written |
@@ -141,7 +141,7 @@ Once started:
 On your phone browser, go to:
 
 ```
-https://joinwell52-ai.github.io/bridgeflow-pwa/
+https://joinwell52-ai.github.io/codeflow-pwa/
 ```
 
 Add to home screen:
@@ -168,7 +168,7 @@ Add to home screen:
 
 Each time, just:
 
-1. **Double-click `BridgeFlow-Desktop.exe`**
+1. **Double-click `CodeFlow-Desktop.exe`**
 2. **Open Cursor** (make sure 4 Agent Tabs are there)
 3. **Click "Start"**
 
@@ -224,8 +224,8 @@ Click the **Reset** button at bottom-right of the panel (requires confirmation),
 
 | File | Description |
 |------|-------------|
-| `BridgeFlow-Desktop.exe` | Main program, double-click to run, ~50MB |
-| `docs/agents/bridgeflow.json` | Team config (roles, room key, relay URL) |
+| `CodeFlow-Desktop.exe` | Main program, double-click to run, ~50MB |
+| `docs/agents/codeflow.json` | Team config (roles, room key, relay URL; legacy `bridgeflow.json`) |
 | `docs/agents/tasks/*.md` | Task files |
 | `docs/agents/reports/*.md` | Completion reports |
 | `docs/agents/issues/*.md` | Issue records |

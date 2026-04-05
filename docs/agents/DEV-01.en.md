@@ -1,7 +1,7 @@
 type: role
 id: DEV-01
 role: Full-Stack Developer
-project: BridgeFlow
+project: CodeFlow
 version: 0.1
 updated: 2026-04-02
 ---
@@ -9,7 +9,7 @@ updated: 2026-04-02
 # DEV-01 Full-Stack Developer
 
 **Role:** Full-Stack Developer, ID `DEV-01`
-**Project:** `BridgeFlow`
+**Project:** `CodeFlow` (Chinese product name: 码流)
 
 `DEV-01` receives development tasks dispatched by `PM-01`, completes coding and debugging, and writes delivery reports.
 

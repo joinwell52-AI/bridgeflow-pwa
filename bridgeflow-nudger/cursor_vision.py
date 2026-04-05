@@ -30,7 +30,7 @@ from typing import Optional
 
 import win32gui
 
-logger = logging.getLogger("bridgeflow.vision")
+logger = logging.getLogger("codeflow.vision")
 
 user32 = ctypes.windll.user32
 kernel32 = ctypes.windll.kernel32
@@ -148,20 +148,44 @@ class CursorState:
 #  窗口查找（进程名精确匹配 cursor.exe）
 # ═══════════════════════════════════════════════════════════
 
-def _get_exe_path(hwnd: int) -> str:
+PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+PROCESS_QUERY_INFORMATION = 0x0400
+PROCESS_VM_READ = 0x0010
+
+
+def get_process_exe_path(hwnd: int) -> str:
+    """
+    解析窗口所属进程的可执行文件路径。
+    优先使用 PROCESS_QUERY_LIMITED_INFORMATION + QueryFullProcessImageName，
+    在部分机器上比 VM_READ 方案更不易因权限/会话差异而间歇失败。
+    """
     pid = wintypes.DWORD()
     user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-    handle = kernel32.OpenProcess(0x0410, False, pid.value)
-    if not handle:
+    if not pid.value:
         return ""
-    try:
-        buf = (ctypes.c_wchar * 520)()
-        psapi.GetModuleFileNameExW(handle, None, buf, 520)
-        return buf.value
-    except Exception:
-        return ""
-    finally:
-        kernel32.CloseHandle(handle)
+    # 先试低权限句柄（跨完整性级别时 OpenProcess 更容易成功）
+    for access in (PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_QUERY_INFORMATION | PROCESS_VM_READ):
+        handle = kernel32.OpenProcess(access, False, pid.value)
+        if not handle:
+            continue
+        try:
+            buf = (ctypes.c_wchar * 520)()
+            size = wintypes.DWORD(520)
+            if kernel32.QueryFullProcessImageNameW(handle, 0, buf, ctypes.byref(size)):
+                return buf.value
+            buf2 = (ctypes.c_wchar * 520)()
+            psapi.GetModuleFileNameExW(handle, None, buf2, 520)
+            if buf2.value:
+                return buf2.value
+        except Exception:
+            pass
+        finally:
+            kernel32.CloseHandle(handle)
+    return ""
+
+
+def _get_exe_path(hwnd: int) -> str:
+    return get_process_exe_path(hwnd)
 
 
 def find_all_cursor_windows() -> list[CursorWindow]:
@@ -170,15 +194,16 @@ def find_all_cursor_windows() -> list[CursorWindow]:
     def _enum(hwnd, _):
         if not win32gui.IsWindowVisible(hwnd):
             return
-        title = win32gui.GetWindowText(hwnd)
-        if not title:
+        # Electron 偶发空标题；仍以进程名为准，避免「已开 Cursor 却枚举不到」
+        title = win32gui.GetWindowText(hwnd) or ""
+        exe = get_process_exe_path(hwnd)
+        if not exe.lower().endswith("cursor.exe"):
             return
-        exe = _get_exe_path(hwnd)
-        if exe.lower().endswith("cursor.exe"):
-            l, t, r, b = win32gui.GetWindowRect(hwnd)
-            if (r - l) > 100 and (b - t) > 100:
-                results.append(CursorWindow(hwnd=hwnd, title=title,
-                                            left=l, top=t, right=r, bottom=b))
+        l, t, r, b = win32gui.GetWindowRect(hwnd)
+        if (r - l) > 100 and (b - t) > 100:
+            display = title if title.strip() else "Cursor"
+            results.append(CursorWindow(hwnd=hwnd, title=display,
+                                        left=l, top=t, right=r, bottom=b))
 
     win32gui.EnumWindows(_enum, None)
     results.sort(key=lambda w: w.width * w.height, reverse=True)

@@ -1,6 +1,6 @@
-# BridgeFlow 用户操作手册
+# 码流（CodeFlow）用户操作手册
 
-**版本：** v1.9.0 ｜ **更新日期：** 2026-04-03
+**版本：** v2.0.0 ｜ **更新日期：** 2026-04-04
 
 ---
 
@@ -42,9 +42,9 @@ D:\my-ai-team\
 
 > **任意盘符、任意路径均可**，只要你记得在哪就行。
 
-### 2.3 获取 BridgeFlow Desktop
+### 2.3 获取码流 Desktop（CodeFlow Desktop）
 
-获取 `BridgeFlow-Desktop.exe`（约 50MB），放在任意位置。
+获取 `CodeFlow-Desktop.exe`（约 50MB），放在任意位置。
 
 ---
 
@@ -52,7 +52,7 @@ D:\my-ai-team\
 
 ### 步骤 1：双击运行 EXE
 
-双击 `BridgeFlow-Desktop.exe`，浏览器自动打开控制面板：
+双击 `CodeFlow-Desktop.exe`，浏览器自动打开控制面板：
 
 ```
 http://127.0.0.1:18765
@@ -77,11 +77,11 @@ http://127.0.0.1:18765
 ```
 你的项目文件夹/
 ├── .cursor/
-│   ├── rules/bridgeflow-core.mdc        ← Agent 协作协议
-│   ├── rules/bridgeflow-patrol.mdc      ← 自动巡检规则
+│   ├── rules/codeflow-core.mdc          ← Agent 协作协议（旧版可能为 bridgeflow-core.mdc）
+│   ├── rules/codeflow-patrol.mdc        ← 自动巡检规则（旧版可能为 bridgeflow-patrol.mdc）
 │   └── skills/file-protocol/SKILL.md    ← 文件协议技能
 ├── docs/agents/
-│   ├── bridgeflow.json                  ← 团队配置
+│   ├── codeflow.json                    ← 团队配置（兼容旧名 bridgeflow.json）
 │   ├── PM.md / PM.en.md                 ← 角色定义（中英双语）
 │   ├── DEV.md / DEV.en.md
 │   ├── QA.md / QA.en.md
@@ -100,7 +100,7 @@ http://127.0.0.1:18765
 |--------|------|-------------|
 | 项目目录 | 文件夹是否存在 | 重新选择文件夹 |
 | 目录结构 | tasks / reports / issues / log 是否存在 | 点"修复" |
-| 团队配置 | bridgeflow.json 是否生成 | 重新选择团队 |
+| 团队配置 | codeflow.json 是否生成 | 重新选择团队 |
 | 角色文件 | rules + skills + 角色文档是否就绪 | 点"拷贝" |
 | Cursor 窗口 | 是否检测到 Cursor 正在运行 | 先打开 Cursor |
 | 快捷键 | Ctrl+Alt+1~4 是否已配置 | 自动写入 |
@@ -144,7 +144,7 @@ http://127.0.0.1:18765
 手机浏览器打开：
 
 ```
-https://joinwell52-ai.github.io/bridgeflow-pwa/
+https://joinwell52-ai.github.io/codeflow-pwa/
 ```
 
 建议添加到主屏幕：
@@ -171,7 +171,7 @@ https://joinwell52-ai.github.io/bridgeflow-pwa/
 
 每次使用只需：
 
-1. **双击 `BridgeFlow-Desktop.exe`**
+1. **双击 `CodeFlow-Desktop.exe`**
 2. **打开 Cursor**（确保 4 个 Agent Tab 在）
 3. **点「启动」**
 
@@ -227,8 +227,8 @@ https://joinwell52-ai.github.io/bridgeflow-pwa/
 
 | 文件 | 说明 |
 |------|------|
-| `BridgeFlow-Desktop.exe` | 主程序，双击运行，约 50MB |
-| `docs/agents/bridgeflow.json` | 团队配置（角色、房间密钥、中继地址） |
+| `CodeFlow-Desktop.exe` | 主程序，双击运行，约 50MB |
+| `docs/agents/codeflow.json` | 团队配置（角色、房间密钥、中继地址；兼容 `bridgeflow.json`） |
 | `docs/agents/tasks/*.md` | 任务单文件 |
 | `docs/agents/reports/*.md` | 完成报告文件 |
 | `docs/agents/issues/*.md` | 问题记录文件 |

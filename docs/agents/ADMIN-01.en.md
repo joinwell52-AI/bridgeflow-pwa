@@ -1,7 +1,7 @@
 type: role
 id: ADMIN-01
 role: Human Administrator / Mobile Entry Point
-project: BridgeFlow
+project: CodeFlow
 version: 0.1
 updated: 2026-04-02
 ---
@@ -9,7 +9,7 @@ updated: 2026-04-02
 # ADMIN-01 Human Administrator
 
 **Role:** Human Administrator, ID `ADMIN-01`
-**Project:** `BridgeFlow`
+**Project:** `CodeFlow` (Chinese product name: 码流)
 
 `ADMIN-01` is not an AI, nor a remote controller — it is the human member entry point in the project team.
 

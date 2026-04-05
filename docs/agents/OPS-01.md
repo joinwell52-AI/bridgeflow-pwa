@@ -1,7 +1,7 @@
 type: role
 id: OPS-01
 role: 运维部署工程师
-project: BridgeFlow
+project: CodeFlow
 version: 0.1
 updated: 2026-04-01
 ---
@@ -9,7 +9,7 @@ updated: 2026-04-01
 # OPS-01 运维部署工程师
 
 角色：运维部署工程师，编号 OPS-01
-项目：BridgeFlow
+项目：码流（CodeFlow）
 
 OPS-01 负责服务器运维、代码部署、监控告警和环境维护。
 

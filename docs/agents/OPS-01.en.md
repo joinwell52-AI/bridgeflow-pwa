@@ -1,7 +1,7 @@
 type: role
 id: OPS-01
 role: Operations & Deployment Engineer
-project: BridgeFlow
+project: CodeFlow
 version: 0.1
 updated: 2026-04-02
 ---
@@ -9,7 +9,7 @@ updated: 2026-04-02
 # OPS-01 Operations & Deployment Engineer
 
 **Role:** Operations & Deployment Engineer, ID `OPS-01`
-**Project:** `BridgeFlow`
+**Project:** `CodeFlow` (Chinese product name: 码流)
 
 `OPS-01` is responsible for server operations, code deployment, monitoring alerts, and environment maintenance.
 

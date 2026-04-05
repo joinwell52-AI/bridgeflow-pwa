@@ -1,6 +1,6 @@
-# BridgeFlow Agent 文件结构
+# 码流（CodeFlow）Agent 文件结构
 
-`BridgeFlow` 的第一阶段不是做“手机聊天软件”，而是做“人类角色进入团队协议”的文件系统骨架。
+**码流（CodeFlow）** 的第一阶段不是做“手机聊天软件”，而是做“人类角色进入团队协议”的文件系统骨架。
 
 因此 `docs/agents/` 是这个项目的核心协作目录。
 
@@ -112,7 +112,7 @@ attachments_count: 0
 
 这会让项目归档、追责、追踪线程全部变乱。
 
-所以 `BridgeFlow` 第一阶段坚持：
+所以 **码流（CodeFlow）** 第一阶段坚持：
 
 **让所有文本沟通都回到文件协议。**
 
@@ -120,6 +120,6 @@ attachments_count: 0
 
 本项目内部把这套文件协作方式命名为 `agent_bridge`：
 
-- 应用层名字叫 `BridgeFlow`
+- 应用层名字叫 **码流（CodeFlow）**（技术标识可用 `CodeFlow`）
 - 落地协作协议叫 `agent_bridge`
 - 协议核心仍然是 `TASK-YYYYMMDD-序号-发送方-to-接收方.md`

@@ -1,5 +1,5 @@
 """
-BridgeFlow Desktop — 主入口
+CodeFlow Desktop — 主入口
 
 双击运行后：
 1. 选择项目文件夹（首次运行弹窗，之后记住）
@@ -19,9 +19,9 @@ import time
 import webbrowser
 from pathlib import Path
 
-VERSION = "1.9.7"
+VERSION = "2.0.0"
 
-logger = logging.getLogger("bridgeflow")
+logger = logging.getLogger("codeflow")
 
 _nudger_thread: threading.Thread | None = None
 _relay_thread: threading.Thread | None = None
@@ -30,7 +30,7 @@ _nudger_instance = None
 
 def setup_logging():
     fmt = logging.Formatter("[%(asctime)s] %(levelname)s %(message)s", datefmt="%H:%M:%S")
-    root = logging.getLogger("bridgeflow")
+    root = logging.getLogger("codeflow")
     root.setLevel(logging.INFO)
 
     if sys.stdout:
@@ -38,7 +38,10 @@ def setup_logging():
         sh.setFormatter(fmt)
         root.addHandler(sh)
 
-    log_dir = Path(os.environ.get("APPDATA", ".")) / "BridgeFlow"
+    base = Path(os.environ.get("APPDATA", "."))
+    log_dir = base / "CodeFlow"
+    if not log_dir.exists() and (base / "BridgeFlow").exists():
+        log_dir = base / "BridgeFlow"
     log_dir.mkdir(parents=True, exist_ok=True)
     fh = logging.FileHandler(log_dir / "desktop.log", encoding="utf-8")
     fh.setFormatter(fmt)
@@ -48,9 +51,15 @@ def setup_logging():
 def get_config_path() -> Path:
     appdata = os.environ.get("APPDATA", "")
     if appdata:
-        cfg_dir = Path(appdata) / "BridgeFlow"
+        cfg_dir = Path(appdata) / "CodeFlow"
+        if not cfg_dir.exists():
+            legacy = Path(appdata) / "BridgeFlow"
+            if legacy.exists():
+                cfg_dir = legacy
     else:
-        cfg_dir = Path.home() / ".bridgeflow"
+        cfg_dir = Path.home() / ".codeflow"
+        if not cfg_dir.exists() and (Path.home() / ".bridgeflow").exists():
+            cfg_dir = Path.home() / ".bridgeflow"
     cfg_dir.mkdir(parents=True, exist_ok=True)
     return cfg_dir / "config.json"
 
@@ -89,8 +98,17 @@ def select_project_dir() -> Path | None:
         root = tk.Tk()
         root.withdraw()
         root.attributes("-topmost", True)
+        try:
+            if getattr(sys, "frozen", False):
+                _ico = Path(getattr(sys, "_MEIPASS", "")) / "panel" / "app.ico"
+            else:
+                _ico = Path(__file__).resolve().parent / "panel" / "app.ico"
+            if _ico.is_file():
+                root.iconbitmap(default=str(_ico))
+        except Exception:
+            pass
         dir_path = filedialog.askdirectory(
-            title="选择 BridgeFlow 项目文件夹",
+            title="选择 CodeFlow 项目文件夹",
             initialdir=last_dir or str(Path.home() / "Desktop"),
         )
         root.destroy()
@@ -169,7 +187,7 @@ def stop_nudger():
 
 def main():
     setup_logging()
-    logger.info("BridgeFlow Desktop v%s", VERSION)
+    logger.info("CodeFlow Desktop v%s", VERSION)
 
     project_dir = None
 
@@ -218,7 +236,12 @@ def main():
 
     config = NudgerConfig(project_dir=project_dir)
 
-    bf_json = project_dir / "docs" / "agents" / "bridgeflow.json"
+    agents = project_dir / "docs" / "agents"
+    bf_json = agents / "codeflow.json"
+    if not bf_json.exists():
+        legacy_bf = agents / "bridgeflow.json"
+        if legacy_bf.exists():
+            bf_json = legacy_bf
     if bf_json.exists():
         try:
             data = json.loads(bf_json.read_text(encoding="utf-8"))
@@ -227,10 +250,15 @@ def main():
             if "relay_url" in data:
                 url = data["relay_url"]
                 if "/relay/" in url:
-                    url = url.replace("/relay/", "/bridgeflow/ws/")
+                    url = url.replace("/relay/", "/codeflow/ws/")
                     data["relay_url"] = url
                     bf_json.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
                     logger.info("已自动修正 relay_url: %s", url)
+                elif "/bridgeflow/ws/" in url:
+                    url = url.replace("/bridgeflow/ws/", "/codeflow/ws/")
+                    data["relay_url"] = url
+                    bf_json.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+                    logger.info("已自动升级 relay_url 路径: %s", url)
                 config.relay_url = url
             if "lang" in data:
                 config.lang = data["lang"]
@@ -246,7 +274,11 @@ def main():
         except Exception as e:
             logger.warning("团队配置加载失败: %s", e)
 
-    json_cfg = project_dir / "bridgeflow-nudger.json"
+    json_cfg = project_dir / "codeflow-nudger.json"
+    if not json_cfg.exists():
+        _legacy_nudger = project_dir / "bridgeflow-nudger.json"
+        if _legacy_nudger.exists():
+            json_cfg = _legacy_nudger
     if json_cfg.exists():
         try:
             data = json.loads(json_cfg.read_text(encoding="utf-8"))
@@ -254,6 +286,18 @@ def main():
                 config.hotkeys = {k.upper(): tuple(v) for k, v in data["hotkeys"].items()}
             if "input_offset" in data:
                 config.input_offset = tuple(data["input_offset"])
+            if "poll_interval" in data:
+                config.poll_interval = float(data["poll_interval"])
+            if "find_cursor_max_attempts" in data:
+                config.find_cursor_max_attempts = int(data["find_cursor_max_attempts"])
+            if "find_cursor_retry_delay_s" in data:
+                config.find_cursor_retry_delay_s = float(data["find_cursor_retry_delay_s"])
+            if "idle_check_every_n" in data:
+                config.idle_check_every_n = int(data["idle_check_every_n"])
+            if "stuck_check_every_n" in data:
+                config.stuck_check_every_n = int(data["stuck_check_every_n"])
+            if "use_file_watcher" in data:
+                config.use_file_watcher = bool(data["use_file_watcher"])
             logger.info("已加载高级配置: %s", json_cfg)
         except Exception as e:
             logger.warning("高级配置加载失败: %s", e)
@@ -296,7 +340,7 @@ def main():
     signal.signal(signal.SIGINT, _on_quit)
     atexit.register(_on_quit)
 
-    logger.info("BridgeFlow Desktop 运行中（Ctrl+C 或关闭窗口退出）")
+    logger.info("CodeFlow Desktop 运行中（Ctrl+C 或关闭窗口退出）")
     try:
         while not _quit_flag:
             time.sleep(1)
@@ -304,7 +348,7 @@ def main():
         pass
     finally:
         _on_quit()
-    logger.info("BridgeFlow Desktop 已退出")
+    logger.info("CodeFlow Desktop 已退出")
 
 
 if __name__ == "__main__":

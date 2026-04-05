@@ -1,0 +1,87 @@
+---
+description: CodeFlow Project Rules — applies globally to all sessions
+alwaysApply: true
+---
+
+# CodeFlow Project Rules
+
+## Positioning
+
+**CodeFlow** (Chinese name: 码流) is a human-AI collaboration hub for multi-AI-role teams.
+
+- **Phone**: Command center (ADMIN01) — send tasks, view status, scan to bind
+- **PC**: Dedicated execution machine (CodeFlow Desktop) — receive tasks, write files, patrol, bridge
+- **Relay**: Lightweight text event forwarding layer (`wss://your-relay-server/codeflow/ws/`)
+
+## Naming
+
+| Name | Meaning |
+|------|---------|
+| `CodeFlow` | Application-level name |
+| `agent_bridge` | File collaboration protocol |
+| `codeflow` | Python package / CLI (if present) |
+| `ADMIN01` | Human operator |
+| `PM01/DEV01/OPS01/QA01` | AI execution roles |
+
+## Directory layout
+
+```
+BridgeFlow/
+├── bridgeflow-nudger/   # PC Desktop (historical folder name; product: CodeFlow Desktop)
+├── codeflow-plugin/     # Cursor MCP plugin
+├── web/pwa/             # PWA source — sync to codeflow-pwa repo and bump version after changes
+├── docs/
+├── docs/agents/
+├── server/relay/
+└── scripts/
+```
+
+## Code standards
+
+### Python
+- Minimum: Python 3.10
+- Package management: `pyproject.toml` (no `setup.py`)
+- Cross-platform: Windows / macOS / Linux
+
+### PWA (web/pwa/)
+- Bump `config.js` `appVersion` on every change (Service Worker cache)
+- Sync to `codeflow-pwa/` and push to GitHub Pages after changes
+- Core features must not depend on CDN
+
+### File protocol (agent_bridge)
+- Task files: `TASK-YYYYMMDD-sequence-sender-to-recipient.md`
+- YAML metadata header required on every file
+- Do not relay content only in chat without saving to files
+
+## Relay event shape
+
+Outgoing events must include:
+```json
+{
+  "room_key": "...",
+  "sender": "ADMIN01",
+  "client_type": "mobile_admin",
+  "event_type": "...",
+  "payload": {}
+}
+```
+
+## Release
+
+### PyPI
+1. Bump `version` in `pyproject.toml`
+2. Update `CHANGELOG.md`
+3. Build: `py -3.10 -m build`
+4. Upload: `py -3.10 -m twine upload dist/*`
+
+### PWA (GitHub Pages)
+1. Bump `appVersion` in `web/pwa/config.js`
+2. Sync: `Copy-Item ..\web\pwa\index.html index.html -Force` (inside `codeflow-pwa/`)
+3. Push: `git push origin main`
+
+## Prohibited
+
+- Do not hardcode real `room_key` in public examples
+- Do not send large payloads over relay (8KB limit)
+- Do not modify existing task files under `docs/agents/tasks/` and `reports/` (append only)
+- Do not introduce a secondary chat-only protocol

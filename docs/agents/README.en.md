@@ -1,6 +1,6 @@
-# BridgeFlow Agent File Structure
+# CodeFlow Agent File Structure (码流)
 
-BridgeFlow's first phase is not about building a "mobile chat app" — it's about building the file system backbone for "humans entering the team protocol."
+**CodeFlow**'s first phase is not about building a "mobile chat app" — it's about building the file system backbone for "humans entering the team protocol."
 
 Therefore, `docs/agents/` is the core collaboration directory of this project.
 
@@ -112,7 +112,7 @@ If the phone only "views messages" without writing files, two parallel systems e
 
 This would break project archiving, accountability, and thread tracking.
 
-Therefore, BridgeFlow Phase 1 insists:
+Therefore, CodeFlow Phase 1 insists:
 
 **All text communication must go through the file protocol.**
 
@@ -120,6 +120,6 @@ Therefore, BridgeFlow Phase 1 insists:
 
 This project internally names this file collaboration approach `agent_bridge`:
 
-- Application-level name: `BridgeFlow`
+- Application-level name: **CodeFlow** (Chinese: 码流)
 - Underlying collaboration protocol: `agent_bridge`
 - Protocol core: `TASK-YYYYMMDD-sequence-sender-to-recipient.md`

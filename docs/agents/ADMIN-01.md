@@ -1,7 +1,7 @@
 type: role
 id: ADMIN-01
 role: 真人管理员 / 手机端入口
-project: BridgeFlow
+project: CodeFlow
 version: 0.1
 updated: 2026-04-01
 ---
@@ -9,7 +9,7 @@ updated: 2026-04-01
 # ADMIN-01 真人管理员
 
 【角色】真人管理员，编号 `ADMIN-01`  
-【项目】`BridgeFlow`
+【项目】`码流（CodeFlow）`
 
 `ADMIN-01` 不是 AI，也不是远程操控器，而是项目组中的真人成员入口。
 

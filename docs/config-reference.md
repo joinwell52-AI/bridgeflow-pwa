@@ -1,6 +1,6 @@
-# BridgeFlow 配置参考
+# 码流（CodeFlow）配置参考
 
-**版本：** v0.2.1
+**版本：** v0.2.1（文档内仍保留历史 `bridgeflow` CLI 字段名处，请以当前桌面端/PWA 实际行为为准）
 
 ---
 
@@ -8,8 +8,9 @@
 
 | 文件 | 位置 | 作用 |
 |------|------|------|
-| `bridgeflow_config.json` | PC 端工作目录（`bridgeflow init` 生成） | PC 执行机全部运行参数 |
-| `web/pwa/config.js` | PWA 静态资源 | 手机端中继地址、缓存版本 |
+| `bridgeflow_config.json` | 旧版 pip CLI 工作目录（若仍使用 `bridgeflow init`） | PC 执行机运行参数（历史） |
+| `web/pwa/config.js` | PWA 主源 | 手机端中继地址、品牌文案、`appVersion`（改后需同步根目录副本） |
+| `docs/agents/codeflow.json` | 项目内团队配置 | 角色、房间、中继（兼容旧名 `bridgeflow.json`） |
 
 ---
 
@@ -32,15 +33,15 @@ bridgeflow init --force                  # 强制覆盖（⚠️ 重置绑定状
 
 | 字段 | 类型 | 默认值 | 必填 | 说明 |
 |------|------|--------|------|------|
-| `url` | `string` | `"wss://ai.chedian.cc/bridgeflow/ws/"` | ✅ | WebSocket 中继地址。格式必须为 `wss://` 或 `ws://`。改为自部署中继时修改此项 |
-| `room_key` | `string` | `"bridgeflow-default"` | ✅ | 房间隔离 key。PC 端和手机端必须填写**完全相同**的值才能互相通信。建议每团队使用独立随机字符串 |
+| `url` | `string` | `"wss://ai.chedian.cc/codeflow/ws/"`（旧文档可能写作 `/bridgeflow/ws/`） | ✅ | WebSocket 中继地址。格式必须为 `wss://` 或 `ws://`。网关路径须与客户端一致 |
+| `room_key` | `string` | `"codeflow-default"`（旧默认可能为 `bridgeflow-default`） | ✅ | 房间隔离 key。PC 端和手机端必须填写**完全相同**的值才能互相通信。建议每团队使用独立随机字符串 |
 | `shared_secret` | `string` | `""` | ❌ | 共享密钥（预留扩展字段，当前未启用） |
 
-> **`room_key` 安全建议：** 默认值 `bridgeflow-default` 是公开房间，任何人都能连入。团队使用时请改为随机字符串，例如 `team-abc-2026-x7k`。
+> **`room_key` 安全建议：** 默认公共房间名是公开的，团队使用时请改为随机字符串，例如 `team-abc-2026-x7k`。
 
 ```json
 "relay": {
-  "url": "wss://ai.chedian.cc/bridgeflow/ws/",
+  "url": "wss://ai.chedian.cc/codeflow/ws/",
   "room_key": "your-private-room",
   "shared_secret": ""
 }
@@ -248,21 +249,23 @@ bridgeflow init --force                  # 强制覆盖（⚠️ 重置绑定状
 
 | 字段 | 类型 | 默认值 | 必填 | 说明 |
 |------|------|--------|------|------|
-| `appName` | `string` | `"BridgeFlow"` | ✅ | 应用名称，显示在 PWA 标题和主屏幕图标下 |
-| `appVersion` | `string` | `"1.6.0"` | ✅ | **Service Worker 缓存版本号**。每次修改任何 PWA 文件后必须递增（如 `1.6.1`），否则手机端看到旧版 |
-| `relayUrl` | `string` | `"wss://ai.chedian.cc/bridgeflow/ws/"` | ✅ | 中继 WebSocket 地址，必须与 PC 端 `relay.url` 一致 |
-| `relayLabel` | `string` | `"公共中继"` | ❌ | 中继的显示名称，显示在"我的"页面的配置信息中 |
-| `roomKey` | `string` | `"bridgeflow-default"` | ✅ | 房间 key，必须与 PC 端 `relay.room_key` 完全一致 |
+| `appName` | `string` | `"码流（CodeFlow）"` | ✅ | 应用名称，显示在 PWA 标题和主屏幕图标下 |
+| `appVersion` | `string` | `"2.0.0"` | ✅ | **Service Worker 缓存版本号**。每次修改任何 PWA 文件后必须递增，否则手机端看到旧版 |
+| `relayUrl` | `string` | `"wss://ai.chedian.cc/codeflow/ws/"` | ✅ | 中继 WebSocket 地址，必须与 PC 端、网关路径一致 |
+| `relayLabel` | `string` | `"公网正式中继"` | ❌ | 中继的显示名称，显示在「我的」页面的配置信息中 |
+| `roomKey` | `string` | `"codeflow-default"` | ✅ | 房间 key，必须与 PC 端 `relay.room_key` 完全一致 |
 | `autoConnect` | `boolean` | `true` | ❌ | 打开 PWA 时是否自动连接中继。`true` 推荐，省去手动点连接 |
 | `defaultTarget` | `string` | `"PM"` | ❌ | 任务列表默认显示的角色。可选：`"PM"` / `"DEV"` / `"OPS"` / `"QA"` |
 
+另见：`appTagline` / `appTaglineEn` / `appSubtagline` / `appSubtaglineEn` / `appSummary` / `appSummaryEn`（中英标语与一句话简介）。
+
 ```js
-global.BRIDGEFLOW_CONFIG = {
-  appName:       "BridgeFlow",
-  appVersion:    "1.6.0",
-  relayUrl:      "wss://ai.chedian.cc/bridgeflow/ws/",
-  relayLabel:    "公共中继",
-  roomKey:       "bridgeflow-default",
+global.CODEFLOW_CONFIG = {
+  appName:       "码流（CodeFlow）",
+  appVersion:    "2.0.0",
+  relayUrl:      "wss://ai.chedian.cc/codeflow/ws/",
+  relayLabel:    "公网正式中继",
+  roomKey:       "codeflow-default",
   autoConnect:   true,
   defaultTarget: "PM"
 };

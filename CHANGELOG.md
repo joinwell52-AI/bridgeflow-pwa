@@ -1,10 +1,48 @@
 # Changelog
 
-BridgeFlow 版本历史，遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
+**码流（CodeFlow）** 版本历史，遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
 ---
 
 ## [Unreleased]
+
+（暂无）
+
+---
+
+## [2.0.0] - 2026-04-04
+
+码流（CodeFlow）**改名后主版本对齐**：桌面端、PWA、Cursor 插件元数据统一 **2.0.0**。
+
+### 版本号
+- **桌面端**：`bridgeflow-nudger/main.py`、`web_panel.py` → **2.0.0**；打包产物仍为 **`dist/CodeFlow-Desktop.exe`**（`pack.cmd` / `build.spec`）。
+- **PWA**：`web/pwa/config.js` 的 `appVersion` **2.0.0**；根目录 `config.js` / `index.html`（manifest 缓存参数）/ `sw.js` 与主源同步。
+- **插件**：`codeflow-plugin/.cursor-plugin/plugin.json` → **2.0.0**。
+
+### GitHub 仓库（PWA）
+- 对外 PWA 仓库：**`joinwell52-AI/codeflow-pwa`**；Pages：**https://joinwell52-ai.github.io/codeflow-pwa/**（`.github/workflows/deploy-pwa.yml` 已同步 `external_repository`）。
+
+### 中英双语文案
+- **中文**：主标语「指令成流，智能随行」；副标语「手机驭 AI，指令达团队」；一句话简介见 `appSummary`。
+- **英文**：`appTaglineEn` / `appSubtaglineEn` / `appSummaryEn`（与顶栏英文切换、`meta`/`manifest` 英段一致）。
+
+### 品牌与配置路径
+- **中文品牌名**：码流（CodeFlow）；**一句话简介** 见 `web/pwa/config.js`（`appSummary`）与 `manifest.json`（`description`）。
+- **PWA**：`web/pwa/` 为唯一主源；仓库根目录静态副本与 `web/pwa/` 同步，便于静态托管对照。
+- **中继**：默认 WebSocket 路径 `/codeflow/ws/`（生产环境需 Nginx/网关与客户端一致）。
+- **团队配置**：优先 `docs/agents/codeflow.json`，仍兼容旧版 `bridgeflow.json`；高级巡检配置优先 `codeflow-nudger.json`，兼容 `bridgeflow-nudger.json`。
+
+### 工作台 UI（原 v1.9.8 起）
+- **工作台分栏**：宽屏（≥720px）支持左侧或右侧 **Agent 竖栏**（状态徽章 + 任务条数），标题栏 `⇄` 切换左右；点击角色后自动聚焦「发送任务」输入框，便于连续对话。
+
+### 修复 / 增强（Desktop 巡检器 `bridgeflow-nudger/nudger.py`）
+- **切换 Agent 更韧**：每轮内依次 **快捷键 → 点击角色 → Ctrl+Shift+P 搜索 `1-PM`/`2-DEV`/`3-QA`/`4-OPS` 并回车**，最多 **3 轮**整轮重试；每步后 OCR 验证，减少「发现不对仍继续」的误发。
+- **预检「找不到 Cursor」偶发**：窗口枚举改为 **PROCESS_QUERY_LIMITED_INFORMATION + QueryFullProcessImageName**（降低 OpenProcess 失败率）、**允许标题暂为空**（Electron 偶发）、`find_cursor_window` **最多 4 次短重试**，减轻另一台电脑上「多刷新几次又好」的现象。
+- **巡检器 v1.9.9**：`poll_interval` / `find_cursor_*` / `idle_check_every_n` / `stuck_check_every_n` 写入 **`bridgeflow-nudger.json`** 可调；主循环睡眠可被 **watchdog**（`use_file_watcher`，可选依赖）打断以更快响应新 `.md`；面板显示轮询秒数、watchdog 状态、预检 **Cursor 探测耗时**；新增 `requirements.txt`。
+- **巡检可观测性**：`patrol_trace()` 环形缓冲 + **`GET /api/patrol_trace`**；面板 **「巡检轨迹」** 表格与 `[巡检]` 日志一致，精确到文件级、defer 原因、发送成败等阶段。
+- **催办丢失**：因冷却或 Agent 忙碌跳过催办时，`FileWatcher` 已将文件记入 `_known`，若未加入待办队列则该任务**永远不会再被催办**；现合并 `_nudge_pending` 重试队列并设单次上限重试次数。
+- **打招呼崩溃**：`first_hello` 等模板无 `{filename}` 占位符时仍调用 `.format(...)` 会触发 `ValueError`；现用 `_fmt_tpl` 安全格式化。
+- **角色匹配**：任务收件人为 `DEV01` 等时，与 OCR 当前角色 `DEV` 不一致导致无法判定已激活；现统一经 `_role_key_for_task` 比较。
 
 ### 计划中
 - GitHub Actions CI/CD（已配置 `.github/workflows/`）

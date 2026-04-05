@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="码流（CodeFlow）— AI 驱动的人机协作中枢。第一代「Cursor AI 自动化团队」演进版。CodeFlow — AI-powered human-machine collaboration hub." />
+  <title>码流 CodeFlow | 人机协作 · Multi-Agent by Files</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0c1220;
+      --bg2: #151d2e;
+      --text: #e8edf5;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent2: #a78bfa;
+      --card: rgba(30, 41, 59, 0.75);
+      --border: rgba(148, 163, 184, 0.2);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "DM Sans", system-ui, sans-serif;
+      background: radial-gradient(1200px 600px at 10% -10%, rgba(56, 189, 248, 0.12), transparent),
+        radial-gradient(800px 400px at 90% 0%, rgba(167, 139, 250, 0.1), transparent),
+        var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      min-height: 100vh;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+    .badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 0.35rem 0.65rem;
+      border-radius: 999px;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      font-size: clamp(1.75rem, 4vw, 2.35rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0 0 0.5rem;
+    }
+    .sub {
+      font-size: 1.05rem;
+      color: var(--muted);
+      margin-bottom: 1.25rem;
+    }
+    .slogan-zh {
+      font-size: 1.1rem;
+      color: var(--text);
+      margin: 0.25rem 0 0.15rem;
+    }
+    .slogan-en {
+      font-size: 0.95rem;
+      color: var(--muted);
+      font-style: italic;
+      margin: 0 0 1.5rem;
+    }
+    .evolve {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.15rem;
+      margin-bottom: 2rem;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+    .evolve strong { color: var(--text); }
+    .stats {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+    }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 2rem; }
+    .cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.5rem 0.9rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      border: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.6);
+    }
+    .cta.primary { background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(167, 139, 250, 0.2)); border-color: rgba(56, 189, 248, 0.35); }
+    h2 {
+      font-size: 1.15rem;
+      margin: 2.25rem 0 1rem;
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.35rem;
+    }
+    .roles {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .role {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.1rem;
+    }
+    .role h3 { margin: 0 0 0.25rem; font-size: 1rem; }
+    .role .en { font-size: 0.8rem; color: var(--muted); margin: 0; }
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.35rem 0.5rem;
+      font-size: 0.92rem;
+      margin-bottom: 1.5rem;
+    }
+    .flow span { color: var(--muted); }
+    code.filename {
+      font-family: "JetBrains Mono", ui-monospace, monospace;
+      font-size: 0.8rem;
+      background: rgba(15, 23, 42, 0.9);
+      padding: 0.65rem 0.85rem;
+      border-radius: 8px;
+      display: block;
+      border: 1px solid var(--border);
+      word-break: break-all;
+      margin: 0.5rem 0 0.75rem;
+    }
+    .links { margin-top: 1.5rem; font-size: 0.92rem; }
+    footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="badge">CodeFlow / 码流 · Gen-2</div>
+    <h1>码流（CodeFlow）</h1>
+    <p class="sub">Cursor AI 自动化团队 <span aria-hidden="true">→</span> <strong>码流</strong>：同一条「文件驱动协作」主线的产品演进。</p>
+    <p class="slogan-zh">指令成流，智能随行 · 手机驭 AI，指令达团队</p>
+    <p class="slogan-en">Commands Flow, Intelligence Follows. · Command AI from mobile, reach your team with precision.</p>
+
+    <div class="evolve">
+      <strong>第一代</strong>对外曾用名「Cursor AI Automated Team / Cursor AI 自动化开发团队」，见历史教程与案例。
+      <strong>当前代</strong>统一品牌为 <strong>码流（CodeFlow）</strong>：AI 驱动的人机协作中枢；手机端请使用
+      <a href="https://joinwell52-ai.github.io/codeflow-pwa/">CodeFlow PWA</a>。
+    </div>
+
+    <p class="stats" lang="en">
+      87 person-days in 17 days · 91 deployments · 0 incidents <span lang="zh-CN">（第一代里程碑统计，保留作参考）</span>
+    </p>
+
+    <div class="cta-row">
+      <a class="cta primary" href="https://joinwell52-ai.github.io/codeflow-pwa/">📱 CodeFlow PWA（手机主控）</a>
+      <a class="cta" href="https://github.com/joinwell52-AI">⭐ GitHub Org</a>
+      <span class="cta">📖 教程见各仓库 README（中英同步维护）</span>
+    </div>
+
+    <h2>角色 Roles</h2>
+    <div class="roles">
+      <div class="role">
+        <h3>🎯 PM-01</h3>
+        <p class="en">Project Manager · 项目经理 + 架构师</p>
+      </div>
+      <div class="role">
+        <h3>💻 DEV-01</h3>
+        <p class="en">Full-stack Developer · 全栈开发</p>
+      </div>
+      <div class="role">
+        <h3>🚀 OPS-01</h3>
+        <p class="en">Operations · 运维部署</p>
+      </div>
+      <div class="role">
+        <h3>🔍 QA-01</h3>
+        <p class="en">QA Engineer · 质量测试</p>
+      </div>
+    </div>
+
+    <h2>工作流程 How It Works</h2>
+    <div class="flow" lang="zh-CN">
+      <span>1 你告诉 PM</span> → <span>2 PM 派任务</span> → <span>3 DEV 写代码</span> → <span>4 OPS 部署</span> → <span>5 QA 测试</span> → <span>6 你验收</span>
+    </div>
+    <div class="flow" lang="en">
+      <span>1 You tell PM</span> → <span>2 PM assigns</span> → <span>3 DEV codes</span> → <span>4 OPS deploys</span> → <span>5 QA tests</span> → <span>6 You review</span>
+    </div>
+
+    <h2>核心创新：文件名即协议 · Filename as Protocol</h2>
+    <p lang="zh-CN">一条任务一条文件，文件名携带收发角色；无需单独消息队列或业务库表来「传话」。</p>
+    <p lang="en">One task file per message; role routing is encoded in the filename — no extra message bus for human–AI handoffs.</p>
+    <code class="filename">TASK-20260329-006-PM01-to-DEV01.md</code>
+    <p lang="en"><strong>7 fields, 0 databases, 0 message queues, 0 lines of routing config.</strong></p>
+    <p lang="zh-CN"><strong>7 个字段，0 个数据库，0 个消息队列，0 行路由配置代码。</strong>（理念延续第一代落地实践。）</p>
+
+    <div class="links">
+      <a href="https://github.com/joinwell52-AI/codeflow-pwa">📋 CodeFlow PWA 源码</a>
+      ·
+      <a href="https://joinwell52-ai.github.io/codeflow-pwa/">🌐 打开最新工作台</a>
+    </div>
+
+    <footer>
+      © 2026 joinwell52-AI · Non-commercial use only · From real production experience<br />
+      <span lang="zh-CN">本文件为 <strong>码流（CodeFlow）</strong> 仓库内静态示例页，与历史站点仓库互不覆盖。</span>
+    </footer>
+  </div>
+</body>
+</html>

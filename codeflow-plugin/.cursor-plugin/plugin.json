@@ -1,0 +1,23 @@
+{
+  "name": "codeflow",
+  "version": "2.0.0",
+  "description": "码流（CodeFlow）— Multi-AI Agent collaboration with file-driven protocol. Supports dev, media, and MVP team templates.",
+  "author": {
+    "name": "CodeFlow",
+    "email": "joinwell52@gmail.com"
+  },
+  "homepage": "https://github.com/joinwell52-AI/codeflow-pwa",
+  "repository": "https://github.com/joinwell52-AI/codeflow-pwa",
+  "license": "MIT",
+  "keywords": [
+    "multi-agent",
+    "collaboration",
+    "team",
+    "workflow",
+    "file-driven",
+    "mcp",
+    "codeflow",
+    "码流"
+  ],
+  "logo": "assets/logo.svg"
+}

@@ -1,4 +1,4 @@
-# BridgeFlow Configuration Reference
+# CodeFlow Configuration Reference (码流)
 
 **Version:** v0.2.1
 
@@ -248,21 +248,23 @@ The phone PWA reads connection parameters from this file. **Changes must be push
 
 | Field | Type | Default | Required | Description |
 |-------|------|---------|----------|-------------|
-| `appName` | `string` | `"BridgeFlow"` | ✅ | Application name, shown in PWA title and home screen icon |
-| `appVersion` | `string` | `"1.6.0"` | ✅ | **Service Worker cache version.** Must be incremented whenever any PWA file changes, otherwise phones see the old version |
-| `relayUrl` | `string` | `"wss://ai.chedian.cc/bridgeflow/ws/"` | ✅ | Relay WebSocket URL, must match PC-side `relay.url` |
-| `relayLabel` | `string` | `"Public Relay"` | ❌ | Relay display name, shown in the "My" page configuration info |
-| `roomKey` | `string` | `"bridgeflow-default"` | ✅ | Room key, must exactly match PC-side `relay.room_key` |
-| `autoConnect` | `boolean` | `true` | ❌ | Auto-connect to relay when opening PWA. `true` recommended |
-| `defaultTarget` | `string` | `"PM"` | ❌ | Default role displayed in task list. Options: `"PM"` / `"DEV"` / `"OPS"` / `"QA"` |
+| `appName` | `string` | `"码流（CodeFlow）"` | ✅ | Application name (Chinese brand + English name) |
+| `appVersion` | `string` | `"2.0.0"` | ✅ | **Service Worker cache version.** Increment on every PWA file change |
+| `relayUrl` | `string` | `"wss://ai.chedian.cc/codeflow/ws/"` | ✅ | Relay WebSocket URL; must match PC and gateway path |
+| `relayLabel` | `string` | (Chinese label in default config) | ❌ | Relay display name on the "My" page |
+| `roomKey` | `string` | `"codeflow-default"` | ✅ | Room key; must exactly match PC-side `relay.room_key` |
+| `autoConnect` | `boolean` | `true` | ❌ | Auto-connect when opening PWA |
+| `defaultTarget` | `string` | `"PM"` | ❌ | Default role in task list: `"PM"` / `"DEV"` / `"OPS"` / `"QA"` |
+
+Also: `appTagline`, `appTaglineEn`, `appSubtagline`, `appSubtaglineEn`, `appSummary`, `appSummaryEn` (bilingual taglines and one-liners).
 
 ```js
-global.BRIDGEFLOW_CONFIG = {
-  appName:       "BridgeFlow",
-  appVersion:    "1.6.0",
-  relayUrl:      "wss://ai.chedian.cc/bridgeflow/ws/",
-  relayLabel:    "Public Relay",
-  roomKey:       "bridgeflow-default",
+global.CODEFLOW_CONFIG = {
+  appName:       "码流（CodeFlow）",
+  appVersion:    "2.0.0",
+  relayUrl:      "wss://ai.chedian.cc/codeflow/ws/",
+  relayLabel:    "公网正式中继",
+  roomKey:       "codeflow-default",
   autoConnect:   true,
   defaultTarget: "PM"
 };
