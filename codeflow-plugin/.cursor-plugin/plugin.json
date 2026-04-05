@@ -1,6 +1,6 @@
 {
   "name": "codeflow",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "码流（CodeFlow）— Multi-AI Agent collaboration with file-driven protocol. Supports dev, media, and MVP team templates.",
   "author": {
     "name": "CodeFlow",

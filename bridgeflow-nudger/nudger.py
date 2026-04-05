@@ -517,6 +517,8 @@ _TASK_PATTERN = re.compile(
     r'TASK-(\d{8})-(\d{3})-([A-Za-z0-9]+)-to-([A-Za-z0-9]+)\.md',
     re.IGNORECASE,
 )
+# 从 reports/、log/ 文件名中提取 TASK-YYYYMMDD-NNN（归档仅在 log/，不与 tasks/ 混放同一份文件）
+_TASK_ID_IN_NAME = re.compile(r"TASK-(\d{8})-(\d{3})", re.IGNORECASE)
 
 
 def parse_recipient(filename: str) -> str | None:
@@ -528,7 +530,7 @@ def parse_recipient(filename: str) -> str | None:
 
 _MSG_TEMPLATES = {
     "zh": {
-        "first_hello": "开始工作",
+        "first_hello": "【码流巡检】请确认你当前是 {role_file} 对应的 Agent 身份，阅读 docs/agents/tasks/ 中待办任务后开始执行。",
         "new_task": "新任务到达: {filename}，请读取任务单并执行",
         "new_report": "新报告到达: {filename}，请审核并回复",
         "new_issue": "新问题: {filename}，请查看并处理",
@@ -537,7 +539,7 @@ _MSG_TEMPLATES = {
         "kick": "继续",
     },
     "en": {
-        "first_hello": "Start working",
+        "first_hello": "[CodeFlow] Confirm you are the Agent for {role_file}, read pending tasks under docs/agents/tasks/ and proceed.",
         "new_task": "New task: {filename}, please read and execute",
         "new_report": "New report: {filename}, please review",
         "new_issue": "New issue: {filename}, please check",
@@ -563,6 +565,59 @@ _greeted_roles: set[str] = set()
 
 # ADMIN 是人类操作员，不自动催办 Cursor；其他角色都是 Agent
 _NO_NUDGE_RECIPIENTS = frozenset({"ADMIN01", "ADMIN"})
+
+
+def collect_closed_task_ids(config) -> set[str]:
+    """
+    已闭环的 TASK-YYYYMMDD-NNN 集合：
+    - reports/ 文件名中出现该编号（团队回执）；
+    - log/ 文件名中出现该编号（PM 归档；归档文件只放在 log/，不在 tasks/ 重复存放）。
+    """
+    closed: set[str] = set()
+    for d in (config.reports_dir, config.log_dir):
+        if not d.exists():
+            continue
+        for f in d.glob("*.md"):
+            for m in _TASK_ID_IN_NAME.finditer(f.name):
+                closed.add(f"TASK-{m.group(1)}-{m.group(2)}".upper())
+    return closed
+
+
+def list_nonstandard_task_filenames(config) -> list[str]:
+    """tasks/ 下不符合标准 TASK-…-to-….md 命名的文件（仍会被浏览，但不参与自动催办配对）。"""
+    td = config.tasks_dir
+    if not td.exists():
+        return []
+    bad: list[str] = []
+    for f in td.glob("*.md"):
+        if not _TASK_PATTERN.match(f.name):
+            bad.append(f.name)
+    return sorted(bad)
+
+
+def list_incomplete_task_files(config) -> list[tuple[str, str, str]]:
+    """
+    读取 tasks/ 下全部标准任务文件；未完成 = 该 TASK-日期-序号 未在 reports/ 与 log/ 任一侧文件名中出现。
+    约定：归档后任务单只放在 log/（或已从 tasks 删除），log 与 tasks 不混放同一份物理文件。
+    """
+    tasks_dir = config.tasks_dir
+    if not tasks_dir.exists():
+        return []
+    closed_ids = collect_closed_task_ids(config)
+    out: list[tuple[str, str, str]] = []
+    for f in sorted(tasks_dir.glob("*.md")):
+        m = _TASK_PATTERN.match(f.name)
+        if not m:
+            continue
+        task_id = f"TASK-{m.group(1)}-{m.group(2)}".upper()
+        if task_id in closed_ids:
+            continue
+        recipient = m.group(4).upper()
+        if recipient in _NO_NUDGE_RECIPIENTS:
+            continue
+        out.append((f.name, "tasks", str(f)))
+    return out
+
 
 # 单次巡检周期内，同一文件最多自动重试次数（冷却/忙碌/发送失败）
 _MAX_NUDGE_ATTEMPTS_PER_FILE = 40
@@ -707,10 +762,7 @@ class TaskTracker:
         if not self.config.tasks_dir.exists():
             return []
 
-        report_names = set()
-        if self.config.reports_dir.exists():
-            for f in self.config.reports_dir.glob("*.md"):
-                report_names.add(f.name.upper())
+        closed_ids = collect_closed_task_ids(self.config)
 
         stuck = []
         now = time.time()
@@ -718,10 +770,9 @@ class TaskTracker:
             m = _TASK_PATTERN.match(f.name)
             if not m:
                 continue
-            task_id = f"TASK-{m.group(1)}-{m.group(2)}"
+            task_id = f"TASK-{m.group(1)}-{m.group(2)}".upper()
             recipient = m.group(4).upper()
-            has_report = any(task_id.upper() in rn for rn in report_names)
-            if has_report:
+            if task_id in closed_ids:
                 continue
             age = now - f.stat().st_mtime
             if age < self.STUCK_THRESHOLD:
@@ -778,6 +829,42 @@ class Nudger:
         self.stats = {"nudge_ok": 0, "nudge_fail": 0, "files_detected": 0, "auto_nudge": 0}
         self._tick_count = 0
         self._kick_times: dict[str, float] = {}  # 角色 → 上次自动 kick 时间
+        self._relay_push_version: int = 0  # 递增后中继线程立即推送快照
+
+    def _bootstrap_pending_tasks(self) -> int:
+        """启动巡检接手：读取 tasks/ 全部标准任务；结合 reports+log 判断闭环；非标准命名另记轨迹。"""
+        nonstd = list_nonstandard_task_filenames(self.config)
+        if nonstd:
+            patrol_trace(
+                "tasks_nonstandard",
+                "tasks/ 中存在非标准命名的 .md，不参与自动催办配对，请 PM 统一 TASK-日期-序号-发件人-to-收件人.md",
+                count=len(nonstd),
+                samples=",".join(nonstd[:8]) + (f",…(+{len(nonstd) - 8})" if len(nonstd) > 8 else ""),
+            )
+        incomplete = list_incomplete_task_files(self.config)
+        n = len(incomplete)
+        fn_preview = ",".join(x[0] for x in incomplete[:16])
+        if n > 16:
+            fn_preview += f",…(+{n - 16})"
+        n_closed = len(collect_closed_task_ids(self.config))
+        patrol_trace(
+            "bootstrap_read",
+            "已扫描 tasks/ 全部标准任务；reports/ 与 log/ 中出现的 TASK-编号视为已闭环（含 PM 归档到 log）",
+            incomplete_count=n,
+            closed_ids_marked=n_closed,
+            filenames_preview=fn_preview or "(无)",
+        )
+        for fn, dir_name, full in incomplete:
+            self._notified.discard(fn)
+            self._nudge_pending.append((fn, dir_name, full))
+            rp = parse_recipient(fn) or ""
+            patrol_trace(
+                "bootstrap_queue",
+                "未闭环任务已加入催办队列（与启动后新文件合并处理）",
+                filename=fn,
+                recipient=rp,
+            )
+        return n
 
     def _start_file_observer(self):
         if not HAS_WATCHDOG or not getattr(self.config, "use_file_watcher", True):
@@ -1182,21 +1269,31 @@ class Nudger:
         logger.info("已向 %d 个角色打招呼", greeted)
 
     def start_patrol(self):
-        """启动巡检（由 PWA/面板明确触发）"""
+        """启动巡检（由 PWA/面板明确触发）：接手未闭环任务、向各 Agent 问候、立即进入轮询。"""
         if self._running:
             logger.info("巡检已在运行，忽略重复启动")
             return
+        _greeted_roles.clear()
         self._running = True
         self._tick_count = 0
+        n_inc = self._bootstrap_pending_tasks()
         self._start_file_observer()
-        logger.info("巡检已启动，监听: %s", self.config.agents_dir)
+        self._relay_push_version += 1
+        logger.info("巡检已启动，监听: %s（未闭环任务 %d 条已入队）", self.config.agents_dir, n_inc)
         patrol_trace(
             "patrol_on",
-            "巡检已启动：将扫描任务文件、可选 idle/stuck 检测",
+            "巡检已启动：已接手未完成任务队列；将轮询新文件并做 idle/stuck 检测",
             poll_interval=self.config.poll_interval,
             nudge_cooldown=self.config.nudge_cooldown,
             file_watcher=bool(self._observer),
+            incomplete_queued=n_inc,
         )
+        try:
+            self.greet_all_roles()
+        except Exception as e:
+            logger.warning("启动问候异常（可稍后重试）: %s", e)
+            patrol_trace("greet_error", "启动时各 Agent 问候异常", error=str(e)[:120])
+        self._wake_event.set()
 
     def stop_patrol(self):
         """停止巡检 — 清除所有运行时状态"""
@@ -1286,6 +1383,9 @@ class Nudger:
 
         result["total"] = sum(len(result[k]) for k in ("tasks", "reports", "issues"))
         result["patrol_running"] = self._running
+        inc = list_incomplete_task_files(self.config)
+        result["incomplete_tasks"] = len(inc)
+        result["incomplete_filenames"] = [x[0] for x in inc[:24]]
         return result
 
     def get_status(self) -> dict:
@@ -1448,13 +1548,38 @@ async def relay_client(config, nudger: Nudger, stop_event: asyncio.Event | None 
                             result = _handle_desktop_action(action, nudger)
                             await _send("desktop_action_result", result)
 
+                async def _push_desktop_snapshot(reason: str = "interval"):
+                    """文件列表 + 巡检轨迹（手机端可展示详细动作）。"""
+                    try:
+                        file_list = nudger.get_file_list()
+                        trace = get_patrol_trace(50)
+                        # 控制单条消息体积（中继有 max_size）
+                        slim_trace = []
+                        for rec in trace:
+                            slim_trace.append({
+                                "t": rec.get("t", ""),
+                                "stage": rec.get("stage", ""),
+                                "detail": (rec.get("detail", "") or "")[:500],
+                            })
+                        await ws.send(_make_msg("file_list", file_list))
+                        await ws.send(_make_msg("patrol_trace", {
+                            "entries": slim_trace,
+                            "reason": reason,
+                            "relay_note": "巡检轨迹与文件列表分开发送；entries 为近期记录。",
+                        }))
+                        logger.debug("已推送 PWA: file_list + patrol_trace (%s)", reason)
+                    except Exception as ex:
+                        logger.debug("推送 PWA 快照失败: %s", ex)
+
                 async def poll_and_push():
                     _last_file_snapshot = ""
-                    _push_interval = 10  # 每 10 秒检查一次文件列表变化
+                    _last_push_ver = -1
+                    _push_interval = 5  # 默认 5 秒同步（含轨迹）
                     while not _stop.is_set():
                         await asyncio.sleep(_push_interval)
 
                         try:
+                            ver = getattr(nudger, "_relay_push_version", 0)
                             file_list = nudger.get_file_list()
                             snapshot = json.dumps(
                                 {k: [f["filename"] for f in v]
@@ -1462,10 +1587,16 @@ async def relay_client(config, nudger: Nudger, stop_event: asyncio.Event | None 
                                  if isinstance(v, list)},
                                 sort_keys=True,
                             )
-                            if snapshot != _last_file_snapshot:
+                            changed = snapshot != _last_file_snapshot
+                            ver_changed = ver != _last_push_ver
+                            if changed:
                                 _last_file_snapshot = snapshot
-                                await ws.send(_make_msg("file_list", file_list))
-                                logger.debug("文件列表已推送 PWA (%d 个文件)", file_list.get("total", 0))
+                            if ver_changed:
+                                _last_push_ver = ver
+                            if changed or ver_changed:
+                                await _push_desktop_snapshot("file_change" if changed else "patrol_event")
+                            else:
+                                await _push_desktop_snapshot("heartbeat")
                         except Exception:
                             break
 
@@ -1540,9 +1671,14 @@ def _build_dashboard(config, nudger: Nudger) -> dict:
 
 
 def _build_patrol_state(nudger: Nudger) -> dict:
+    inc = list_incomplete_task_files(nudger.config)
+    trace = get_patrol_trace(48)
     return {
         "running": nudger.running,
         "round": nudger._tick_count,
+        "incomplete_tasks": len(inc),
+        "incomplete_filenames": [x[0] for x in inc[:20]],
+        "patrol_trace": trace,
         "log": "",
     }
 

@@ -1,5 +1,7 @@
 # 打包码流（CodeFlow）Desktop（.exe）
 
+与 **`CHANGELOG.md`** 中桌面端版本一致；当前 **`main.py` / `web_panel.py`** 版本号与发布说明同步。
+
 ## 环境
 
 - Windows 10/11，**Python 3.12**（你当前环境；亦兼容 3.10+）
@@ -17,6 +19,13 @@ pip install pyinstaller winocr
 ```
 
 说明：**winocr** 用于 `cursor_vision` OCR；若只做无视觉盲操作，可不装 winocr，但需在 `build.spec` 里去掉对应 `hiddenimports`（不推荐）。
+
+## 角色模板（dev-team）与主仓一致
+
+首次配置/「复制模板」时，会把 `templates/agents/dev-team/*.md` 拷到客户项目的 `docs/agents/`。  
+**文件名与巡检器引用一致**：`PM-01.md`、`DEV-01.md`、`QA-01.md`、`OPS-01.md`、`ADMIN-01.md`（及 `.en.md`）。  
+
+发布前请从仓库 **`docs/agents/`** 同步到 **`bridgeflow-nudger/templates/agents/dev-team/`**（本仓库已对齐；若只改主仓文档，请再执行一次复制以免 EXE 内仍是旧版）。
 
 ## 可选资源（面板）
 

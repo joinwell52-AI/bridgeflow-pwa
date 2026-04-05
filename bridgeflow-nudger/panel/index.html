@@ -276,6 +276,7 @@ a:hover{text-decoration:underline}
         <span><span data-i18n="team_tpl">模板</span>：<b id="teamName">--</b></span>
         <span><span data-i18n="team_roles">角色</span>：<span id="teamRoles" style="color:var(--cyan)">--</span></span>
         <button class="btn sm" onclick="showSetup()" data-i18n="team_switch">切换团队</button>
+        <button class="btn sm" onclick="syncRoleTemplates()" data-i18n="team_sync_tpl">同步角色模板</button>
       </div>
     </div>
   </div>
@@ -401,6 +402,7 @@ const I18N={
     sec_pipeline:'任务流水线', sec_files:'文件浏览',
     tab_tasks:'任务单', tab_reports:'报告', tab_issues:'问题', tab_log:'归档',
     sec_team:'团队', team_tpl:'模板', team_roles:'角色', team_switch:'切换团队',
+    team_sync_tpl:'同步角色模板', team_sync_ok:'已从内置模板更新 docs/agents/（与当前团队一致，建议先备份旧文件）',
     sec_phone:'手机连接', phone_room_key:'房间密钥：', phone_regen:'重新生成',
     phone_scan_hint:'手机 PWA 扫描绑定', phone_bound:'已绑定设备',
     sec_log:'实时日志', sec_trace:'巡检轨迹', trace_hint:'最近动作（阶段 stage + 说明）；与下方实时日志中带 [巡检] 的行同源。',
@@ -446,6 +448,7 @@ const I18N={
     sec_pipeline:'Task Pipeline', sec_files:'File Browser',
     tab_tasks:'Tasks', tab_reports:'Reports', tab_issues:'Issues', tab_log:'Archive',
     sec_team:'Team', team_tpl:'Template', team_roles:'Roles', team_switch:'Switch Team',
+    team_sync_tpl:'Sync role templates', team_sync_ok:'Updated docs/agents/ from bundled templates (backup old files first)',
     sec_phone:'Mobile', phone_room_key:'Room Key:', phone_regen:'Regenerate',
     phone_scan_hint:'Scan QR with PWA to bind', phone_bound:'Bound Devices',
     sec_log:'Live Logs', sec_trace:'Patrol trace', trace_hint:'Recent steps (stage + detail); same source as [巡检] lines in logs below.',
@@ -774,6 +777,20 @@ window.addEventListener('beforeunload',function(e){e.preventDefault();e.returnVa
 
 /* API */
 function api(u){fetch(u,{method:'POST'}).then(r=>r.json()).then(d=>{addLog('INFO',d.message||'OK');fetchStatus();});}
+function syncRoleTemplates(){
+  fetch('/api/copy_templates',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})
+    .then(r=>r.json()).then(d=>{
+      if(d.ok){
+        addLog('INFO',d.message||t('team_sync_ok'));
+        alert(t('team_sync_ok'));
+        fetchStatus();
+        setTimeout(runPreflight,400);
+      }else{
+        addLog('WARNING',d.message||'');
+        alert(d.message||'');
+      }
+    }).catch(e=>{addLog('ERROR',String(e));alert(String(e));});
+}
 
 /* Log */
 function addLog(lv,txt){

@@ -20,7 +20,7 @@
 
 更细的步骤与备用英文句见 **[docs/github-repo-about.md](docs/github-repo-about.md)**。
 
-**多人协作 / 分支约定**（避免 `main` 与 `master` 再分叉）：见 **[docs/repo-collaboration.md](docs/repo-collaboration.md)**。
+**多人协作 / 分支约定**（**只使用 `main` 作为主分支**）：见 **[docs/repo-collaboration.md](docs/repo-collaboration.md)**。
 
 **码流（CodeFlow）**——AI 驱动的人机协作中枢，用手机轻松驾驭 AI，让指令高效流转、直达团队。
 
@@ -94,6 +94,8 @@ python main.py
 `use_file_watcher: true` 时需已 `pip install watchdog`。
 
 启动后自动打开浏览器面板 `http://127.0.0.1:18765`（**码流（CodeFlow）控制面板**）。
+
+- **桌面端版本**：见 **`CHANGELOG.md`**（当前主线 **2.0.1** 起，面板「团队」含 **「同步角色模板」**，用于把内置模板写入当前项目的 `docs/agents/` 等；**勿用「重置」**仅为了更新角色文件）。
 
 ---
 

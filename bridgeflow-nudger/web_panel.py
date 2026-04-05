@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger("codeflow.panel")
 
 PANEL_PORT = 18765
-_VERSION = "2.0.0"
+_VERSION = "2.0.1"
 
 
 def _get_version() -> str:

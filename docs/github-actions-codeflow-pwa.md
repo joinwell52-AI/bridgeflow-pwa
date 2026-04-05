@@ -2,7 +2,7 @@
 
 ## 现象（与通知一致）
 
-- **「部署 PWA 到 GitHub Pages」** 在 **`main` / `master`** 上失败  
+- **「部署 PWA 到 GitHub Pages」** 在 **`main`** 上失败  
 - **「发布到 PyPI」** 在 **`v1.9.6` 等 tag** 上失败  
 
 ## 根因（高概率）

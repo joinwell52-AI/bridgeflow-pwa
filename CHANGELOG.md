@@ -7,9 +7,27 @@
 ## [Unreleased]
 
 ### 仓库整理（协作）
-- **文档**：新增 **`docs/repo-collaboration.md`**（分支约定、`main`/`master`、勿提交目录）；**README**、**HANDOVER** 增加引用。
+- **文档**：新增 **`docs/repo-collaboration.md`**（分支约定、勿提交目录）；**README**、**HANDOVER** 增加引用。（后续约定：**仅 `main` 为主分支**，不再使用 `master`。）
 - **`.gitignore`**：忽略 `_pages_tmp/`、临时提交说明、桌面端调试图、`CodeFlow-Desktop.spec` / `BridgeFlow-Desktop.spec`（自动生成；以 **`build.spec`** / **`pack.cmd`** 为准）。
 - **Git**：不再跟踪上述两个自动生成的 `.spec` 文件。
+
+---
+
+## [2.0.1] - 2026-04-04
+
+### 桌面端（`bridgeflow-nudger`）
+
+- **版本号**：`main.py`、`web_panel.py` → **2.0.1**；打包产物 **`bridgeflow-nudger/dist/CodeFlow-Desktop.exe`**（`pack.cmd`）。
+- **控制面板**：「团队」区域增加 **「同步角色模板」**（英文 **Sync role templates**），对应 **`POST /api/copy_templates`**，将内置 `templates/`（含当前团队的 `docs/agents/` 角色文档、`.cursor/rules`、`skills`）覆盖到已选项目目录。**更新角色请用此按钮，勿用「重置」**（重置会清配置、停巡检）。
+- **文档**：**`HANDOVER-20260403.md`** 补充三套模板路径、同步与重置区别、**`codeflow-plugin` 为可选 MCP** 的说明。
+
+### PWA（与桌面端版本号对齐）
+
+- **`web/pwa/config.js`** 的 **`appVersion`** → **2.0.1**；根目录 **`config.js`**、**`index.html`**（`manifest.json` 缓存参数）、**`sw.js`** 与主源同步。
+
+### Cursor 插件（可选）
+
+- **`codeflow-plugin/.cursor-plugin/plugin.json`** → **2.0.1**（与主线版本号一致）。
 
 ---
 
