@@ -6,7 +6,10 @@
 
 ## [Unreleased]
 
-（暂无）
+### 仓库整理（协作）
+- **文档**：新增 **`docs/repo-collaboration.md`**（分支约定、`main`/`master`、勿提交目录）；**README**、**HANDOVER** 增加引用。
+- **`.gitignore`**：忽略 `_pages_tmp/`、临时提交说明、桌面端调试图、`CodeFlow-Desktop.spec` / `BridgeFlow-Desktop.spec`（自动生成；以 **`build.spec`** / **`pack.cmd`** 为准）。
+- **Git**：不再跟踪上述两个自动生成的 `.spec` 文件。
 
 ---
 

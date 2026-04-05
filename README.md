@@ -20,6 +20,8 @@
 
 更细的步骤与备用英文句见 **[docs/github-repo-about.md](docs/github-repo-about.md)**。
 
+**多人协作 / 分支约定**（避免 `main` 与 `master` 再分叉）：见 **[docs/repo-collaboration.md](docs/repo-collaboration.md)**。
+
 **码流（CodeFlow）**——AI 驱动的人机协作中枢，用手机轻松驾驭 AI，让指令高效流转、直达团队。
 
 - **主标语**：指令成流，智能随行  
