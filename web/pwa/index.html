@@ -2211,25 +2211,18 @@
       patrolTraceList.innerHTML = rows;
     }
 
-    async function fetchPatrolTrace() {
-      if (!_pcRelayUrl) return;
-      try {
-        const base = _pcRelayUrl.replace(/^ws/, "http").replace(/\/ws\/?$/, "");
-        const r = await fetch(`${base}/api/patrol_trace?limit=60`, { signal: AbortSignal.timeout(4000) });
-        if (r.ok) { const d = await r.json(); renderPatrolTrace(d.events || []); }
-      } catch(_) {}
-    }
-
+    // 巡检轨迹由 PC 通过 WS 事件 patrol_trace 推送，无需 HTTP 轮询
     function startTracePolling() {
-      fetchPatrolTrace();
-      if (_tracePollingTimer) clearInterval(_tracePollingTimer);
-      _tracePollingTimer = setInterval(fetchPatrolTrace, 5000);
+      // 请求一次 patrol_status，触发 PC 推送最新轨迹
+      requestPatrolStatus();
     }
     function stopTracePolling() {
-      if (_tracePollingTimer) { clearInterval(_tracePollingTimer); _tracePollingTimer = null; }
+      // WS 事件驱动，无需停止
     }
 
-    if (traceRefreshBtn) traceRefreshBtn.addEventListener("click", fetchPatrolTrace);
+    if (traceRefreshBtn) traceRefreshBtn.addEventListener("click", () => {
+      requestPatrolStatus(); // 点刷新时触发 PC 推送最新轨迹
+    });
 
     let _lastFileListTotal = -1;
     function applyFileList(payload) {
@@ -2384,7 +2377,7 @@
         if (rosterPolling) clearInterval(rosterPolling);
         rosterPolling = setInterval(requestDeviceRoster, 15000);
       };
-      const _silentEvents = new Set(["pong","patrol_state","dashboard_state","device_roster","bind_state","file_list"]);
+      const _silentEvents = new Set(["pong","patrol_state","dashboard_state","device_roster","bind_state","file_list","patrol_trace"]);
       ws.onmessage = (event) => {
         let data = null;
         try { data = JSON.parse(event.data); } catch (error) { appendLog(`收到无法解析的消息: ${error.message}`); return; }
@@ -2427,8 +2420,16 @@
           renderMyDeviceInfo();
           if (bindState.pending_bind_code) appendLog("绑定码: " + bindState.pending_bind_code);
         }
-        else if (et === "patrol_state") { applyPatrolState(data.payload || {}); }
+        else if (et === "patrol_state") {
+          const p = data.payload || {};
+          applyPatrolState(p);
+          if (p.patrol_trace && p.patrol_trace.length > 0) renderPatrolTrace(p.patrol_trace);
+        }
         else if (et === "file_list") { applyFileList(data.payload || {}); }
+        else if (et === "patrol_trace") {
+          const entries = (data.payload || {}).entries || data.payload || [];
+          if (Array.isArray(entries) && entries.length > 0) renderPatrolTrace(entries);
+        }
         else if (et === "task_created") {
           const tc = data.payload || {};
           const fn = tc.filename || "";
