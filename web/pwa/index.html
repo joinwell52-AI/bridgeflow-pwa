@@ -8,7 +8,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="./manifest.json?v=2.0.1" />
-  <link rel="apple-touch-icon" href="./logo-CodeFlow-125.png" />
+  <link rel="apple-touch-icon" href="./logo-192.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="./logo-192.png" />
+  <link rel="apple-touch-icon" sizes="512x512" href="./logo-512.png" />
   <title>码流 CodeFlow · 工作台</title>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js" async></script>
   <style>
@@ -501,9 +503,47 @@
     .toast-msg.toast-ok { background:rgba(34,150,80,.9); }
     @keyframes toastIn { from { opacity:0; transform:translateY(-12px); } to { opacity:1; transform:translateY(0); } }
     @keyframes toastOut { from { opacity:1; } to { opacity:0; transform:translateY(-8px); } }
+
+    /* ── 新版本提示条 ── */
+    #updateBar {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 9999;
+      background: linear-gradient(90deg, #1d4ed8 0%, #2563eb 60%, #0ea5e9 100%);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: center;
+      padding: 10px 16px;
+      cursor: pointer;
+      box-shadow: 0 2px 12px rgba(37,99,235,.5);
+      letter-spacing: .3px;
+      animation: slideDown .35s ease;
+    }
+    #updateBar.visible { display: block; }
+    #updateBar .ub-close {
+      position: absolute;
+      right: 14px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 18px;
+      opacity: .7;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+    @keyframes slideDown {
+      from { transform: translateY(-100%); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
   </style>
 </head>
 <body>
+<!-- 新版本提示条：检测到 SW 更新后显示 -->
+<div id="updateBar" onclick="doForceUpdate()">
+  🆕 发现新版本，点击立即更新
+  <span class="ub-close" onclick="event.stopPropagation();document.getElementById('updateBar').classList.remove('visible')" title="关闭">✕</span>
+</div>
 <div id="toastContainer" class="toast-container"></div>
 <div class="app-shell">
 
@@ -1747,24 +1787,47 @@
         await registration.update();
         appendLog("PWA 缓存服务已启用");
 
-        // 发现新版 SW 安装完成后，自动刷新页面（skipWaiting 已在 sw.js 中调用）
+        // SW 切换完成后强制刷新页面
         navigator.serviceWorker.addEventListener("controllerchange", () => {
-          appendLog("检测到新版本，自动刷新…");
+          appendLog("新版本已接管，刷新页面…");
           window.location.reload();
         });
 
-        // 监听更新安装中
+        // 监听新 SW 安装 → 显示更新提示条
         registration.addEventListener("updatefound", () => {
           const newWorker = registration.installing;
           if (!newWorker) return;
           newWorker.addEventListener("statechange", () => {
             if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-              // 新 SW 已安装，旧 SW 还在控制页面，发送 skipWaiting 让新 SW 立即接管
-              newWorker.postMessage({ type: "SKIP_WAITING" });
+              // 新版本已下载，提示用户手动确认更新
+              window._pendingNewWorker = newWorker;
+              showUpdateBar();
             }
           });
         });
       } catch (error) { appendLog(`PWA 缓存启用失败: ${error.message}`); }
+    }
+
+    function showUpdateBar() {
+      const bar = document.getElementById("updateBar");
+      if (bar) bar.classList.add("visible");
+      appendLog("发现新版本，可点击顶部提示条更新");
+    }
+
+    function doForceUpdate() {
+      // 如果有等待中的新 SW，发送 skipWaiting；否则直接强制刷新
+      if (window._pendingNewWorker) {
+        window._pendingNewWorker.postMessage({ type: "SKIP_WAITING" });
+      } else {
+        // 清空缓存再刷新
+        if ("caches" in window) {
+          caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).finally(() => {
+            window.location.reload(true);
+          });
+        } else {
+          window.location.reload(true);
+        }
+      }
     }
 
     function updateMeta() {
