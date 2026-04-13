@@ -1168,7 +1168,7 @@
       btn.onclick = () => openTaskListPage(btn.dataset.filter);
     });
 
-    document.getElementById("taskSectionHead").onclick = () => openTaskListPage();
+    document.getElementById("taskSectionHead").onclick = () => openTaskListPage(null, selectedRole);
 
     const I18N = {
       zh: {
@@ -2038,7 +2038,7 @@
         `;
       }).join("");
       listEl.querySelectorAll(".task-card").forEach((node) => {
-        node.onclick = () => openTaskListPage();
+        node.onclick = () => openTaskListPage(null, selectedRole);
       });
     }
 
