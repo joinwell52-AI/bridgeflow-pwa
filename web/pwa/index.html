@@ -1746,6 +1746,24 @@
         const registration = await navigator.serviceWorker.register("./sw.js");
         await registration.update();
         appendLog("PWA 缓存服务已启用");
+
+        // 发现新版 SW 安装完成后，自动刷新页面（skipWaiting 已在 sw.js 中调用）
+        navigator.serviceWorker.addEventListener("controllerchange", () => {
+          appendLog("检测到新版本，自动刷新…");
+          window.location.reload();
+        });
+
+        // 监听更新安装中
+        registration.addEventListener("updatefound", () => {
+          const newWorker = registration.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener("statechange", () => {
+            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+              // 新 SW 已安装，旧 SW 还在控制页面，发送 skipWaiting 让新 SW 立即接管
+              newWorker.postMessage({ type: "SKIP_WAITING" });
+            }
+          });
+        });
       } catch (error) { appendLog(`PWA 缓存启用失败: ${error.message}`); }
     }
 

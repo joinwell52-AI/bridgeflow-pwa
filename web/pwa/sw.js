@@ -1,4 +1,4 @@
-﻿// build: 20260413-2.0.6
+﻿// build: 20260413-2.0.7
 importScripts("./config.js");
 
 const APP_VERSION = (self.CODEFLOW_CONFIG && self.CODEFLOW_CONFIG.appVersion) || "1.0.0";
@@ -21,6 +21,13 @@ self.addEventListener("activate", (event) => {
       )
     ).then(() => self.clients.claim())
   );
+});
+
+// 接收前端发来的 SKIP_WAITING，立即激活新 SW
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener("fetch", (event) => {
