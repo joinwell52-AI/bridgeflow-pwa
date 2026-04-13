@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![PWA](https://img.shields.io/badge/PWA-Live-green)](https://joinwell52-ai.github.io/codeflow-pwa/)
 [![Desktop](https://img.shields.io/badge/Desktop-v2.9.44-orange)](https://github.com/joinwell52-AI/codeflow-pwa/releases)
-[![PWA Version](https://img.shields.io/badge/PWA-v2.2.9-blue)](https://joinwell52-ai.github.io/codeflow-pwa/)
+[![PWA Version](https://img.shields.io/badge/PWA-v2.3.0-blue)](https://joinwell52-ai.github.io/codeflow-pwa/)
 
 > **Commands Flow, Intelligence Follows.**
 > 指令成流，智能随行。
@@ -17,6 +17,46 @@
   &nbsp;&nbsp;
   <img src="docs/images/product-2.png" width="360" alt="CodeFlow PWA Mobile" />
 </p>
+
+### Screenshots / 产品截图
+
+<details>
+<summary><b>Desktop Panel — Control Center / 桌面端控制面板</b></summary>
+<p align="center">
+  <img src="docs/images/codeflow-0.png" width="400" alt="Desktop: Preflight Check & Agent Guide" />
+  <img src="docs/images/codeflow-3.png" width="400" alt="Desktop: Task Pipeline & File Browser" />
+</p>
+<p align="center">
+  <img src="docs/images/codeflow-1.png" width="400" alt="Desktop: Agent Mapping & OCR Recognition" />
+  <img src="docs/images/codeflow-2.png" width="400" alt="Desktop: Patrol Trace Log" />
+</p>
+<p align="center">
+  <img src="docs/images/codeflow-4.png" width="400" alt="Desktop: Skills Market & QR Bind" />
+  <img src="docs/images/codeflow-5.png" width="400" alt="Desktop: Real-time Log & Config" />
+</p>
+</details>
+
+<details>
+<summary><b>Cursor IDE — AI Agents at Work / Cursor IDE 中的 AI Agent</b></summary>
+<p align="center">
+  <img src="docs/images/cursor-0.png" width="720" alt="Cursor: Full Screen with Desktop Panel" />
+</p>
+<p align="center">
+  <img src="docs/images/cursor-1.png" width="720" alt="Cursor: Agent Patrol & Panel Side by Side" />
+</p>
+<p align="center">
+  <img src="docs/images/codeflow-6.png" width="400" alt="Cursor: DEV Agent Conversation" />
+  <img src="docs/images/term-1.png" width="200" alt="Cursor: Agent Sidebar (Pinned)" />
+</p>
+</details>
+
+<details>
+<summary><b>PWA Mobile — English UI / 手机端 PWA 英文界面</b></summary>
+<p align="center">
+  <img src="docs/images/pwa-en-workspace.png" width="400" alt="PWA: Workspace (English)" />
+  <img src="docs/images/pwa-en-settings.png" width="400" alt="PWA: Settings (English)" />
+</p>
+</details>
 
 ---
 
@@ -240,7 +280,7 @@ BridgeFlow/
 │   ├── templates/agents/      # 4 team templates
 │   └── build.spec             # PyInstaller config
 ├── codeflow-plugin/           # Cursor MCP plugin
-├── web/pwa/                   # PWA source (v2.2.9)
+├── web/pwa/                   # PWA source (v2.3.0)
 │   ├── index.html
 │   ├── config.js
 │   ├── sw.js
