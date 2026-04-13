@@ -2438,6 +2438,30 @@ async def relay_client(config, nudger: Nudger, stop_event: asyncio.Event | None 
 
 # ─── 中继事件处理函数 ───────────────────────────────────────
 
+def _read_team_roles(config) -> list[str]:
+    """从 codeflow.json 读取当前项目的角色列表，返回 ["PM","DEV",...] 或 []。"""
+    try:
+        bf_path = config.agents_dir / "codeflow.json"
+        if not bf_path.exists():
+            bf_path = config.agents_dir / "bridgeflow.json"
+        if not bf_path.exists():
+            return []
+        cfg = json.loads(bf_path.read_text(encoding="utf-8"))
+        team_id = cfg.get("team", cfg.get("team_id", "dev-team"))
+        role_defs = cfg.get("roles") or []
+        # 若 codeflow.json 没有内联 roles，从内置模板读
+        if not role_defs:
+            TEAM_TEMPLATES = {
+                "dev-team":   [{"code":"PM"},{"code":"DEV"},{"code":"QA"},{"code":"OPS"}],
+                "media-team": [{"code":"PUBLISHER"},{"code":"COLLECTOR"},{"code":"WRITER"},{"code":"EDITOR"}],
+                "mvp-team":   [{"code":"MARKETER"},{"code":"RESEARCHER"},{"code":"DESIGNER"},{"code":"BUILDER"}],
+            }
+            role_defs = TEAM_TEMPLATES.get(team_id, [])
+        return [rd.get("code","").upper() for rd in role_defs if rd.get("code")]
+    except Exception:
+        return []
+
+
 def _build_dashboard(config, nudger: Nudger) -> dict:
     """构建 PWA dashboard_state 响应"""
     items = []
@@ -2475,9 +2499,11 @@ def _build_dashboard(config, nudger: Nudger) -> dict:
     tasks_count = status.get("tasks_count", 0)
     reports_count = status.get("reports_count", 0)
     stats = status.get("stats", {})
+    team_roles = _read_team_roles(config)
 
     return {
         "items": items,
+        "team_roles": team_roles,   # PWA 用此字段动态渲染角色卡片
         "stats": {
             "today_tasks": tasks_count,
             "today_replies": reports_count,

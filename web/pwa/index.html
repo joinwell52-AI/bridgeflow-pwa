@@ -1803,7 +1803,26 @@
 
     function formatTaskTime(item) { return item.time || item.created_at || item.updated_at || ""; }
 
-    function fixedTeamRoles() { return ["PM", "DEV", "QA", "OPS"]; }
+    // 动态角色列表：优先用 PC 端 dashboard 下发的 team_roles，否则降级为本地缓存，最后才用默认值
+    let _dynamicTeamRoles = JSON.parse(localStorage.getItem("codeflow_team_roles") || "null");
+    function fixedTeamRoles() {
+      return (_dynamicTeamRoles && _dynamicTeamRoles.length > 0)
+        ? _dynamicTeamRoles
+        : ["PM", "DEV", "QA", "OPS"];
+    }
+    function applyTeamRoles(roles) {
+      if (!Array.isArray(roles) || roles.length === 0) return;
+      const cleaned = roles.map(r => String(r).toUpperCase()).filter(Boolean);
+      if (cleaned.length === 0) return;
+      const prev = JSON.stringify(_dynamicTeamRoles);
+      _dynamicTeamRoles = cleaned;
+      localStorage.setItem("codeflow_team_roles", JSON.stringify(cleaned));
+      // 角色变化时刷新团队面板和发送目标下拉
+      if (JSON.stringify(cleaned) !== prev) {
+        renderTeam(onlineDevices, typeof targetRoleEl !== "undefined" ? targetRoleEl.value : "");
+        if (typeof refreshTargetOptions === "function") refreshTargetOptions();
+      }
+    }
 
     function buildTaskRecords(items) {
       const grouped = new Map();
@@ -1990,6 +2009,10 @@
     }
 
     function applyDashboard(payload) {
+      // 优先更新角色列表（来自 PC 端 codeflow.json）
+      if (Array.isArray(payload.team_roles) && payload.team_roles.length > 0) {
+        applyTeamRoles(payload.team_roles);
+      }
       mergeDashboardItems(payload.items || []);
       document.getElementById("todayTasks").textContent = String(payload.stats?.today_tasks || 0);
       document.getElementById("todayReplies").textContent = String(payload.stats?.today_replies || 0);

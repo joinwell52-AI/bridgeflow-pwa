@@ -8,6 +8,25 @@
 
 ---
 
+## [2.9.31] - 2026-04-13
+
+### 桌面端（`codeflow-desktop`）
+
+#### 修复：dashboard 推送携带 team_roles 字段
+
+- `_build_dashboard` 从 `codeflow.json` 读取当前项目团队角色列表
+- PWA 收到后动态更新角色卡片，不再写死 PM/DEV/QA/OPS
+
+### PWA（`web/pwa`）v2.0.4
+
+#### 修复：团队角色与 PC 端实时同步
+
+- `fixedTeamRoles()` 改为动态读取 dashboard 下发的 `team_roles`
+- 本地 localStorage 缓存上次角色列表，断线时保持显示
+- 角色列表变化时自动刷新团队面板和发送目标下拉
+
+---
+
 ## [2.9.30] - 2026-04-13
 
 ### 桌面端（`codeflow-desktop`）
