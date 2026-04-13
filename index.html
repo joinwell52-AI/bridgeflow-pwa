@@ -2550,18 +2550,27 @@
       }
       _lastFileListTotal = total;
 
-      const items = [];
+      // file_list 只补充新文件（不覆盖已有 dashboard items 的 markdown 等字段）
+      const newItems = [];
+      const existingFns = new Set(taskItems.map(i => i.filename));
       for (const f of tasks) {
-        items.push({ filename: f.filename, dir: "tasks", type: "task", recipient: f.recipient || "", progress: "pending", today: !!f.today, time: f.mtime ? new Date(f.mtime * 1000).toLocaleString() : "" });
+        if (!existingFns.has(f.filename)) {
+          newItems.push({ filename: f.filename, dir: "tasks", type: "task", recipient: f.recipient || "", progress: "pending", today: !!f.today, time: f.mtime ? new Date(f.mtime * 1000).toLocaleString() : "" });
+        }
       }
       for (const f of reports) {
-        items.push({ filename: f.filename, dir: "reports", type: "report", recipient: f.recipient || "", progress: "completed", today: !!f.today, time: f.mtime ? new Date(f.mtime * 1000).toLocaleString() : "" });
+        if (!existingFns.has(f.filename)) {
+          newItems.push({ filename: f.filename, dir: "reports", type: "report", recipient: f.recipient || "", progress: "completed", today: !!f.today, time: f.mtime ? new Date(f.mtime * 1000).toLocaleString() : "" });
+        }
       }
       for (const f of issues) {
-        items.push({ filename: f.filename, dir: "issues", type: "issue", recipient: f.recipient || "", progress: "in_progress", today: !!f.today, time: f.mtime ? new Date(f.mtime * 1000).toLocaleString() : "" });
+        if (!existingFns.has(f.filename)) {
+          newItems.push({ filename: f.filename, dir: "issues", type: "issue", recipient: f.recipient || "", progress: "in_progress", today: !!f.today, time: f.mtime ? new Date(f.mtime * 1000).toLocaleString() : "" });
+        }
       }
-      if (items.length > 0) {
-        mergeDashboardItems(items);
+      if (newItems.length > 0) {
+        taskItems.push(...newItems);
+        taskRecords = buildTaskRecords(taskItems);
         renderTaskList();
         renderRolePanel();
       }
