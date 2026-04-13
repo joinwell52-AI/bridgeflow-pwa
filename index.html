@@ -2103,8 +2103,34 @@
       taskRecords = buildTaskRecords(taskItems);
     }
 
+    let _dashboardChunkBuffer = null;
     function applyDashboard(payload) {
-      // 优先更新角色列表（来自 PC 端 codeflow.json）
+      // 分片模式：第一包带 _chunked 标记（meta + 空 items）
+      if (payload._chunked) {
+        _dashboardChunkBuffer = { meta: payload, items: [] };
+        // 立即应用 meta（team_roles、stats）
+        if (Array.isArray(payload.team_roles) && payload.team_roles.length > 0) {
+          applyTeamRoles(payload.team_roles);
+        }
+        if (payload.stats) {
+          document.getElementById("todayTasks").textContent = String(payload.stats.today_tasks || 0);
+          document.getElementById("todayReplies").textContent = String(payload.stats.today_replies || 0);
+          document.getElementById("inProgressThreads").textContent = String(payload.stats.in_progress_threads || 0);
+          document.getElementById("repliedThreads").textContent = String(payload.stats.replied_threads || 0);
+        }
+        renderTeam(onlineDevices, targetRoleEl.value);
+        return;
+      }
+      // 分片模式：后续包带 _chunk 标记（items 片段）
+      if (payload._chunk && _dashboardChunkBuffer) {
+        _dashboardChunkBuffer.items.push(...(payload.items || []));
+        mergeDashboardItems(_dashboardChunkBuffer.items);
+        renderTaskList();
+        renderRolePanel();
+        return;
+      }
+      // 非分片：整包模式（向后兼容）
+      _dashboardChunkBuffer = null;
       if (Array.isArray(payload.team_roles) && payload.team_roles.length > 0) {
         applyTeamRoles(payload.team_roles);
       }
