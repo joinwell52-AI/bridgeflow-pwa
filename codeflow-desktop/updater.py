@@ -253,26 +253,50 @@ def apply_update(new_exe: str) -> tuple[bool, str]:
         return False, f"新 EXE 不存在: {src}"
 
     pid = os.getpid()
-    bat = Path(tempfile.mktemp(suffix="_codeflow_update.bat"))
-    bat.write_text(
+    bat = Path(tempfile.gettempdir()) / f"codeflow_update_{pid}.bat"
+
+    # 用 8.3 短路径避免空格和中文路径问题
+    def _short_path(p: Path) -> str:
+        try:
+            import subprocess as _sp
+            r = _sp.run(["cmd.exe", "/c", f"for %I in (\"{p}\") do @echo %~sI"],
+                        capture_output=True, text=True, timeout=5)
+            s = r.stdout.strip()
+            if s and Path(s).exists():
+                return s
+        except Exception:
+            pass
+        return str(p)
+
+    src_s = _short_path(src)
+    dst_s = _short_path(dst)
+    bat_s = _short_path(bat)
+    log_f = str(Path(tempfile.gettempdir()) / f"codeflow_update_{pid}.log")
+
+    bat.write_bytes((
         f"@echo off\r\n"
+        f"echo [update] waiting for PID {pid} to exit... > \"{log_f}\"\r\n"
         f":wait\r\n"
-        f"tasklist /fi \"PID eq {pid}\" | find \"{pid}\" >nul 2>&1\r\n"
+        f"tasklist /fi \"PID eq {pid}\" 2>nul | find \"{pid}\" >nul\r\n"
         f"if not errorlevel 1 (timeout /t 1 /nobreak >nul & goto wait)\r\n"
-        f"copy /y \"{src}\" \"{dst}\"\r\n"
-        f"start \"\" \"{dst}\"\r\n"
-        f"del \"{src}\"\r\n"
-        f"del \"%~f0\"\r\n",
-        encoding="ascii",
-    )
+        f"echo [update] copying {src_s} to {dst_s} >> \"{log_f}\"\r\n"
+        f"copy /y \"{src_s}\" \"{dst_s}\" >> \"{log_f}\" 2>&1\r\n"
+        f"if errorlevel 1 (echo [update] copy failed >> \"{log_f}\" & exit /b 1)\r\n"
+        f"echo [update] launching {dst_s} >> \"{log_f}\"\r\n"
+        f"start \"CodeFlow\" /D \"{dst.parent}\" \"{dst_s}\"\r\n"
+        f"echo [update] done >> \"{log_f}\"\r\n"
+        f"del \"{src_s}\" >nul 2>&1\r\n"
+        f"del \"%~f0\" >nul 2>&1\r\n"
+    ).encode("ascii", errors="replace"))
+
     try:
         import subprocess
         subprocess.Popen(
-            ["cmd.exe", "/c", str(bat)],
-            creationflags=0x00000008,
+            ["cmd.exe", "/c", bat_s],
+            creationflags=0x00000008,  # DETACHED_PROCESS
             close_fds=True,
         )
-        logger.info("[updater] 替换脚本已启动: %s -> %s", src, dst)
+        logger.info("[updater] 替换脚本已启动: %s -> %s (log: %s)", src, dst, log_f)
         return True, "ok"
     except Exception as e:
         return False, str(e)
