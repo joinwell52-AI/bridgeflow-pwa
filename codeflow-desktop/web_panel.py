@@ -57,7 +57,7 @@ def get_panel_port() -> int:
     """返回固定端口 18765。"""
     return 18765
 
-_VERSION = "2.9.24"
+_VERSION = "2.9.25"
 
 
 # 面板最后活跃时间（monotonic），用于心跳超时检测
@@ -1820,29 +1820,7 @@ class PanelHandler(BaseHTTPRequestHandler):
             _nudger_ref.config.cursor_exe_path = str(p)
 
         logger.info("Cursor.exe 路径已保存: %s", p)
-
-        # 保存后立刻触发嵌入（在后台线程，不阻塞响应）
-        def _do_embed_after_save():
-            import time as _t
-            _t.sleep(0.5)
-            try:
-                from cursor_embed import embed_panel_after_launch
-                from main import VERSION
-                _pd = _project_dir()
-                _port = get_panel_port()
-                _url = f"http://127.0.0.1:{_port}?v={VERSION}&t={int(_t.time())}"
-                ok, msg = embed_panel_after_launch(
-                    _url,
-                    cursor_exe=p,
-                    launch_if_no_window=True,
-                    project_dir=_pd,
-                )
-                logger.info("[嵌入] %s: %s", "成功" if ok else "失败", msg)
-            except Exception as e:
-                logger.warning("[嵌入] 异常: %s", e)
-        import threading as _th
-        _th.Thread(target=_do_embed_after_save, daemon=True).start()
-
+        # 引导阶段只记录路径，不触发嵌入，不打开 Cursor
         self._json({"ok": True, "message": f"已保存: {p.name}", "cursor_exe_path": str(p)})
 
     # ── Agent 坐标定位 / 实测 / 删除 ────────────────────────────────────

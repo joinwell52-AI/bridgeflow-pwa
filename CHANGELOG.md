@@ -8,6 +8,18 @@
 
 ---
 
+## [2.9.25] - 2026-04-13
+
+### 桌面端（`codeflow-desktop`）
+
+#### 修复：引导阶段保存 Cursor 路径后不再触发嵌入
+
+- `web_panel.py` `/api/set_cursor_exe` 保存路径后移除了自动触发 `embed_panel_after_launch` 的逻辑
+- 引导期间 Cursor 已运行时不再被动嵌入引导页到 Simple Browser
+- 引导阶段行为收敛为：只用系统浏览器打开引导页，记录路径，不做任何 Cursor 操作
+
+---
+
 ## [2.9.24] - 2026-04-13
 
 ### 桌面端（`codeflow-desktop`）
