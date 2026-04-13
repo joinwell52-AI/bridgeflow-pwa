@@ -1055,8 +1055,13 @@
     function isTaskToday(item) {
       const t = item.time || item.created_at || "";
       if (!t) return false;
-      const today = new Date().toISOString().slice(0, 10);
-      return t.startsWith(today);
+      const now = new Date();
+      const y = now.getFullYear(), m = now.getMonth() + 1, d = now.getDate();
+      const pad = (n) => String(n).padStart(2, "0");
+      // 兼容 2026-04-13 / 2026/4/13 / 2026/04/13 等格式
+      return t.startsWith(`${y}-${pad(m)}-${pad(d)}`)
+          || t.startsWith(`${y}/${m}/${d}`)
+          || t.startsWith(`${y}/${pad(m)}/${pad(d)}`);
     }
     function isTaskReply(item) {
       const fn = String(item.filename || item.primary_filename || "");
