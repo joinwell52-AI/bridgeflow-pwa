@@ -238,13 +238,47 @@ def _download(url: str, dest: Path, fallback_url: str | None = None) -> bool:
 
 
 # ── 替换 & 重启 ────────────────────────────────────────────────────────
+EXE_NAME = "CodeFlow-Desktop.exe"
+
+
 def _current_exe() -> Path | None:
     if getattr(sys, "frozen", False):
         return Path(sys.executable)
     return None
 
 
+def _exe_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).parent
+    return Path(__file__).parent
+
+
+def cleanup_after_upgrade():
+    """启动时调用：清理上次升级残留的 upgrade.bat 和 uptemp 目录。"""
+    d = _exe_dir()
+    bat = d / "upgrade.bat"
+    if bat.is_file():
+        try:
+            bat.unlink()
+            logger.info("[updater] 已清理 upgrade.bat")
+        except Exception:
+            pass
+    uptemp = d / "uptemp"
+    if uptemp.is_dir():
+        try:
+            shutil.rmtree(str(uptemp), ignore_errors=True)
+            logger.info("[updater] 已清理 uptemp/")
+        except Exception:
+            pass
+
+
 def apply_update(new_exe: str) -> tuple[bool, str]:
+    """
+    升级流程（参考 taskkill + bat 方案）：
+    1. 新 EXE 已下载到临时目录
+    2. 生成 upgrade.bat：杀进程 → 等 2s → 删旧 → 复制新 → 启动 → 清理
+    3. 执行 bat，bat 会杀掉当前进程并完成替换
+    """
     src = Path(new_exe)
     dst = _current_exe()
     if not dst:
@@ -252,53 +286,55 @@ def apply_update(new_exe: str) -> tuple[bool, str]:
     if not src.is_file():
         return False, f"新 EXE 不存在: {src}"
 
-    pid = os.getpid()
-    bat = Path(tempfile.gettempdir()) / f"codeflow_update_{pid}.bat"
+    bat_dir = dst.parent
+    bat_path = bat_dir / "upgrade.bat"
 
-    # 用 8.3 短路径避免空格和中文路径问题
-    def _short_path(p: Path) -> str:
-        try:
-            import subprocess as _sp
-            r = _sp.run(["cmd.exe", "/c", f"for %I in (\"{p}\") do @echo %~sI"],
-                        capture_output=True, text=True, timeout=5)
-            s = r.stdout.strip()
-            if s and Path(s).exists():
-                return s
-        except Exception:
-            pass
-        return str(p)
+    old_q = f'"{dst}"'
+    new_q = f'"{src}"'
+    dir_q = f'"{bat_dir}"'
 
-    src_s = _short_path(src)
-    dst_s = _short_path(dst)
-    bat_s = _short_path(bat)
-    log_f = str(Path(tempfile.gettempdir()) / f"codeflow_update_{pid}.log")
-
-    bat.write_bytes((
-        f"@echo off\r\n"
-        f"echo [update] waiting for PID {pid} to exit... > \"{log_f}\"\r\n"
-        f":wait\r\n"
-        f"tasklist /fi \"PID eq {pid}\" 2>nul | find \"{pid}\" >nul\r\n"
-        f"if not errorlevel 1 (timeout /t 1 /nobreak >nul & goto wait)\r\n"
-        f"echo [update] copying {src_s} to {dst_s} >> \"{log_f}\"\r\n"
-        f"copy /y \"{src_s}\" \"{dst_s}\" >> \"{log_f}\" 2>&1\r\n"
-        f"if errorlevel 1 (echo [update] copy failed >> \"{log_f}\" & exit /b 1)\r\n"
-        f"echo [update] launching {dst_s} >> \"{log_f}\"\r\n"
-        f"start \"CodeFlow\" /D \"{dst.parent}\" \"{dst_s}\"\r\n"
-        f"echo [update] done >> \"{log_f}\"\r\n"
-        f"del \"{src_s}\" >nul 2>&1\r\n"
-        f"del \"%~f0\" >nul 2>&1\r\n"
-    ).encode("ascii", errors="replace"))
+    script = (
+        "@echo off\r\n"
+        "chcp 65001 >nul\r\n"
+        f"cd /d {dir_q}\r\n"
+        "echo [CodeFlow] updating...\r\n"
+        f"taskkill /f /im {EXE_NAME} >nul 2>&1\r\n"
+        "ping -n 3 127.0.0.1 >nul\r\n"
+        f"if exist {old_q} del /f /q {old_q}\r\n"
+        f"if not exist {new_q} (\r\n"
+        "    echo [CodeFlow] ERROR: new exe not found!\r\n"
+        "    pause\r\n"
+        "    exit /b 1\r\n"
+        ")\r\n"
+        f"copy /y {new_q} {old_q} >nul\r\n"
+        "if errorlevel 1 (\r\n"
+        "    echo [CodeFlow] ERROR: copy failed!\r\n"
+        "    pause\r\n"
+        "    exit /b 1\r\n"
+        ")\r\n"
+        "echo [CodeFlow] update done, launching...\r\n"
+        "ping -n 2 127.0.0.1 >nul\r\n"
+        f"start \"\" {old_q}\r\n"
+        f"del /f /q {new_q} >nul 2>&1\r\n"
+        "exit\r\n"
+    )
 
     try:
+        bat_path.write_text(script, encoding="utf-8")
+        logger.info("[updater] upgrade.bat created: %s", bat_path)
+
         import subprocess
         subprocess.Popen(
-            ["cmd.exe", "/c", bat_s],
-            creationflags=0x00000008,  # DETACHED_PROCESS
-            close_fds=True,
+            [str(bat_path)],
+            shell=True,
+            cwd=str(bat_dir),
         )
-        logger.info("[updater] 替换脚本已启动: %s -> %s (log: %s)", src, dst, log_f)
+        logger.info("[updater] upgrade.bat launched, process will be killed shortly")
+        _set(status="done")
         return True, "ok"
+
     except Exception as e:
+        logger.error("[updater] apply_update failed: %s", e)
         return False, str(e)
 
 

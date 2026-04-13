@@ -2267,10 +2267,39 @@ async def relay_client(config, nudger: Nudger, stop_event: asyncio.Event | None 
             "payload": payload,
         }, ensure_ascii=False)
 
+    MAX_WS_BYTES = 200 * 1024  # 中继已调整为 256KB，留余量
+
+    async def _send_chunked(ws_conn, event_type: str, payload: dict):
+        """尝试整包发送；超限则拆分 items 分批发。"""
+        full = _make_msg(event_type, payload)
+        if len(full.encode("utf-8")) <= MAX_WS_BYTES:
+            await ws_conn.send(full)
+            return
+        items = payload.pop("items", [])
+        # 第一包：meta（team_roles + stats，不含 items）
+        meta_payload = {**payload, "items": [], "_chunked": True, "_total_items": len(items)}
+        await ws_conn.send(_make_msg(event_type, meta_payload))
+        # 后续包：逐条发送 items
+        batch = []
+        for item in items:
+            batch.append(item)
+            trial = _make_msg(event_type, {"items": batch, "_chunk": True})
+            if len(trial.encode("utf-8")) > MAX_WS_BYTES:
+                if len(batch) > 1:
+                    await ws_conn.send(_make_msg(event_type, {"items": batch[:-1], "_chunk": True}))
+                    batch = [batch[-1]]
+                else:
+                    item["markdown"] = item.get("markdown", "")[:300]
+                    item["raw_markdown"] = item.get("raw_markdown", "")[:300]
+                    await ws_conn.send(_make_msg(event_type, {"items": batch, "_chunk": True}))
+                    batch = []
+        if batch:
+            await ws_conn.send(_make_msg(event_type, {"items": batch, "_chunk": True}))
+
     while not _stop.is_set():
         try:
             async with websockets.connect(
-                config.relay_url, ping_interval=20, ping_timeout=20, max_size=16384,
+                config.relay_url, ping_interval=30, ping_timeout=60, max_size=2**20,
             ) as ws:
                 hello = {
                     "room_key": config.room_key,
@@ -2288,11 +2317,23 @@ async def relay_client(config, nudger: Nudger, stop_event: asyncio.Event | None 
                 _relay_connected = True
                 logger.info("已连接中继: %s", config.relay_url)
 
+                # 延迟 3 秒后推送初始 dashboard（避免触发中继 rate limit）
+                async def _delayed_init_dashboard():
+                    await asyncio.sleep(3)
+                    try:
+                        await _send_chunked(ws, "dashboard_state", _build_dashboard(config, nudger))
+                        logger.info("已推送初始 dashboard_state")
+                    except Exception as _init_exc:
+                        logger.warning("推送初始 dashboard 失败: %s", _init_exc)
+                asyncio.ensure_future(_delayed_init_dashboard())
+
                 async def _send(event_type: str, payload: dict):
                     try:
-                        await ws.send(_make_msg(event_type, payload))
-                    except Exception:
-                        pass
+                        msg = _make_msg(event_type, payload)
+                        logger.debug("_send %s (%d bytes)", event_type, len(msg.encode("utf-8")))
+                        await ws.send(msg)
+                    except Exception as _send_exc:
+                        logger.warning("_send %s 失败: %s", event_type, _send_exc)
 
                 async def recv_loop():
                     while not _stop.is_set():
@@ -2300,7 +2341,8 @@ async def relay_client(config, nudger: Nudger, stop_event: asyncio.Event | None 
                             raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
                         except asyncio.TimeoutError:
                             continue
-                        except Exception:
+                        except Exception as _recv_exc:
+                            logger.warning("recv_loop 异常退出: %s", _recv_exc)
                             break
                         try:
                             data = json.loads(raw)
@@ -2340,7 +2382,15 @@ async def relay_client(config, nudger: Nudger, stop_event: asyncio.Event | None 
                                     logger.info("收到空指令但巡检未启动，忽略")
 
                         elif et == "request_dashboard":
-                            await _send("dashboard_state", _build_dashboard(config, nudger))
+                            await _send_chunked(ws, "dashboard_state", _build_dashboard(config, nudger))
+
+                        elif et == "request_task_detail":
+                            fname = str(payload.get("filename", "")).strip()
+                            logger.info("收到 request_task_detail: filename=%s", fname)
+                            detail = _build_task_detail(config, fname)
+                            logger.info("task_detail 响应: filename=%s, has_md=%s, error=%s",
+                                        fname, bool(detail.get("markdown")), detail.get("error", ""))
+                            await _send("task_detail", detail)
 
                         elif et == "start_patrol":
                             _relay_start_patrol(nudger)
@@ -2361,6 +2411,8 @@ async def relay_client(config, nudger: Nudger, stop_event: asyncio.Event | None 
                             mobile_name = str(payload.get("mobile_device_name", "")).strip()
                             result = _handle_bind_request(config, mobile_id, mobile_name)
                             await _send("bind_state", result)
+                            if result.get("status") == "bound":
+                                await _send_chunked(ws, "dashboard_state", _build_dashboard(config, nudger))
 
                         elif et == "execute_desktop_action":
                             action = str(payload.get("action", "")).strip()
@@ -2368,35 +2420,35 @@ async def relay_client(config, nudger: Nudger, stop_event: asyncio.Event | None 
                             await _send("desktop_action_result", result)
 
                 async def _push_desktop_snapshot(reason: str = "interval"):
-                    """文件列表 + 巡检轨迹（手机端可展示详细动作）。"""
+                    """文件变化时推送列表+轨迹；心跳时只推文件列表。"""
                     try:
                         file_list = nudger.get_file_list()
-                        trace = get_patrol_trace(50)
-                        # 控制单条消息体积（中继有 max_size）
-                        slim_trace = []
-                        for rec in trace:
-                            slim_trace.append({
-                                "t": rec.get("t", ""),
-                                "stage": rec.get("stage", ""),
-                                "detail": (rec.get("detail", "") or "")[:500],
-                            })
                         await ws.send(_make_msg("file_list", file_list))
-                        await ws.send(_make_msg("patrol_trace", {
-                            "entries": slim_trace,
-                            "reason": reason,
-                            "relay_note": "巡检轨迹与文件列表分开发送；entries 为近期记录。",
-                        }))
-                        logger.debug("已推送 PWA: file_list + patrol_trace (%s)", reason)
+                        if reason != "heartbeat":
+                            trace = get_patrol_trace(20)
+                            slim_trace = []
+                            for rec in trace:
+                                slim_trace.append({
+                                    "t": rec.get("t", ""),
+                                    "stage": rec.get("stage", ""),
+                                    "detail": (rec.get("detail", "") or "")[:500],
+                                })
+                            await ws.send(_make_msg("patrol_trace", {
+                                "entries": slim_trace,
+                                "reason": reason,
+                            }))
+                        logger.debug("已推送 PWA 快照 (%s)", reason)
                     except Exception as ex:
                         logger.debug("推送 PWA 快照失败: %s", ex)
 
                 async def poll_and_push():
                     _last_file_snapshot = ""
                     _last_push_ver = -1
-                    _push_interval = 5  # 默认 5 秒同步（含轨迹）
+                    _push_interval = 15
+                    _heartbeat_counter = 0
+                    _consecutive_errors = 0
                     while not _stop.is_set():
                         await asyncio.sleep(_push_interval)
-
                         try:
                             ver = getattr(nudger, "_relay_push_version", 0)
                             file_list = nudger.get_file_list()
@@ -2414,10 +2466,25 @@ async def relay_client(config, nudger: Nudger, stop_event: asyncio.Event | None 
                                 _last_push_ver = ver
                             if changed or ver_changed:
                                 await _push_desktop_snapshot("file_change" if changed else "patrol_event")
+                                if changed:
+                                    try:
+                                        await _send_chunked(ws, "dashboard_state", _build_dashboard(config, nudger))
+                                    except Exception as _db_exc:
+                                        logger.warning("推送 dashboard_state 失败: %s", _db_exc)
                             else:
-                                await _push_desktop_snapshot("heartbeat")
-                        except Exception:
+                                _heartbeat_counter += 1
+                                if _heartbeat_counter % 3 == 0:
+                                    await _push_desktop_snapshot("heartbeat")
+                            _consecutive_errors = 0
+                        except websockets.exceptions.ConnectionClosed as _cc:
+                            logger.warning("poll_and_push: 连接已关闭 %s，退出", _cc)
                             break
+                        except Exception as _poll_exc:
+                            _consecutive_errors += 1
+                            logger.error("poll_and_push 异常 (#%d): %s", _consecutive_errors, _poll_exc, exc_info=True)
+                            if _consecutive_errors >= 5:
+                                logger.error("poll_and_push 连续 5 次异常，退出重连")
+                                break
 
                 recv_task = asyncio.create_task(recv_loop())
                 poll_task = asyncio.create_task(poll_and_push())
@@ -2438,18 +2505,18 @@ async def relay_client(config, nudger: Nudger, stop_event: asyncio.Event | None 
 
 # ─── 中继事件处理函数 ───────────────────────────────────────
 
-def _read_team_roles(config) -> list[str]:
-    """从 codeflow.json 读取当前项目的角色列表，返回 ["PM","DEV",...] 或 []。"""
+def _read_team_info(config) -> dict:
+    """从 codeflow.json 读取团队信息，返回 {roles: [...], team_name: "..."}。"""
     try:
         bf_path = config.agents_dir / "codeflow.json"
         if not bf_path.exists():
             bf_path = config.agents_dir / "bridgeflow.json"
         if not bf_path.exists():
-            return []
+            return {"roles": [], "team_name": ""}
         cfg = json.loads(bf_path.read_text(encoding="utf-8"))
         team_id = cfg.get("team", cfg.get("team_id", "dev-team"))
+        team_name = cfg.get("team_name", "")
         role_defs = cfg.get("roles") or []
-        # 若 codeflow.json 没有内联 roles，从内置模板读
         if not role_defs:
             TEAM_TEMPLATES = {
                 "dev-team":   [{"code":"PM"},{"code":"DEV"},{"code":"QA"},{"code":"OPS"}],
@@ -2457,15 +2524,16 @@ def _read_team_roles(config) -> list[str]:
                 "mvp-team":   [{"code":"MARKETER"},{"code":"RESEARCHER"},{"code":"DESIGNER"},{"code":"BUILDER"}],
             }
             role_defs = TEAM_TEMPLATES.get(team_id, [])
-        return [rd.get("code","").upper() for rd in role_defs if rd.get("code")]
+        roles = [rd.get("code","").upper() for rd in role_defs if rd.get("code")]
+        return {"roles": roles, "team_name": team_name}
     except Exception:
-        return []
+        return {"roles": [], "team_name": ""}
 
 
 def _build_dashboard(config, nudger: Nudger) -> dict:
     """构建 PWA dashboard_state 响应"""
     items = []
-    for d in ["tasks", "reports"]:
+    for d in ["tasks", "reports", "issues", "log"]:
         p = config.agents_dir / d
         if not p.exists():
             continue
@@ -2488,6 +2556,13 @@ def _build_dashboard(config, nudger: Nudger) -> dict:
                 body_text = parts[2].strip() if len(parts) >= 3 else text
             else:
                 body_text = text
+            summary = front.get("body", front.get("summary", ""))
+            if not summary:
+                for line in body_text.splitlines():
+                    line = line.strip()
+                    if line:
+                        summary = line.lstrip("# ").strip()[:80]
+                        break
             items.append({
                 "filename": f.name,
                 "dir": d,
@@ -2499,20 +2574,29 @@ def _build_dashboard(config, nudger: Nudger) -> dict:
                 "type": front.get("type", d.rstrip("s")),
                 "created_at": front.get("created_at", ""),
                 "thread_key": front.get("thread_key", ""),
-                "body": front.get("body", front.get("summary", "")),
-                "markdown": body_text[:2000],   # MD 原文（限 2000 字）
-                "raw_markdown": text[:2000],     # 含 front matter 的完整原文
+                "body": summary,
+                "markdown": body_text[:8000],
+                "raw_markdown": text[:8000],
             })
+
+    if items:
+        i0 = items[0]
+        logger.info("_build_dashboard: %d items, 第一条: fn=%s, body=%r, md_len=%d, raw_len=%d, dir=%s",
+                     len(items), i0.get("filename"), (i0.get("body",""))[:40],
+                     len(i0.get("markdown","")), len(i0.get("raw_markdown","")), i0.get("dir"))
+    else:
+        logger.info("_build_dashboard: 0 items (agents_dir=%s)", config.agents_dir)
 
     status = nudger.get_status()
     tasks_count = status.get("tasks_count", 0)
     reports_count = status.get("reports_count", 0)
     stats = status.get("stats", {})
-    team_roles = _read_team_roles(config)
+    team_info = _read_team_info(config)
 
     return {
         "items": items,
-        "team_roles": team_roles,   # PWA 用此字段动态渲染角色卡片
+        "team_roles": team_info["roles"],
+        "team_name": team_info["team_name"],
         "stats": {
             "today_tasks": tasks_count,
             "today_replies": reports_count,
@@ -2552,6 +2636,49 @@ def _relay_stop_patrol(nudger: Nudger):
         return
     nudger.stop_patrol()
     logger.info("PWA 远程停止巡检")
+
+
+def _build_task_detail(config, filename: str) -> dict:
+    """根据文件名查找任务文件，返回完整内容给 PWA。"""
+    if not filename:
+        logger.warning("_build_task_detail: filename 为空")
+        return {"error": "missing filename"}
+    for d in ["tasks", "reports", "issues", "log"]:
+        p = config.agents_dir / d / filename
+        if p.exists():
+            try:
+                text = p.read_text(encoding="utf-8")
+            except Exception:
+                text = ""
+            front = {}
+            body_text = text
+            if text.startswith("---"):
+                parts = text.split("---", 2)
+                if len(parts) >= 3:
+                    for line in parts[1].strip().splitlines():
+                        if ":" in line:
+                            k, v = line.split(":", 1)
+                            front[k.strip()] = v.strip()
+                    body_text = parts[2].strip()
+            logger.info("_build_task_detail: 找到 %s/%s (%d bytes, body %d bytes)",
+                        d, filename, len(text), len(body_text))
+            return {
+                "filename": filename,
+                "task_id": front.get("task_id", ""),
+                "sender": front.get("sender", ""),
+                "recipient": front.get("recipient", ""),
+                "priority": front.get("priority", ""),
+                "progress": front.get("progress", "pending"),
+                "type": front.get("type", d.rstrip("s")),
+                "created_at": front.get("created_at", ""),
+                "thread_key": front.get("thread_key", ""),
+                "body": front.get("body", front.get("summary", "")),
+                "markdown": body_text[:8000],
+                "raw_markdown": text[:8000],
+            }
+    logger.warning("_build_task_detail: 未找到文件 %s (搜索: tasks/reports/issues/log in %s)",
+                   filename, config.agents_dir)
+    return {"error": "file not found", "filename": filename}
 
 
 def _build_bind_state(config) -> dict:

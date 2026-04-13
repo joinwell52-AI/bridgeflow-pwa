@@ -1555,7 +1555,7 @@ class PanelHandler(BaseHTTPRequestHandler):
             return self._json({"ok": False, "error": str(e)})
 
     def _api_update_apply(self):
-        """POST /api/update/apply — 用已下载的新 EXE 替换自身并重启。"""
+        """POST /api/update/apply — 生成 upgrade.bat 杀进程并替换 EXE，自动重启。"""
         try:
             import updater
             state = updater.get_state()
@@ -1564,9 +1564,6 @@ class PanelHandler(BaseHTTPRequestHandler):
             ok, msg = updater.apply_update(state["new_exe"])
             if ok:
                 self._json({"ok": True, "message": "正在更新，程序将自动重启…"})
-                time.sleep(0.5)
-                import os as _os
-                _os._exit(0)
             else:
                 return self._json({"ok": False, "error": msg})
         except Exception as e:

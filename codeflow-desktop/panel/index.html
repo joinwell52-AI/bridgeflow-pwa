@@ -312,7 +312,7 @@ a:hover{text-decoration:underline}
   <button id="update-bar-btn" onclick="applyUpdate()" style="display:none;margin-left:auto;
     border:1px solid #4ade80;background:rgba(74,222,128,.15);color:#4ade80;
     border-radius:6px;padding:3px 14px;cursor:pointer;font-size:12px;font-weight:600">
-    立即重启更新
+    立即更新重启
   </button>
 </div>
 
@@ -1490,6 +1490,7 @@ function runPreflight(){
     }).join('');
     $('pfBadge').textContent=d.all_ok?t('pf_pass'):t('pf_fail');
     $('pfBadge').style.background=d.all_ok?'var(--green)':'var(--red)';
+    $('pfBadge').style.color='#fff';
     const m=d.preflight_meta;
     if(probeEl&&m&&m.cursor_probe_ms!=null){
       probeEl.style.display='block';
@@ -1892,7 +1893,7 @@ function _wizCheckCursor(){
         const mainBar=$('update-bar');
         if(mainBar){mainBar.style.display='flex';}
         const mainMsg=$('update-bar-msg');
-        if(mainMsg){mainMsg.textContent='新版本 v'+d.latest+' 已下载完成，点击立即更新';}
+        if(mainMsg){mainMsg.textContent='新版本 v'+d.latest+' 已下载完成，点击立即更新重启';}
         const mainBtn=$('update-bar-btn');
         if(mainBtn){mainBtn.style.display='';}
       } else if(s==='error'){
@@ -2227,7 +2228,7 @@ setInterval(fetchPatrolTrace,3000);
       } else if(s==='ready' && !_shownReady){
         _shownReady=true;
         bar.style.display='flex';
-        msg.textContent='新版本 v'+d.latest+' 已下载完成，点击立即更新';
+        msg.textContent='新版本 v'+d.latest+' 已下载完成，点击立即更新重启';
         prog.textContent='';
         btn.style.display='';
       } else if(s==='error'){
@@ -2248,7 +2249,15 @@ function applyUpdate(){
   btn.textContent='更新中…';
   btn.disabled=true;
   fetch('/api/update/apply',{method:'POST'}).then(r=>r.json()).then(d=>{
-    if(!d.ok){alert('更新失败: '+(d.error||'未知错误'));btn.disabled=false;btn.textContent='立即重启更新';}
+    if(d.ok){
+      const msg=$('update-bar-msg');
+      if(msg) msg.textContent='正在更新，程序即将自动重启…';
+      btn.style.display='none';
+    } else {
+      alert('更新失败: '+(d.error||'未知错误'));
+      btn.disabled=false;
+      btn.textContent='立即更新重启';
+    }
   }).catch(()=>{});
 }
 </script>

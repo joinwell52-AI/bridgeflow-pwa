@@ -43,7 +43,7 @@ import webbrowser
 from pathlib import Path
 
 
-VERSION = "2.9.33"
+VERSION = "2.9.43"
 
 
 logger = logging.getLogger("codeflow")
@@ -735,6 +735,13 @@ def main():
     setup_logging()
 
     logger.info("CodeFlow Desktop v%s", VERSION)
+
+    # ── 启动时清理上次更新残留的 upgrade.bat 和 uptemp/
+    try:
+        from updater import cleanup_after_upgrade
+        cleanup_after_upgrade()
+    except Exception:
+        pass
 
     # ── 后台检测并安装缺失的 OCR 语言包（en-US / zh-Hans）
     def _ensure_ocr_langs():
