@@ -1076,16 +1076,22 @@
       en: { today: "Today Tasks", reply: "Today Replies", progress: "In Progress", done: "Completed", all: "All Tasks" }
     };
 
-    function openTaskListPage(filter) {
-      const role = selectedRole || "PM";
-      let allItems = tasksForRole(role);
+    function openTaskListPage(filter, roleFilter) {
       const filterLabel = STAT_FILTER_LABELS[currentLang] || STAT_FILTER_LABELS.zh;
+      let allItems, titlePrefix;
+      if (roleFilter) {
+        allItems = tasksForRole(roleFilter);
+        titlePrefix = roleFilter;
+      } else {
+        allItems = [...taskRecords];
+        titlePrefix = currentLang === "en" ? "All" : "全部";
+      }
       let title = filterLabel.all;
       if (filter === "today") { allItems = allItems.filter(isTaskToday); title = filterLabel.today; }
       else if (filter === "reply") { allItems = allItems.filter(i => isTaskToday(i) && isTaskReply(i)); title = filterLabel.reply; }
       else if (filter === "progress") { allItems = allItems.filter(isTaskInProgress); title = filterLabel.progress; }
       else if (filter === "done") { allItems = allItems.filter(isTaskDone); title = filterLabel.done; }
-      taskListPageTitleEl.textContent = `${role} · ${title}`;
+      taskListPageTitleEl.textContent = `${titlePrefix} · ${title}`;
       const items = allItems;
       fullTaskListEl.innerHTML = items.length ? items.map((item) => {
         const progress = mapProgress(item.progress);
@@ -2076,7 +2082,7 @@
           renderTaskList();
           renderRolePanel();
           refreshTargetOptions();
-          // 不自动 focus 输入框，避免手机弹出输入法
+          openTaskListPage(null, selectedRole);
         };
       });
     }
@@ -2528,6 +2534,7 @@
             localStorage.setItem("codeflow_bound_pc_code", bindState.machine_code);
             localStorage.setItem("codeflow_bound_pc_name", bindState.bound_mobile_device_name || "CodeFlow-PC");
             appendLog("绑定成功！PC=" + bindState.machine_code);
+            setTimeout(requestDashboard, 500);
           }
           renderMyDeviceInfo();
           if (bindState.pending_bind_code) appendLog("绑定码: " + bindState.pending_bind_code);
