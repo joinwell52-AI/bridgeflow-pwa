@@ -2501,7 +2501,11 @@
         try { data = JSON.parse(event.data); } catch (error) { appendLog(`收到无法解析的消息: ${error.message}`); return; }
         const et = data.event_type;
         if (!_silentEvents.has(et)) appendLog(`收到事件: ${et}`);
-        if (et === "dashboard_state") { applyDashboard(data.payload || {}); }
+        if (et === "dashboard_state") {
+          const p = data.payload || {};
+          appendLog(`dashboard: roles=${JSON.stringify(p.team_roles||[])}, items=${(p.items||[]).length}`);
+          applyDashboard(p);
+        }
         else if (et === "device_roster") {
           renderDevices(data.payload?.devices || []);
           const pcNow = !!_pcDeviceId();
