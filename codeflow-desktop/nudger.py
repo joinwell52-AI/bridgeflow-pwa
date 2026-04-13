@@ -726,10 +726,11 @@ def _check_cursor_connection_error(config: Any | None = None) -> bool:
         result = winocr.recognize_pil_sync(img, lang="en")
         text = result.text if hasattr(result, "text") else str(result)
         text_lower = text.lower()
-        keywords = ["connection error", "connection failed", "try again", "please try again"]
+        keywords = ["connection error", "connection failed", "try again", "please try again",
+                    "waiting for extension host", "extension host"]
         found = any(kw in text_lower for kw in keywords)
         if found:
-            logger.info("_check_cursor_connection_error: OCR 发现错误关键词: %r", text[:200])
+            logger.info("_check_cursor_connection_error: OCR 发现异常关键词: %r", text[:200])
         return found
     except Exception as e:
         logger.debug("_check_cursor_connection_error 异常: %s", e)
@@ -2128,8 +2129,8 @@ class Nudger:
                         now = time.time()
                         if now - _last_reload_t > _reload_cooldown:
                             if _check_cursor_connection_error(self.config):
-                                logger.warning("检测到 Cursor Connection Error，执行 Reload Window")
-                                patrol_trace("conn_error_reload", "检测到 Connection Error，自动 Reload Window")
+                                logger.warning("检测到 Cursor 异常（Connection Error / Extension Host 卡住），执行 Reload Window")
+                                patrol_trace("conn_error_reload", "检测到 Cursor 异常，自动 Reload Window")
                                 reload_cursor_window(self.config)
                                 _last_reload_t = time.time()
                                 time.sleep(float(getattr(self.config, "reload_window_wait_s", 12.0)))
