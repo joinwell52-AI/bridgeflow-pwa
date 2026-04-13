@@ -23,9 +23,18 @@ import tempfile
 import threading
 import time
 from pathlib import Path
-from urllib.request import urlopen, Request, build_opener, HTTPRedirectHandler
+from urllib.request import urlopen, Request, build_opener, HTTPRedirectHandler, getproxies, ProxyHandler
 from urllib.error import URLError
 import socket
+
+
+def _make_opener():
+    """创建跟随系统代理的 opener（VPN/系统代理自动生效）。"""
+    proxies = getproxies()   # 读取 Windows 系统代理 / 环境变量
+    if proxies:
+        logger.debug("[updater] 使用系统代理: %s", proxies)
+        return build_opener(ProxyHandler(proxies))
+    return build_opener(ProxyHandler({}))  # 空 ProxyHandler = 禁用代理，防止死循环
 
 logger = logging.getLogger("codeflow.updater")
 
@@ -81,7 +90,8 @@ def _fetch_latest_release() -> dict | None:
     try:
         req = Request(API_URL, headers={"Accept": "application/vnd.github+json",
                                         "User-Agent": "CodeFlow-Desktop-Updater"})
-        with urlopen(req, timeout=CHECK_TIMEOUT) as resp:
+        opener = _make_opener()
+        with opener.open(req, timeout=CHECK_TIMEOUT) as resp:
             data = json.loads(resp.read().decode())
         tag = data.get("tag_name", "")
         assets = data.get("assets", [])
@@ -108,11 +118,12 @@ def _download(url: str, dest: Path) -> bool:
     for redirect_count in range(MAX_REDIRECTS + 1):
         try:
             req = Request(current_url, headers={"User-Agent": "CodeFlow-Desktop-Updater"})
+            opener = _make_opener()
             # 设置默认 socket 超时（连接阶段）
             old_timeout = socket.getdefaulttimeout()
             socket.setdefaulttimeout(DL_CONNECT_TIMEOUT)
             try:
-                resp = urlopen(req, timeout=DL_CONNECT_TIMEOUT)
+                resp = opener.open(req, timeout=DL_CONNECT_TIMEOUT)
             finally:
                 socket.setdefaulttimeout(old_timeout)
 

@@ -8,6 +8,17 @@
 
 ---
 
+## [2.9.29] - 2026-04-13
+
+### 桌面端（`codeflow-desktop`）
+
+#### 修复：自动更新下载走系统代理（VPN）
+
+- `updater.py` 的 API 检查和文件下载均通过 `urllib.request.getproxies()` 读取系统代理
+- 修复在开启 VPN/系统代理时下载仍卡在 0% 的问题
+
+---
+
 ## [2.9.28] - 2026-04-13
 
 ### 桌面端（`codeflow-desktop`）
