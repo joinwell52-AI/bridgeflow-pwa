@@ -86,19 +86,30 @@ py -3.12 -m PyInstaller build.spec --noconfirm --clean
 
 ---
 
-## 发版流程（一键）
+## 发版流程
 
 ### 前提条件（首次配置，之后永久有效）
 
-1. 安装 gh CLI：
+#### GitHub（gh CLI）
+```powershell
+winget install --id GitHub.cli --accept-source-agreements --accept-package-agreements
+gh auth login --web   # 按提示浏览器授权，只需一次
+```
+
+#### Gitee（国内镜像）
+1. 登录 [gitee.com/profile/personal_access_tokens](https://gitee.com/profile/personal_access_tokens)，生成 Personal Access Token（需勾选 `projects` 权限）
+2. 把 token 写入本地文件（**不提交 Git**）：
    ```powershell
-   winget install --id GitHub.cli --accept-source-agreements --accept-package-agreements
+   "你的token" | Out-File -Encoding ascii D:\BridgeFlow\codeflow-desktop\.gitee_token
    ```
-2. 登录 GitHub（只需一次）：
-   ```powershell
-   gh auth login --web
-   ```
-   按提示打开浏览器，输入授权码完成授权。
+
+#### 代码远端
+```powershell
+# 首次配置（已配好可跳过）
+git remote add gitee https://joinwell52:<gitee_token>@gitee.com/joinwell52/cursor-ai.git
+```
+
+---
 
 ### 每次发版步骤
 
@@ -112,8 +123,8 @@ _VERSION = "2.9.xx"  # web_panel.py
 
 **第二步：写发版说明**
 
-在项目根 `CHANGELOG.md` 顶部（`[Unreleased]` 下方）新增一个版本块，格式参考已有条目：
-```
+在项目根 `CHANGELOG.md` 顶部（`[Unreleased]` 下方）新增版本块：
+```markdown
 ## [2.9.xx] - YYYY-MM-DD
 ### 桌面端（codeflow-desktop）
 #### 改进/修复：xxx
@@ -121,40 +132,84 @@ _VERSION = "2.9.xx"  # web_panel.py
 - 说明2
 ```
 
-**第三步：打包**
+**第三步：提交 + 打包**
 
-手动删除旧 `dist\` 目录后，双击运行 `pack.cmd`。
+```powershell
+cd D:\BridgeFlow
 
-**第四步：一键发版**
+# 提交代码
+git add -A
+git -c "trailer.ifExists=doNothing" commit -m "feat/fix: 说明 (v2.9.xx)"
+git push origin main
+git push backup main
+git push gitee main
 
-```cmd
+# 打 tag
+git tag v2.9.xx
+git push origin v2.9.xx
+git push gitee v2.9.xx
+
+# 打包（清理旧产物后用 build.spec）
+cd codeflow-desktop
+Remove-Item -Recurse -Force dist, build -ErrorAction SilentlyContinue
+py -3.10 -m PyInstaller build.spec --noconfirm
+```
+
+> 成功后：`dist\CodeFlow-Desktop.exe`（约 35 MB）
+
+**第四步：发布到 Gitee（国内，秒完）**
+
+```powershell
 cd D:\BridgeFlow\codeflow-desktop
-release.cmd 2.9.xx
+py -3.10 _gitee_pub.py
 ```
 
-`release.cmd` 自动完成：
+**第五步：发布到 GitHub（后台上传，较慢）**
 
-| 步骤 | 内容 |
+```powershell
+py -3.10 _github_pub.py
+```
+
+> GitHub 上传因国内网络较慢（1～5 分钟），可后台跑，不影响用户（用户优先走 Gitee 下载）。
+
+---
+
+### 发版脚本说明
+
+| 文件 | 用途 |
 |------|------|
-| 1 | 检查 CHANGELOG 中是否有对应版本条目 |
-| 2 | 调用 `pack.cmd` 打包（若已手动打包可跳过） |
-| 3 | 从 CHANGELOG 提取版本说明，生成发版 Notes |
-| 4 | `git add -A` → `git commit` → `git tag vX.X.X` → `git push` |
-| 5 | `gh release create` 上传 EXE + 发版说明到 GitHub Releases |
+| `_gitee_pub.py` | 发布到 Gitee Releases（读 `.gitee_token`，读 `CHANGELOG.md` 作说明） |
+| `_github_pub.py` | 发布到 GitHub Releases（读 `gh auth token`，读 `CHANGELOG.md` 作说明） |
+| `release.py` | 通用发版脚本（命令行参数，同时发两端）：`py -3.10 release.py 2.9.xx dist/CodeFlow-Desktop.exe` |
 
-发版成功后 Release 地址：
+### 发版后地址
+
 ```
-https://github.com/joinwell52-AI/codeflow-pwa/releases/tag/vX.X.X
+GitHub：https://github.com/joinwell52-AI/codeflow-pwa/releases/tag/vX.X.X
+Gitee： https://gitee.com/joinwell52/cursor-ai/releases/tag/vX.X.X
 ```
+
+---
+
+### 自动更新机制（updater.py）
+
+用户安装后，应用启动时自动检查新版本（以 GitHub API 为版本源），下载时：
+
+1. **并发测速** Gitee 和 GitHub（各发一个 HEAD 请求）
+2. **Gitee 响应 < GitHub + 500ms** 时走 Gitee（国内用户几乎必走 Gitee）
+3. **主线路失败**自动切换备用线路，无需用户干预
+4. **走系统代理**（VPN/系统代理自动生效，不会卡在 0%）
 
 ### 常见问题
 
 | 现象 | 处理 |
 |------|------|
-| `rmdir dist` 失败 / PermissionError | Defender 锁住了 EXE，手动删 `dist\` 目录或加排除列表 |
-| `gh: command not found` | 重开终端让 PATH 生效，或用 `cmd /c gh ...` |
-| git push 被拒（含 Token 的脚本） | 检查提交是否包含含密钥的 `_*.py`，从 git 移除后重提交 |
-| Release 已存在 | 先 `gh release delete vX.X.X --repo ...` 再重试 |
+| `rmdir dist` 失败 / PermissionError | Defender 锁住了 EXE，手动删 `dist\` 目录，或加 Defender 排除：`Add-MpPreference -ExclusionPath "D:\BridgeFlow\codeflow-desktop\dist"` |
+| `gh: command not found` | 重开终端让 PATH 生效 |
+| git push 被拒（含 Token 的脚本） | 检查提交是否含 `_*.py` 密钥，`git rm --cached` 后重提交 |
+| GitHub Release 已存在 | 脚本会自动查询已有 ID 并直接上传附件，无需手动删除 |
+| Gitee Release 已存在 | 同上，脚本自动处理 |
+| EXE 体积异常（127MB+） | 必须用 `build.spec` 打包，不要用 `--hidden-import` 命令行参数 |
 
 ## 运行
 

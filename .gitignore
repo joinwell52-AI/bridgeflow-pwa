@@ -1,5 +1,6 @@
 ﻿# ── Secrets ──
 .github_token
+.gitee_token
 
 # ── Python ──
 __pycache__/

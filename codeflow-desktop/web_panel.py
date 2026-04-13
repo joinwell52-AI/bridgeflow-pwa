@@ -60,7 +60,7 @@ def get_panel_port(setup_mode: bool = False) -> int:
     """引导阶段用 18766，正常启动用 18765，避免 Cursor 自动恢复旧 Simple Browser 标签。"""
     return PANEL_PORT_SETUP if setup_mode else PANEL_PORT_NORMAL
 
-_VERSION = "2.9.29"
+_VERSION = "2.9.30"
 
 
 # 面板最后活跃时间（monotonic），用于心跳超时检测

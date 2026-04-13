@@ -3,14 +3,14 @@ CodeFlow Desktop 自动更新模块
 
 流程：
 1. check_update()  — 请求 GitHub Releases API，比较版本号
-2. 发现新版本     — 后台线程静默下载新 EXE 到临时目录
+2. 发现新版本     — 测速选最快线路（Gitee / GitHub），后台下载
 3. 下载完成       — 设置 _update_ready 标志，前端轮询 /api/update/check 获知
 4. apply_update() — 写入替换脚本并重启，脚本等旧进程退出后复制新 EXE 覆盖原文件
 
-GitHub Releases 约定：
-  - Repo   : GITHUB_REPO  (owner/repo)
-  - Asset  : CodeFlow-Desktop.exe
-  - Tag    : v{version}，如 v2.9.19
+下载线路：
+  - 主线路：Gitee（国内快）
+  - 备用线路：GitHub Releases
+  - 启动前先用 HEAD 请求测速，响应快的优先
 """
 from __future__ import annotations
 
@@ -23,41 +23,37 @@ import tempfile
 import threading
 import time
 from pathlib import Path
-from urllib.request import urlopen, Request, build_opener, HTTPRedirectHandler, getproxies, ProxyHandler
+from urllib.request import urlopen, Request, build_opener, getproxies, ProxyHandler
 from urllib.error import URLError
 import socket
-
-
-def _make_opener():
-    """创建跟随系统代理的 opener（VPN/系统代理自动生效）。"""
-    proxies = getproxies()   # 读取 Windows 系统代理 / 环境变量
-    if proxies:
-        logger.debug("[updater] 使用系统代理: %s", proxies)
-        return build_opener(ProxyHandler(proxies))
-    return build_opener(ProxyHandler({}))  # 空 ProxyHandler = 禁用代理，防止死循环
 
 logger = logging.getLogger("codeflow.updater")
 
 # ── 配置 ─────────────────────────────────────────────────────────────
-GITHUB_REPO   = "joinwell52-AI/codeflow-pwa"
-ASSET_NAME    = "CodeFlow-Desktop.exe"
-API_URL       = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
-CHECK_TIMEOUT  = 10   # 秒，API 检查超时
-DL_CONNECT_TIMEOUT = 15   # 秒，TCP 连接超时（跟随跳转每跳都有这个限制）
-DL_READ_TIMEOUT    = 30   # 秒，单次 socket read 超时
-DL_TOTAL_LIMIT     = 300  # 秒，整体下载最大时长（5分钟）
+GITHUB_REPO    = "joinwell52-AI/codeflow-pwa"
+GITEE_REPO     = "joinwell52/cursor-ai"          # Gitee 仓库
+ASSET_NAME     = "CodeFlow-Desktop.exe"
+API_URL        = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+GITEE_API_URL  = f"https://gitee.com/api/v5/repos/{GITEE_REPO}/releases/latest"
+
+CHECK_TIMEOUT      = 10   # 秒，版本检查超时
+PROBE_TIMEOUT      = 5    # 秒，测速探测超时
+DL_CONNECT_TIMEOUT = 15   # 秒，下载连接超时
+DL_READ_TIMEOUT    = 30   # 秒，单次 read 超时
+DL_TOTAL_LIMIT     = 300  # 秒，整体下载最大时长
 
 # ── 状态 ─────────────────────────────────────────────────────────────
-_lock           = threading.Lock()
-_state: dict    = {
-    "status":           "idle",   # idle | startup_checking | checking | no_update | downloading | ready | error
-    "latest":           "",       # 最新版本号，如 "2.9.19"
-    "current":          "",       # 当前版本号
-    "progress":         0,        # 下载进度 0-100
+_lock        = threading.Lock()
+_state: dict = {
+    "status":           "idle",
+    "latest":           "",
+    "current":          "",
+    "progress":         0,
     "error":            "",
     "download_url":     "",
-    "new_exe":          "",       # 下载完成后的临时文件路径
-    "startup_checking": False,    # 启动阶段同步检查中
+    "new_exe":          "",
+    "startup_checking": False,
+    "mirror":           "",   # 当前使用的线路名称
 }
 
 
@@ -84,21 +80,63 @@ def is_newer(latest: str, current: str) -> bool:
     return _parse_version(latest) > _parse_version(current)
 
 
-# ── GitHub API ────────────────────────────────────────────────────────
-def _fetch_latest_release() -> dict | None:
-    """返回 {version, download_url} 或 None。"""
+# ── 网络工具 ──────────────────────────────────────────────────────────
+def _make_opener():
+    """跟随系统代理（VPN 自动生效）。"""
+    proxies = getproxies()
+    if proxies:
+        logger.debug("[updater] 使用系统代理: %s", proxies)
+        return build_opener(ProxyHandler(proxies))
+    return build_opener(ProxyHandler({}))
+
+
+def _probe_ms(url: str) -> float:
+    """测量 HEAD 请求响应时间（毫秒），失败返回 999999。"""
     try:
-        req = Request(API_URL, headers={"Accept": "application/vnd.github+json",
-                                        "User-Agent": "CodeFlow-Desktop-Updater"})
+        req = Request(url, method="HEAD", headers={"User-Agent": "CodeFlow-Updater-Probe"})
+        opener = _make_opener()
+        t0 = time.monotonic()
+        with opener.open(req, timeout=PROBE_TIMEOUT):
+            pass
+        return (time.monotonic() - t0) * 1000
+    except Exception as e:
+        logger.debug("[updater] 探测失败 %s: %s", url, e)
+        return 999999.0
+
+
+# ── 版本检查（GitHub API 为准，Gitee 作下载源）───────────────────────
+def _fetch_latest_release() -> dict | None:
+    """
+    返回 {version, github_url, gitee_url} 或 None。
+    版本号以 GitHub 为准（官方发布源），同时构造 Gitee 下载地址。
+    """
+    try:
+        req = Request(API_URL, headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "CodeFlow-Desktop-Updater",
+        })
         opener = _make_opener()
         with opener.open(req, timeout=CHECK_TIMEOUT) as resp:
             data = json.loads(resp.read().decode())
         tag = data.get("tag_name", "")
         assets = data.get("assets", [])
-        url = next((a["browser_download_url"] for a in assets
-                    if a.get("name") == ASSET_NAME), None)
-        if tag and url:
-            return {"version": tag.lstrip("v"), "download_url": url}
+        github_url = next(
+            (a["browser_download_url"] for a in assets if a.get("name") == ASSET_NAME),
+            None,
+        )
+        if not (tag and github_url):
+            return None
+
+        # Gitee 下载地址按约定构造（与发版脚本保持一致）
+        gitee_url = (
+            f"https://gitee.com/{GITEE_REPO}/releases/download/{tag}/{ASSET_NAME}"
+        )
+        return {
+            "version":    tag.lstrip("v"),
+            "github_url": github_url,
+            "gitee_url":  gitee_url,
+            "download_url": github_url,  # 兼容旧字段，最终由 _pick_url 覆盖
+        }
     except URLError as e:
         logger.debug("[updater] 网络请求失败: %s", e)
     except Exception as e:
@@ -106,20 +144,54 @@ def _fetch_latest_release() -> dict | None:
     return None
 
 
+def _pick_url(github_url: str, gitee_url: str) -> tuple[str, str]:
+    """
+    并发测速，返回 (最快URL, 线路名称)。
+    Gitee 响应时间 < GitHub + 500ms 时选 Gitee，否则选 GitHub。
+    """
+    results: dict[str, float] = {}
+
+    def probe(name, url):
+        results[name] = _probe_ms(url)
+
+    threads = [
+        threading.Thread(target=probe, args=("Gitee", gitee_url), daemon=True),
+        threading.Thread(target=probe, args=("GitHub", github_url), daemon=True),
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=PROBE_TIMEOUT + 1)
+
+    gitee_ms  = results.get("Gitee",  999999.0)
+    github_ms = results.get("GitHub", 999999.0)
+    logger.info("[updater] 测速 Gitee=%.0fms GitHub=%.0fms", gitee_ms, github_ms)
+
+    if gitee_ms < 999999 and gitee_ms <= github_ms + 500:
+        return gitee_url, f"Gitee ({gitee_ms:.0f}ms)"
+    if github_ms < 999999:
+        return github_url, f"GitHub ({github_ms:.0f}ms)"
+    # 都失败，先 Gitee 后 GitHub
+    return gitee_url, "Gitee(fallback)"
+
+
 # ── 下载 ──────────────────────────────────────────────────────────────
-def _download(url: str, dest: Path) -> bool:
-    """流式下载，更新进度。支持 302 跳转，带连接超时和整体超时。"""
-    import time as _time
+def _download(url: str, dest: Path, fallback_url: str | None = None) -> bool:
+    """
+    流式下载，带连接超时、整体超时、自动重试。
+    主 URL 失败时自动切换到 fallback_url。
+    """
+    urls_to_try = [u for u in [url, fallback_url] if u]
 
-    # 最多跟随 5 次跳转，每次都设连接+读取超时
-    MAX_REDIRECTS = 5
-    current_url = url
+    for attempt, try_url in enumerate(urls_to_try):
+        label = "主线路" if attempt == 0 else "备用线路"
+        logger.info("[updater] %s 下载: %s", label, try_url)
+        if attempt > 0:
+            _set(mirror=f"切换到{label}")
 
-    for redirect_count in range(MAX_REDIRECTS + 1):
         try:
-            req = Request(current_url, headers={"User-Agent": "CodeFlow-Desktop-Updater"})
+            req = Request(try_url, headers={"User-Agent": "CodeFlow-Desktop-Updater"})
             opener = _make_opener()
-            # 设置默认 socket 超时（连接阶段）
             old_timeout = socket.getdefaulttimeout()
             socket.setdefaulttimeout(DL_CONNECT_TIMEOUT)
             try:
@@ -127,23 +199,17 @@ def _download(url: str, dest: Path) -> bool:
             finally:
                 socket.setdefaulttimeout(old_timeout)
 
-            # 检查是否还是跳转（urlopen 默认跟随，但有时 CDN 不跟随）
-            final_url = resp.geturl()
-            if final_url != current_url:
-                logger.debug("[updater] 跳转到: %s", final_url)
-
             total = int(resp.headers.get("Content-Length") or 0)
             downloaded = 0
             chunk = 65536
-            start_ts = _time.monotonic()
+            start_ts = time.monotonic()
 
             with open(dest, "wb") as f:
                 while True:
-                    if _time.monotonic() - start_ts > DL_TOTAL_LIMIT:
+                    if time.monotonic() - start_ts > DL_TOTAL_LIMIT:
                         resp.close()
-                        logger.warning("[updater] 下载超时（%ds），放弃", DL_TOTAL_LIMIT)
-                        return False
-                    # 每次 read 也设超时
+                        logger.warning("[updater] 下载超时（%ds）", DL_TOTAL_LIMIT)
+                        break
                     socket.setdefaulttimeout(DL_READ_TIMEOUT)
                     try:
                         buf = resp.read(chunk)
@@ -159,35 +225,26 @@ def _download(url: str, dest: Path) -> bool:
                         _set(progress=min(99, int(downloaded * 100 / (40 * 1024 * 1024))))
 
             resp.close()
-            _set(progress=100)
-            return True
+            if downloaded > 1024 * 1024:  # 至少 1MB 才算成功
+                _set(progress=100)
+                logger.info("[updater] 下载完成 %.1fMB via %s", downloaded / 1024 / 1024, label)
+                return True
+            logger.warning("[updater] %s 下载不完整 (%d bytes)，切换线路", label, downloaded)
 
         except Exception as e:
-            logger.warning("[updater] 下载失败 (尝试 %d): %s", redirect_count + 1, e)
-            if redirect_count < MAX_REDIRECTS:
-                _time.sleep(2)  # 重试前等 2 秒
-                continue
-            return False
+            logger.warning("[updater] %s 下载失败: %s", label, e)
 
     return False
 
 
 # ── 替换 & 重启 ────────────────────────────────────────────────────────
 def _current_exe() -> Path | None:
-    """返回当前运行的 EXE 路径（PyInstaller 打包环境）。"""
     if getattr(sys, "frozen", False):
         return Path(sys.executable)
     return None
 
 
 def apply_update(new_exe: str) -> tuple[bool, str]:
-    """
-    用 batch 脚本实现热替换：
-    1. 等旧进程退出
-    2. 复制新 EXE 覆盖旧 EXE
-    3. 启动新 EXE
-    4. 删除临时文件和脚本自身
-    """
     src = Path(new_exe)
     dst = _current_exe()
     if not dst:
@@ -212,62 +269,65 @@ def apply_update(new_exe: str) -> tuple[bool, str]:
         import subprocess
         subprocess.Popen(
             ["cmd.exe", "/c", str(bat)],
-            creationflags=0x00000008,  # DETACHED_PROCESS
+            creationflags=0x00000008,
             close_fds=True,
         )
-        logger.info("[updater] 替换脚本已启动，准备退出: %s -> %s", src, dst)
+        logger.info("[updater] 替换脚本已启动: %s -> %s", src, dst)
         return True, "ok"
     except Exception as e:
         return False, str(e)
 
 
 # ── 主入口 ────────────────────────────────────────────────────────────
+def _run_check_and_download(current_version: str, force: bool = False):
+    release = _fetch_latest_release()
+    if not release:
+        _set(status="error", error="无法获取版本信息，请检查网络")
+        return
+
+    latest     = release["version"]
+    github_url = release["github_url"]
+    gitee_url  = release["gitee_url"]
+    _set(latest=latest, download_url=github_url)
+
+    if not force and not is_newer(latest, current_version):
+        logger.info("[updater] 已是最新版本 %s", current_version)
+        _set(status="no_update")
+        return
+
+    # 测速选最快线路
+    best_url, mirror_name = _pick_url(github_url, gitee_url)
+    fallback_url = gitee_url if best_url == github_url else github_url
+    logger.info("[updater] 发现新版本 %s，使用 %s 下载", latest, mirror_name)
+    _set(status="downloading", mirror=mirror_name, download_url=best_url)
+
+    tmp = Path(tempfile.mkdtemp()) / ASSET_NAME
+    ok = _download(best_url, tmp, fallback_url=fallback_url)
+    if ok:
+        _set(status="ready", new_exe=str(tmp))
+    else:
+        _set(status="error", error="下载失败，请手动下载或稍后重试")
+        try:
+            tmp.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
 def check_and_download(current_version: str, *, force: bool = False) -> None:
-    """
-    后台线程入口：检查版本 → 若有新版本则自动下载。
-    force=True 时跳过"已是最新"判断（供手动触发）。
-    """
     with _lock:
         if _state["status"] in ("checking", "downloading", "ready") and not force:
             return
         _state.update(status="checking", current=current_version,
-                      progress=0, error="", new_exe="")
+                      progress=0, error="", new_exe="", mirror="")
 
-    def _run():
-        release = _fetch_latest_release()
-        if not release:
-            _set(status="error", error="无法连接 GitHub，请检查网络")
-            return
-
-        latest = release["version"]
-        url    = release["download_url"]
-        _set(latest=latest, download_url=url)
-
-        if not force and not is_newer(latest, current_version):
-            logger.info("[updater] 已是最新版本 %s", current_version)
-            _set(status="no_update")
-            return
-
-        logger.info("[updater] 发现新版本 %s（当前 %s），开始下载…", latest, current_version)
-        _set(status="downloading")
-
-        tmp = Path(tempfile.mkdtemp()) / ASSET_NAME
-        ok = _download(url, tmp)
-        if ok:
-            logger.info("[updater] 下载完成: %s", tmp)
-            _set(status="ready", new_exe=str(tmp))
-        else:
-            _set(status="error", error="下载失败，请稍后重试")
-            try:
-                tmp.unlink(missing_ok=True)
-            except Exception:
-                pass
-
-    threading.Thread(target=_run, daemon=True, name="updater").start()
+    threading.Thread(
+        target=_run_check_and_download,
+        args=(current_version, force),
+        daemon=True, name="updater",
+    ).start()
 
 
 def start_background_check(current_version: str, delay_s: float = 15.0) -> None:
-    """程序启动后延迟 delay_s 秒再检查，避免影响启动速度。"""
     def _delayed():
         time.sleep(delay_s)
         check_and_download(current_version)
@@ -275,11 +335,6 @@ def start_background_check(current_version: str, delay_s: float = 15.0) -> None:
 
 
 def quick_check(current_version: str, timeout: float = 5.0) -> bool:
-    """
-    启动阶段同步快速检查：是否有新版本可用。
-    超时或网络失败返回 False（不阻断正常启动）。
-    若发现新版本，同时触发后台下载。
-    """
     result = [False]
     _set(startup_checking=True, status="startup_checking", current=current_version)
 
@@ -287,12 +342,15 @@ def quick_check(current_version: str, timeout: float = 5.0) -> bool:
         release = _fetch_latest_release()
         if release and is_newer(release["version"], current_version):
             result[0] = True
-            # 顺手触发后台下载
+            github_url = release["github_url"]
+            gitee_url  = release["gitee_url"]
+            best_url, mirror_name = _pick_url(github_url, gitee_url)
+            fallback_url = gitee_url if best_url == github_url else github_url
             _set(status="downloading", latest=release["version"],
-                 download_url=release["download_url"],
+                 download_url=best_url, mirror=mirror_name,
                  current=current_version, progress=0, error="", new_exe="")
             tmp = Path(tempfile.mkdtemp()) / ASSET_NAME
-            ok = _download(release["download_url"], tmp)
+            ok = _download(best_url, tmp, fallback_url=fallback_url)
             if ok:
                 _set(status="ready", new_exe=str(tmp), startup_checking=False)
             else:
@@ -307,7 +365,6 @@ def quick_check(current_version: str, timeout: float = 5.0) -> bool:
     t = threading.Thread(target=_run, daemon=True)
     t.start()
     t.join(timeout=timeout)
-    # 超时：下载线程继续跑，但 startup_checking 标记清掉
     if t.is_alive():
         _set(startup_checking=False)
     return result[0]
