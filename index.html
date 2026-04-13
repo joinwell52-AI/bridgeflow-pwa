@@ -2351,17 +2351,44 @@
       sendEvent("request_dashboard", { target_device_id: target.device_id });
     }
 
+    let _taskDetailTimer = null;
     function requestTaskDetail(filename) {
       if (!filename) return;
+      if (_taskDetailTimer) { clearTimeout(_taskDetailTimer); _taskDetailTimer = null; }
       const target = currentTargetDevice() || onlineDevices.find((item) => normalizeRole(item.owner_role) === preferredContextRole()) || onlineDevices[0];
       if (target) {
         appendLog(`requestTaskDetail: 向PC请求 fn=${filename}, dev=${target.device_id}`);
         sendEvent("request_task_detail", { filename, target_device_id: target.device_id });
+        _taskDetailTimer = setTimeout(() => {
+          _fallbackLocalMd(filename);
+        }, 3000);
         return;
       }
       appendLog(`requestTaskDetail: 无在线PC, fallback本地, fn=${filename}`);
+      _fallbackLocalMd(filename);
+    }
+    function _fallbackLocalMd(filename) {
+      const fpMd = document.getElementById("fpMarkdown");
+      if (!fpMd || !taskDetailPageEl.classList.contains("open")) return;
+      if (fpMd.textContent && !fpMd.textContent.includes("正在加载") && !fpMd.textContent.includes("Loading")) return;
       const local = taskItems.find((item) => item.filename === filename);
-      if (local) renderDetail(local);
+      if (local) {
+        const mc = detailMarkdownContent(local);
+        appendLog(`fallback本地MD: fn=${filename}, len=${mc.length}`);
+        if (mc) { fpMd.textContent = mc; return; }
+      }
+      const rec = getTaskByFilename(filename);
+      if (rec) {
+        let mc = detailMarkdownContent(rec);
+        if (!mc && Array.isArray(rec.messages)) {
+          for (const msg of rec.messages) {
+            mc = detailMarkdownContent(msg);
+            if (mc) break;
+          }
+        }
+        if (mc) { fpMd.textContent = mc; appendLog(`fallback record MD: len=${mc.length}`); return; }
+      }
+      fpMd.textContent = currentLang === "en" ? "(No MD content available)" : "（暂无 MD 内容）";
     }
 
     function requestDeviceRoster() { sendEvent("request_device_roster", {}); }
@@ -2658,6 +2685,7 @@
           }
         }
         else if (et === "task_detail") {
+          if (_taskDetailTimer) { clearTimeout(_taskDetailTimer); _taskDetailTimer = null; }
           const _td = data.payload || {};
           appendLog(`task_detail收到: fn=${_td.filename}, md=${(_td.markdown||'').length}, raw=${(_td.raw_markdown||'').length}, err=${_td.error||''}`);
           renderDetail(_td);
