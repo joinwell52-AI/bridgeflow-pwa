@@ -102,8 +102,25 @@ codeflow-desktop/_*.png
 codeflow-desktop/test_*.png
 codeflow-desktop/cursor_screenshot.png
 codeflow-desktop/cursor_vision_report.json
-codeflow-desktop/_test_layout.py
+codeflow-desktop/pack_log.txt
+codeflow-desktop/*.bak
+codeflow-desktop/_release_notes.md
 
 # PyInstaller 命令行生成的 spec（日常以 build.spec、pack.cmd 为准）
 codeflow-desktop/CodeFlow-Desktop.spec
-codeflow-desktop/CodeFlow-Desktop.spec
+
+# ── 根目录运维/调试脚本（统一放 private/） ──
+_check_nginx.py
+_deploy_pwa.py
+_deploy_pwa_direct.py
+_deploy_relay.py
+_fix_relay.py
+_scan_cursor_db.py
+_patch_*.py
+_rebuild*.py
+commitmsg.txt
+_pages_tmp/
+
+# ── 敏感文件 ──
+.github_token
+private/
