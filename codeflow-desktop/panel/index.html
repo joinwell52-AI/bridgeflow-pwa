@@ -1877,6 +1877,11 @@ function _wizCheckCursor(){
         msg.textContent='发现新版本 v'+d.latest+'，正在下载…';
         prog.textContent=d.progress+'%';
         btn.style.display='none';
+        // 下载卡在 0% 超过 30 秒，显示手动下载链接
+        if(!bar._dlStart) bar._dlStart = Date.now();
+        if(d.progress===0 && Date.now()-bar._dlStart > 30000){
+          msg.innerHTML='下载较慢（GitHub 国内访问慢），建议 <a href="https://github.com/joinwell52-AI/codeflow-pwa/releases/latest" target="_blank" style="color:#4ade80">手动下载最新版</a>';
+        }
       } else if(s==='ready' && !_ready){
         _ready=true;
         bar.style.display='block';
@@ -2215,6 +2220,10 @@ setInterval(fetchPatrolTrace,3000);
         msg.textContent='正在下载新版本 v'+d.latest+'…';
         prog.textContent=d.progress+'%';
         btn.style.display='none';
+        if(!bar._dlStart) bar._dlStart = Date.now();
+        if(d.progress===0 && Date.now()-bar._dlStart > 30000){
+          msg.innerHTML='下载较慢（GitHub 国内访问慢），建议 <a href="https://github.com/joinwell52-AI/codeflow-pwa/releases/latest" target="_blank" style="color:#4ade80;font-weight:600">手动下载最新版</a>';
+        }
       } else if(s==='ready' && !_shownReady){
         _shownReady=true;
         bar.style.display='flex';

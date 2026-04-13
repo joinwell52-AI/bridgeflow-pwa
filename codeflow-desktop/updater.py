@@ -23,8 +23,9 @@ import tempfile
 import threading
 import time
 from pathlib import Path
-from urllib.request import urlopen, Request
+from urllib.request import urlopen, Request, build_opener, HTTPRedirectHandler
 from urllib.error import URLError
+import socket
 
 logger = logging.getLogger("codeflow.updater")
 
@@ -32,8 +33,10 @@ logger = logging.getLogger("codeflow.updater")
 GITHUB_REPO   = "joinwell52-AI/codeflow-pwa"
 ASSET_NAME    = "CodeFlow-Desktop.exe"
 API_URL       = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
-CHECK_TIMEOUT = 10   # 秒
-DL_TIMEOUT    = 120  # 秒，单次 read 超时
+CHECK_TIMEOUT  = 10   # 秒，API 检查超时
+DL_CONNECT_TIMEOUT = 15   # 秒，TCP 连接超时（跟随跳转每跳都有这个限制）
+DL_READ_TIMEOUT    = 30   # 秒，单次 socket read 超时
+DL_TOTAL_LIMIT     = 300  # 秒，整体下载最大时长（5分钟）
 
 # ── 状态 ─────────────────────────────────────────────────────────────
 _lock           = threading.Lock()
@@ -95,27 +98,67 @@ def _fetch_latest_release() -> dict | None:
 
 # ── 下载 ──────────────────────────────────────────────────────────────
 def _download(url: str, dest: Path) -> bool:
-    """流式下载，更新进度。返回是否成功。"""
-    try:
-        req = Request(url, headers={"User-Agent": "CodeFlow-Desktop-Updater"})
-        with urlopen(req, timeout=DL_TIMEOUT) as resp:
+    """流式下载，更新进度。支持 302 跳转，带连接超时和整体超时。"""
+    import time as _time
+
+    # 最多跟随 5 次跳转，每次都设连接+读取超时
+    MAX_REDIRECTS = 5
+    current_url = url
+
+    for redirect_count in range(MAX_REDIRECTS + 1):
+        try:
+            req = Request(current_url, headers={"User-Agent": "CodeFlow-Desktop-Updater"})
+            # 设置默认 socket 超时（连接阶段）
+            old_timeout = socket.getdefaulttimeout()
+            socket.setdefaulttimeout(DL_CONNECT_TIMEOUT)
+            try:
+                resp = urlopen(req, timeout=DL_CONNECT_TIMEOUT)
+            finally:
+                socket.setdefaulttimeout(old_timeout)
+
+            # 检查是否还是跳转（urlopen 默认跟随，但有时 CDN 不跟随）
+            final_url = resp.geturl()
+            if final_url != current_url:
+                logger.debug("[updater] 跳转到: %s", final_url)
+
             total = int(resp.headers.get("Content-Length") or 0)
             downloaded = 0
             chunk = 65536
+            start_ts = _time.monotonic()
+
             with open(dest, "wb") as f:
                 while True:
-                    buf = resp.read(chunk)
+                    if _time.monotonic() - start_ts > DL_TOTAL_LIMIT:
+                        resp.close()
+                        logger.warning("[updater] 下载超时（%ds），放弃", DL_TOTAL_LIMIT)
+                        return False
+                    # 每次 read 也设超时
+                    socket.setdefaulttimeout(DL_READ_TIMEOUT)
+                    try:
+                        buf = resp.read(chunk)
+                    finally:
+                        socket.setdefaulttimeout(old_timeout)
                     if not buf:
                         break
                     f.write(buf)
                     downloaded += len(buf)
                     if total:
                         _set(progress=min(99, int(downloaded * 100 / total)))
-        _set(progress=100)
-        return True
-    except Exception as e:
-        logger.warning("[updater] 下载失败: %s", e)
-        return False
+                    elif downloaded > 0:
+                        _set(progress=min(99, int(downloaded * 100 / (40 * 1024 * 1024))))
+
+            resp.close()
+            _set(progress=100)
+            return True
+
+        except Exception as e:
+            logger.warning("[updater] 下载失败 (尝试 %d): %s", redirect_count + 1, e)
+            if redirect_count < MAX_REDIRECTS:
+                _time.sleep(2)  # 重试前等 2 秒
+                continue
+            return False
+
+    return False
 
 
 # ── 替换 & 重启 ────────────────────────────────────────────────────────
