@@ -1219,7 +1219,16 @@
     taskListBackBtnEl.onclick = closeTaskListPage;
     taskDetailBackBtnEl.onclick = closeTaskDetailPage;
     fpRecordTabBtnEl.onclick = () => { fpViewMode = "record"; syncFpTabs(); };
-    fpMarkdownTabBtnEl.onclick = () => { fpViewMode = "markdown"; syncFpTabs(); };
+    fpMarkdownTabBtnEl.onclick = () => {
+      fpViewMode = "markdown"; syncFpTabs();
+      const fpMd = document.getElementById("fpMarkdown");
+      if (fpMd && (!fpMd.textContent || fpMd.textContent.includes("正在加载") || fpMd.textContent.includes("暂无") || fpMd.textContent.startsWith("# TASK-"))) {
+        if (_fpDetailFilename) {
+          fpMd.textContent = currentLang === "en" ? "Loading..." : "加载中…";
+          requestTaskDetail(_fpDetailFilename);
+        }
+      }
+    };
 
     document.querySelectorAll(".stat-btn[data-filter]").forEach((btn) => {
       btn.onclick = () => openTaskListPage(btn.dataset.filter);
