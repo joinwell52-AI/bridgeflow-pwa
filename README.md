@@ -13,9 +13,9 @@
 **码流（CodeFlow）** — AI 驱动的人机协作中枢。手机发指令，PC 写代码；每条消息都落成文件，文件名即通信协议。
 
 <p align="center">
-  <img src="docs/images/codeflow-0.png" width="340" alt="CodeFlow Desktop Panel" />
+  <img src="docs/images/product-1.png" width="320" alt="CodeFlow — Commands Flow, Intelligence Follows" />
   &nbsp;&nbsp;
-  <img src="docs/images/pwa-0.jpg" width="200" alt="CodeFlow PWA Mobile" />
+  <img src="docs/images/product-2.png" width="320" alt="CodeFlow — AI-powered Collaboration Hub" />
 </p>
 
 ### Screenshots / 产品截图
