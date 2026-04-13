@@ -1939,8 +1939,30 @@
     }
 
     function taskTitle(item) {
-      const raw = String(item.summary || item.body || item.task_id || (currentLang === "en" ? "Untitled" : "未命名任务")).trim();
-      return raw.length > 26 ? `${raw.slice(0, 26)}...` : raw;
+      let raw = String(item.summary || item.body || "").trim();
+      if (!raw && item.markdown) {
+        for (const ln of String(item.markdown).split("\n")) {
+          const t = ln.trim();
+          if (t) { raw = t.replace(/^#+\s*/, "").trim().slice(0, 80); break; }
+        }
+      }
+      if (!raw && item.raw_markdown) {
+        const m = String(item.raw_markdown).match(/^---[\s\S]*?---\s*\n(.+)/);
+        if (m) raw = m[1].replace(/^#+\s*/, "").trim().slice(0, 80);
+      }
+      if (!raw && Array.isArray(item.messages) && item.messages.length > 0) {
+        for (const msg of item.messages) {
+          const t = String(msg.body || msg.summary || "").trim();
+          if (t) { raw = t; break; }
+        }
+      }
+      if (!raw) {
+        const fn = item.primary_filename || item.filename || "";
+        const m = fn.match(/TASK-\d+-\d+-(.+)\.md$/i);
+        if (m) raw = m[1].replace(/-to-/g, " → ").replace(/-/g, " ");
+      }
+      raw = raw || item.task_id || (currentLang === "en" ? "Untitled" : "未命名任务");
+      return raw.length > 30 ? `${raw.slice(0, 30)}...` : raw;
     }
 
     function taskPriority(item) {
@@ -2608,7 +2630,7 @@
         if (et === "dashboard_state") {
           const p = data.payload || {};
           const _di = (p.items||[])[0];
-          appendLog(`dashboard: roles=${JSON.stringify(p.team_roles||[])}, items=${(p.items||[]).length}, chunk=${!!p._chunked||!!p._chunk}, md0=${_di?(_di.markdown||'').length:'-'}`);
+          appendLog(`dashboard: items=${(p.items||[]).length}, chunk=${!!p._chunked||!!p._chunk}, body0=${_di?JSON.stringify((_di.body||'').slice(0,40)):'-'}, fn0=${_di?_di.filename:'-'}`);
           applyDashboard(p);
         }
         else if (et === "device_roster") {
