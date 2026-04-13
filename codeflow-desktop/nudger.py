@@ -2482,6 +2482,12 @@ def _build_dashboard(config, nudger: Nudger) -> dict:
                         if ":" in line:
                             k, v = line.split(":", 1)
                             front[k.strip()] = v.strip()
+            # 正文：去掉 YAML front matter 后的内容（最多 2000 字，够 PWA 展示）
+            if text.startswith("---"):
+                parts = text.split("---", 2)
+                body_text = parts[2].strip() if len(parts) >= 3 else text
+            else:
+                body_text = text
             items.append({
                 "filename": f.name,
                 "dir": d,
@@ -2493,6 +2499,9 @@ def _build_dashboard(config, nudger: Nudger) -> dict:
                 "type": front.get("type", d.rstrip("s")),
                 "created_at": front.get("created_at", ""),
                 "thread_key": front.get("thread_key", ""),
+                "body": front.get("body", front.get("summary", "")),
+                "markdown": body_text[:2000],   # MD 原文（限 2000 字）
+                "raw_markdown": text[:2000],     # 含 front matter 的完整原文
             })
 
     status = nudger.get_status()

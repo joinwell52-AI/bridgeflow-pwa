@@ -8,6 +8,17 @@
 
 ---
 
+## [2.9.32] - 2026-04-13
+
+### 桌面端（`codeflow-desktop`）
+
+#### 修复：dashboard 推送任务时携带 MD 正文
+
+- `_build_dashboard` 每条任务 item 新增 `markdown`（去掉 front matter 的正文）和 `raw_markdown`（含 front matter 完整原文）字段
+- PWA "MD原文" Tab 现在可以正常显示任务文件内容
+
+---
+
 ## [2.9.31] - 2026-04-13
 
 ### 桌面端（`codeflow-desktop`）
