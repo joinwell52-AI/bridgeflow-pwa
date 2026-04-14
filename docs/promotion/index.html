@@ -11,6 +11,7 @@
 <meta property="og:image" content="https://joinwell52-ai.github.io/codeflow-pwa/docs/images/product-1.png">
 <meta property="og:url" content="https://joinwell52-ai.github.io/codeflow-pwa/promotion/">
 <link rel="icon" href="../logo-192.png" type="image/png">
+<link rel="canonical" href="https://joinwell52-ai.github.io/codeflow-pwa/promotion/">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background:linear-gradient(135deg,#0d1117 0%,#161b22 50%,#0d1117 100%);color:#e6edf3;min-height:100vh}
@@ -138,7 +139,7 @@ a:hover{text-decoration:underline}
 <!-- Badges -->
 <div class="badges">
   <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT">
-  <img src="https://img.shields.io/badge/Desktop-v2.9.44-orange" alt="Desktop">
+  <img src="https://img.shields.io/badge/Desktop-v2.10.0-orange" alt="Desktop">
   <img src="https://img.shields.io/badge/PWA-v2.3.0-green" alt="PWA">
   <img src="https://img.shields.io/badge/Platform-Windows-blue" alt="Windows">
   <img src="https://img.shields.io/badge/i18n-EN%20%7C%20中文-purple" alt="i18n">
@@ -206,8 +207,8 @@ a:hover{text-decoration:underline}
   <p class="section-sub" data-en="Everything you need to run an AI team solo." data-zh="一个人管理 AI 团队所需的一切。">Everything you need to run an AI team solo.</p>
   <div class="feature-grid">
     <div class="feature-item">
-      <h4 data-en="🔄 Self-Healing Patrol" data-zh="🔄 自愈巡检">🔄 Self-Healing Patrol</h4>
-      <p data-en="OCR detects stuck Cursor UI, auto-reloads window. Agents never stay frozen." data-zh="OCR 检测 Cursor 界面卡住，自动重载窗口。Agent 永不冻结。">OCR detects stuck Cursor UI, auto-reloads window. Agents never stay frozen.</p>
+      <h4 data-en="🔄 CDP Patrol Engine" data-zh="🔄 CDP 巡检引擎">🔄 CDP Patrol Engine</h4>
+      <p data-en="Chrome DevTools Protocol reads Cursor DOM in 10ms — 60× faster than OCR. Auto-switches agents, detects busy states, sends messages. OCR as graceful fallback." data-zh="Chrome DevTools Protocol 10ms 读取 Cursor DOM — 比 OCR 快 60 倍。自动切换 Agent、检测忙碌状态、发送消息。OCR 作为降级通道。">Chrome DevTools Protocol reads Cursor DOM in 10ms — 60× faster than OCR. Auto-switches agents, detects busy states, sends messages. OCR as graceful fallback.</p>
     </div>
     <div class="feature-item">
       <h4 data-en="📋 Team Templates" data-zh="📋 团队模板">📋 Team Templates</h4>
@@ -269,6 +270,53 @@ a:hover{text-decoration:underline}
   </p>
 </div>
 
+
+<!-- CDP Patrol Engine -->
+<div class="section">
+  <h2 class="section-title" data-en="CDP Patrol Engine" data-zh="CDP 巡检引擎">CDP Patrol Engine</h2>
+  <p class="section-sub" data-en="Chrome DevTools Protocol — 60× faster, 100% accurate agent control." data-zh="Chrome DevTools Protocol — 快 60 倍，100% 精准的 Agent 控制。">Chrome DevTools Protocol — 60× faster, 100% accurate agent control.</p>
+  <div style="overflow-x:auto;margin-bottom:24px">
+    <table style="width:100%;border-collapse:collapse;background:rgba(22,27,34,0.8);border:1px solid #30363d;border-radius:12px;overflow:hidden;font-size:.9em">
+      <thead>
+        <tr style="background:rgba(56,139,253,0.1)">
+          <th style="padding:12px 16px;text-align:left;border-bottom:1px solid #30363d;color:#8b949e" data-en="Dimension" data-zh="维度">Dimension</th>
+          <th style="padding:12px 16px;text-align:center;border-bottom:1px solid #30363d;color:#f85149" data-en="OCR (legacy)" data-zh="OCR（旧）">OCR (legacy)</th>
+          <th style="padding:12px 16px;text-align:center;border-bottom:1px solid #30363d;color:#3fb950" data-en="CDP (CodeFlow)" data-zh="CDP（码流）">CDP (CodeFlow)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td style="padding:10px 16px;border-bottom:1px solid #21262d;color:#8b949e" data-en="Accuracy" data-zh="精度">Accuracy</td><td style="padding:10px 16px;text-align:center;border-bottom:1px solid #21262d;color:#f85149">~90%</td><td style="padding:10px 16px;text-align:center;border-bottom:1px solid #21262d;color:#3fb950;font-weight:700">100%</td></tr>
+        <tr><td style="padding:10px 16px;border-bottom:1px solid #21262d;color:#8b949e" data-en="Latency" data-zh="延迟">Latency</td><td style="padding:10px 16px;text-align:center;border-bottom:1px solid #21262d;color:#f85149">300–800ms</td><td style="padding:10px 16px;text-align:center;border-bottom:1px solid #21262d;color:#3fb950;font-weight:700">10–15ms</td></tr>
+        <tr><td style="padding:10px 16px;border-bottom:1px solid #21262d;color:#8b949e" data-en="Agent Detection" data-zh="Agent 识别">Agent Detection</td><td style="padding:10px 16px;text-align:center;border-bottom:1px solid #21262d;color:#8b949e" data-en="Screenshot → OCR guess" data-zh="截屏 → OCR 猜测">Screenshot → OCR guess</td><td style="padding:10px 16px;text-align:center;border-bottom:1px solid #21262d;color:#e6edf3" data-en="DOM query → exact match" data-zh="DOM 查询 → 精确匹配">DOM query → exact match</td></tr>
+        <tr><td style="padding:10px 16px;border-bottom:1px solid #21262d;color:#8b949e" data-en="Busy Detection" data-zh="忙碌检测">Busy Detection</td><td style="padding:10px 16px;text-align:center;border-bottom:1px solid #21262d;color:#8b949e" data-en="Pixel spinner guessing" data-zh="像素猜测转圈">Pixel spinner guessing</td><td style="padding:10px 16px;text-align:center;border-bottom:1px solid #21262d;color:#e6edf3" data-en="Stop button + aria states" data-zh="Stop 按钮 + aria 状态">Stop button + aria states</td></tr>
+        <tr><td style="padding:10px 16px;border-bottom:1px solid #21262d;color:#8b949e" data-en="Click Method" data-zh="点击方式">Click Method</td><td style="padding:10px 16px;text-align:center;border-bottom:1px solid #21262d;color:#8b949e">pyautogui screen coords</td><td style="padding:10px 16px;text-align:center;border-bottom:1px solid #21262d;color:#e6edf3">dispatchMouseEvent window coords</td></tr>
+        <tr><td style="padding:10px 16px;color:#8b949e" data-en="Fallback" data-zh="降级策略">Fallback</td><td style="padding:10px 16px;text-align:center;color:#8b949e" data-en="None" data-zh="无">None</td><td style="padding:10px 16px;text-align:center;color:#e6edf3" data-en="Auto-degrades to OCR" data-zh="自动降级到 OCR">Auto-degrades to OCR</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="feature-grid">
+    <div class="feature-item">
+      <h4 data-en="🎯 Two-Layer DOM Scanning" data-zh="🎯 双层 DOM 扫描">🎯 Two-Layer DOM Scanning</h4>
+      <p data-en="Tab bar (div[role=tab] + aria-selected) for active agent, sidebar (span.agent-sidebar-cell-text) for overflow roles. Deduplication via Set." data-zh="Tab 栏 (div[role=tab] + aria-selected) 识别活跃 Agent，侧栏 (span.agent-sidebar-cell-text) 补充溢出角色。Set 去重。">Tab bar (div[role=tab] + aria-selected) for active agent, sidebar for overflow roles.</p>
+    </div>
+    <div class="feature-item">
+      <h4 data-en="🖱️ Native Mouse Events" data-zh="🖱️ 原生鼠标事件">🖱️ Native Mouse Events</h4>
+      <p data-en="Input.dispatchMouseEvent bypasses Electron/React event swallowing. Real-time getBoundingClientRect() coordinates — never cached." data-zh="Input.dispatchMouseEvent 绕过 Electron/React 事件吞噬。getBoundingClientRect() 实时坐标 — 永不缓存。">dispatchMouseEvent bypasses Electron/React. Real-time coordinates — never cached.</p>
+    </div>
+    <div class="feature-item">
+      <h4 data-en="🔍 3-Layer Busy Detection" data-zh="🔍 三层忙碌检测">🔍 3-Layer Busy Detection</h4>
+      <p data-en="Layer 1: Stop/Cancel button visibility. Layer 2: Spinner animation in Composer area. Layer 3: Status text (generating, thinking, planning)." data-zh="第一层：Stop/Cancel 按钮可见性。第二层：Composer 区域内 Spinner 动画。第三层：状态文字（generating、thinking、planning）。">Stop button → Spinner → Status text. Three layers, zero false positives.</p>
+    </div>
+    <div class="feature-item">
+      <h4 data-en="🛡️ Graceful Degradation" data-zh="🛡️ 优雅降级">🛡️ Graceful Degradation</h4>
+      <p data-en="Every CDP step auto-falls back to OCR. Port unreachable → OCR. Connection dropped → OCR + auto-reconnect. No stuck states ever." data-zh="每个 CDP 步骤自动降级到 OCR。端口不通 → OCR。连接断开 → OCR + 自动重连。永无卡死。">Every CDP step auto-falls back to OCR. Port down → OCR. Disconnected → OCR + auto-reconnect.</p>
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:20px">
+    <a href="https://github.com/joinwell52-AI/codeflow-pwa/blob/main/docs/cdp-multi-agent.md" style="padding:10px 24px;border:1px solid rgba(56,139,253,0.4);border-radius:8px;color:#58a6ff;font-size:.95em;display:inline-block" data-en="📄 Read Full CDP Technical Documentation →" data-zh="📄 阅读完整 CDP 技术文档 →">📄 Read Full CDP Technical Documentation →</a>
+  </div>
+</div>
+
 <!-- Team Templates -->
 <div class="section">
   <h2 class="section-title" data-en="Team Templates" data-zh="团队模板">Team Templates</h2>
@@ -322,6 +370,7 @@ a:hover{text-decoration:underline}
   <a href="https://joinwell52-ai.github.io/joinwell52/" data-en="📖 Methodology" data-zh="📖 方法论">📖 Methodology</a>
   <a href="https://github.com/joinwell52-AI/codeflow-pwa/blob/main/README.en.md" data-en="📄 English Docs" data-zh="📄 英文文档">📄 English Docs</a>
   <a href="https://github.com/joinwell52-AI/codeflow-pwa/blob/main/README.zh.md" data-en="📄 中文文档" data-zh="📄 中文文档">📄 中文文档</a>
+  <a href="https://github.com/joinwell52-AI/codeflow-pwa/blob/main/docs/cdp-multi-agent.md" data-en="🔬 CDP Tech Doc" data-zh="🔬 CDP 技术文档">🔬 CDP Tech Doc</a>
 </div>
 
 <!-- Footer -->
