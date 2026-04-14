@@ -77,6 +77,9 @@ a:hover{text-decoration:underline}
 }
 .sec-toggle{margin-left:auto;font-size:10px;color:var(--muted)}
 .sec-body{overflow:hidden;transition:max-height .25s ease}
+.stat-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:8px 10px;text-align:center}
+.stat-val{font-size:15px;font-weight:700;color:var(--cyan);word-break:break-all}
+.stat-lbl{font-size:10px;color:var(--dim);margin-top:2px}
 
 /* ── Stat Cards ── */
 .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
@@ -326,6 +329,7 @@ a:hover{text-decoration:underline}
     <div class="header-right">
       <div class="hd-dot"><span class="dot off" id="dN"></span><span data-i18n="hd_nudger">巡检器</span></div>
       <div class="hd-dot"><span class="dot off" id="dC"></span>Cursor</div>
+      <div class="hd-dot"><span class="dot off" id="dM"></span><span id="scanMode">--</span></div>
       <div class="hd-dot"><span class="dot off" id="dR"></span><span data-i18n="hd_relay">中继</span></div>
       <span class="hd-path" id="projPath">&mdash;</span>
       <button class="lang-btn" id="langBtn" onclick="toggleLang()" title="Switch Language">EN</button>
@@ -354,6 +358,23 @@ a:hover{text-decoration:underline}
       <span style="flex:1"></span>
       <button class="btn red" onclick="doReset()"><span data-i18n="btn_reset">&#8635; 重置</span></button>
       <button class="btn red" onclick="doQuit()" style="margin-left:6px"><span data-i18n="btn_quit">&#x23FB; 退出</span></button>
+    </div>
+  </div>
+
+  <!-- 1.5 CDP 实时状态 -->
+  <div class="sec" id="secCdp" style="display:none">
+    <div class="sec-head" onclick="toggle('cdpBody')"><span class="sec-title">Cursor 实时状态 (CDP)</span><span class="sec-badge" id="cdpBadge">--</span><span class="sec-toggle" id="cdpToggle">&#9660;</span></div>
+    <div class="sec-body" id="cdpBody" style="max-height:4000px;overflow:visible">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;padding:8px 0" id="cdpGrid">
+        <div class="stat-card"><div class="stat-val" id="cdpActiveRole">--</div><div class="stat-lbl">当前角色</div></div>
+        <div class="stat-card"><div class="stat-val" id="cdpMode">--</div><div class="stat-lbl">模式</div></div>
+        <div class="stat-card"><div class="stat-val" id="cdpBusy">--</div><div class="stat-lbl">状态</div></div>
+        <div class="stat-card"><div class="stat-val" id="cdpScanMs">--</div><div class="stat-lbl">扫描耗时</div></div>
+        <div class="stat-card"><div class="stat-val" id="cdpRoles">--</div><div class="stat-lbl">全部角色</div></div>
+        <div class="stat-card"><div class="stat-val" id="cdpApprovals">--</div><div class="stat-lbl">待审批</div></div>
+        <div class="stat-card"><div class="stat-val" id="cdpMsgs">--</div><div class="stat-lbl">消息数</div></div>
+        <div class="stat-card"><div class="stat-val" id="cdpModel">--</div><div class="stat-lbl">模型</div></div>
+      </div>
     </div>
   </div>
 
@@ -1385,6 +1406,9 @@ function fetchStatus(){
     $('dN').className='dot '+(d.running?'on':'off');
     $('dC').className='dot '+(d.cursor_found?'on':(d.running?'warn':'off'));
     $('dR').className='dot '+(d.relay_connected?'on':'off');
+    if(d.cdp_active){$('dM').className='dot on';$('scanMode').textContent='CDP';}
+    else if(d.running){$('dM').className='dot warn';$('scanMode').textContent='OCR';}
+    else{$('dM').className='dot off';$('scanMode').textContent='--';}
     $('projPath').textContent=d.project_dir||'--';
     $('sT').textContent=d.tasks_count??0;
     $('sR').textContent=d.reports_count??0;

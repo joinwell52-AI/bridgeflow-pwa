@@ -876,8 +876,10 @@ def analyze(win: CursorWindow, lines: list[OcrLine]) -> CursorState:
         if first_ch in _IDLE_PREFIXES:
             logger.debug("[busy] idle: role=%s ch=U+%04X", rh['role'], ord(first_ch))
             continue
-        # 特殊符号（非字母、非数字）→ spinner = 忙碌
-        if not first_ch.isalnum() and first_ch not in (' ', '-', '_', '.'):
+        # 特殊符号（非字母、非数字）→ 可能是 spinner = 忙碌
+        # 排除 OCR 常见误识别字符（@#$&*:;/\'"()[]{}!?,<>~`^|+=）
+        _NOT_SPINNER = frozenset(' -_.@#$&*:;/\\\'"()[]{}!?,<>~`^|+=')
+        if not first_ch.isalnum() and first_ch not in _NOT_SPINNER:
             state.is_busy = True
             state.busy_hint = f"spinner:U+{ord(first_ch):04X} {rh['role']}"
             logger.debug("[busy] spinner: role=%s ch=U+%04X raw=%r",

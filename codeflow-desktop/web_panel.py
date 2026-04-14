@@ -104,73 +104,51 @@ _setup_complete_callback = None  # 引导完成后调用，由 main.py 注入
 
 
 TEAM_TEMPLATES = {
-
     "dev-team": {
-
         "name": "软件开发团队",
-
         "name_en": "Software Dev Team",
-
         "roles": [
-
             {"code": "PM", "label": "项目经理"},
-
             {"code": "DEV", "label": "开发工程师"},
-
             {"code": "QA", "label": "测试工程师"},
-
             {"code": "OPS", "label": "运维工程师"},
-
+            {"code": "E2E", "label": "端到端测试"},
         ],
-
         "leader": "PM",
-
     },
-
     "media-team": {
-
         "name": "自媒体团队",
-
         "name_en": "Content Media Team",
-
         "roles": [
-
-            {"code": "PUBLISHER", "label": "审核发行"},
-
             {"code": "COLLECTOR", "label": "素材采集"},
-
             {"code": "WRITER", "label": "拟题提纲"},
-
             {"code": "EDITOR", "label": "润色编辑"},
-
+            {"code": "PUBLISHER", "label": "审核发行"},
         ],
-
         "leader": "PUBLISHER",
-
     },
-
     "mvp-team": {
-
         "name": "创业MVP团队",
-
         "name_en": "Startup MVP Team",
-
         "roles": [
-
-            {"code": "MARKETER", "label": "增长运营"},
-
-            {"code": "RESEARCHER", "label": "市场调研"},
-
-            {"code": "DESIGNER", "label": "产品设计"},
-
             {"code": "BUILDER", "label": "快速原型"},
-
+            {"code": "DESIGNER", "label": "产品设计"},
+            {"code": "MARKETER", "label": "增长运营"},
+            {"code": "RESEARCHER", "label": "市场调研"},
         ],
-
         "leader": "MARKETER",
-
     },
-
+    "qa-team": {
+        "name": "专项测试团队",
+        "name_en": "Dedicated QA Team",
+        "roles": [
+            {"code": "LEAD-QA", "label": "测试负责人"},
+            {"code": "TESTER", "label": "功能测试"},
+            {"code": "AUTO-TESTER", "label": "自动化测试"},
+            {"code": "PERF-TESTER", "label": "性能测试"},
+        ],
+        "leader": "LEAD-QA",
+    },
 }
 
 
@@ -629,6 +607,7 @@ class PanelHandler(BaseHTTPRequestHandler):
             "/api/status": self._api_status,
 
             "/api/cursor-state": self._api_cursor_state,
+            "/api/cdp-probe": self._api_cdp_probe,
 
             "/api/preflight": self._api_preflight,
 
@@ -921,11 +900,31 @@ class PanelHandler(BaseHTTPRequestHandler):
         status["cursor_exe_path"] = _exe_path
         status["cursor_found"] = bool(_exe_path)
 
+        # CDP 实时状态（补充 nudger 缓存之外的实时探测）
+        if not status.get("cdp_active"):
+            try:
+                from cursor_cdp import is_cdp_available as _cdp_chk
+                status["cdp_active"] = _cdp_chk()
+            except Exception:
+                pass
+
         # 项目目录
         _pd = _project_dir()
         status["project_dir"] = str(_pd) if _pd else ""
 
         self._json(status)
+
+    def _api_cdp_probe(self):
+        """CDP DOM 探查 — 返回 Cursor 中与 Agent 相关的 DOM 元素详情。"""
+        try:
+            from cursor_cdp import dom_probe
+            result = dom_probe()
+            if result:
+                self._json({"ok": True, "data": result})
+            else:
+                self._json({"ok": False, "message": "CDP 不可用或未找到目标"})
+        except Exception as e:
+            self._json({"ok": False, "message": str(e)[:200]})
 
     def _api_cursor_state(self):
 
@@ -2138,12 +2137,48 @@ class PanelHandler(BaseHTTPRequestHandler):
                     PanelHandler._test_all_state["running"] = False
                     return
 
+                # 实时探测 CDP 是否可用（不依赖 nudger 全局状态）
+                _use_cdp = False
+                try:
+                    from cursor_cdp import is_cdp_available as _cdp_avail
+                    if _cdp_avail():
+                        from cursor_cdp import click_role as _cdp_click, scan as _cdp_scan_fn
+                        _use_cdp = True
+                        logger.info("[实测] CDP 端口 9222 可用，优先走 CDP 通道")
+                except Exception as _imp_err:
+                    logger.debug("[实测] CDP 模块不可用: %s", _imp_err)
+
                 for idx, role in enumerate(team_roles, 1):
                     role_key = _normalize_role(role).upper()
                     label = f"{role_index.get(role_key, idx):02d}-{role_key}"
                     PanelHandler._test_all_state["current"] = label
 
-                    # 1. OCR 扫描
+                    # ── CDP 快速实测 ──
+                    if _use_cdp:
+                        _push(label, "扫描中", "CDP 定位 Agent…")
+                        try:
+                            clicked = _cdp_click(label) or _cdp_click(role_key)
+                            if not clicked:
+                                _push(label, "未找到", "CDP 未找到该角色 DOM 元素")
+                                continue
+                            _push(label, "点击中", f"CDP 鼠标事件已发送")
+                            time.sleep(0.8)
+                            st_cdp = _cdp_scan_fn()
+                            cdp_role = ""
+                            if st_cdp.agent_role:
+                                import re as _re2
+                                cdp_role = _re2.sub(r'^\d+[-_\s]*', '', st_cdp.agent_role).upper()
+                            cdp_info = (f"active={st_cdp.agent_role} roles={st_cdp.all_roles} "
+                                        f"busy={st_cdp.is_busy} scan={st_cdp.scan_ms:.0f}ms")
+                            if cdp_role == role_key or st_cdp.agent_role == label:
+                                _push(label, "成功", f"CDP 已切换 → {cdp_info}")
+                            else:
+                                _push(label, "成功", f"CDP 点击完成 → {cdp_info}")
+                            continue
+                        except Exception as _ce:
+                            _push(label, "降级", f"CDP 异常({_ce})，降级 OCR")
+
+                    # ── OCR 实测（CDP 未激活或失败时）──
                     _push(label, "扫描中", "OCR 识别侧栏 Agent 位置…")
                     _safe_focus(win[0])
                     time.sleep(0.3)
@@ -2165,7 +2200,6 @@ class PanelHandler(BaseHTTPRequestHandler):
                         _push(label, "未找到", "未识别到该 Agent，请确认已 Pinned 并重新预检")
                         continue
 
-                    # 2. 点击
                     _push(label, "点击中", f"坐标({pos[0]},{pos[1]})，点击…")
                     _safe_focus(win[0])
                     time.sleep(0.2)
@@ -2175,15 +2209,13 @@ class PanelHandler(BaseHTTPRequestHandler):
                         _push(label, "错误", f"点击失败: {e}")
                         continue
 
-                    # 3. 验证：与巡检 switch_and_send 相同（is_target_role_active_vision），
-                    #    不以「聊天标题」单独为准（正文可能仍是旧任务角色名）
                     from nudger import describe_vision_role_signals, is_target_role_active_vision
 
                     confirmed = False
                     last_diag = ""
 
-                    for attempt in range(1, 4):          # 最多3次
-                        time.sleep(1.5)                  # 等Cursor切换刷新
+                    for attempt in range(1, 4):
+                        time.sleep(1.5)
                         try:
                             st2 = _cv_scan()
                         except Exception as _ve:

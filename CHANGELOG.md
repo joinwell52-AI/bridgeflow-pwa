@@ -8,6 +8,37 @@
 
 ---
 
+## [2.10.0] - 2026-04-14
+
+### 桌面端（`codeflow-desktop`）
+
+#### 新增：Chrome DevTools Protocol (CDP) 巡检引擎
+
+全面引入 CDP 作为 Cursor IDE 交互的主力通道，OCR 降级为纯备用。
+
+- **新增 `cursor_cdp.py` 模块**：通过 WebSocket 连接 Cursor 的 `--remote-debugging-port=9222`，直接读取 DOM
+- **精确 Agent 区分**：使用 `div[role="tab"]` + `aria-selected` 精确识别当前活跃角色，不再依赖 OCR 猜测
+- **原生鼠标事件切换角色**：`Input.dispatchMouseEvent` 实时坐标点击，替代 `pyautogui` 屏幕坐标
+- **精确忙碌检测**：检测 Stop/Cancel 按钮可见性 + Composer 区域 spinner，替代 OCR 字符猜测
+- **消息输入**：通过 `nativeInputValueSetter` 绕过 React 受控组件，直接写入输入框
+- **自动 CDP 激活**：`cursor_embed.py` 检测到 Cursor 未带 CDP 端口时自动重启并附加参数
+- **面板实时显示**：前端新增 CDP/OCR 模式状态指示灯，实时显示当前巡检模式
+- **DOM 探查接口**：新增 `/api/cdp-probe` 端点，用于调试和 Cursor 升级后维护选择器
+
+#### 新增：四套团队模板全面支持
+
+- **角色别名扩展**：`_ROLE_ALIASES` 从 dev-team 4 个角色扩展到全部四套团队 20 个角色
+- **命令面板映射**：`_PALETTE_ROLE_LABELS` 覆盖 dev-team / media-team / mvp-team / qa-team
+- **团队模板补全**：`TEAM_TEMPLATES` 新增 qa-team（LEAD-QA、TESTER、AUTO-TESTER、PERF-TESTER）
+- **角色文件映射**：`_role_to_file()` 补全 qa-team 四角色的文档路径
+
+#### 文档
+
+- **新增 `docs/cdp-multi-agent.md`**：CDP 多 Agent 区分机制完整技术文档（选择器、忙碌检测、失效场景）
+- **更新 `docs/agents/README.md`**：统一四套团队角色命名规范（文件协议 / Cursor Tab / 归一化规则）
+
+---
+
 ## [2.9.44] - 2026-04-14
 
 ### 桌面端（`codeflow-desktop`）

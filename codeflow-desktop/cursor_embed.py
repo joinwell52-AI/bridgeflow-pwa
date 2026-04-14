@@ -40,12 +40,14 @@ def try_launch_cursor(exe: Path, project_dir: Path | None = None) -> tuple[bool,
     try:
         if sys.platform == "darwin":
             if project_dir:
-                subprocess.Popen(["open", "-a", "Cursor", str(project_dir)])
+                subprocess.Popen(["open", "-a", "Cursor", "--args",
+                                  "--remote-debugging-port=9222", str(project_dir)])
             else:
-                subprocess.Popen(["open", "-a", "Cursor"])
+                subprocess.Popen(["open", "-a", "Cursor", "--args",
+                                  "--remote-debugging-port=9222"])
         else:
-            # 传入项目目录，让 Cursor 直接打开对应工作区
-            # --remote-debugging-port=9222 让 Playwright 可以通过 CDP 协议连接
+            # --remote-debugging-port=9222 启用 CDP 调试端口
+            # cursor_cdp.py 通过此端口直连 DOM，实现高速巡检（<100ms, 精度100%）
             cmd = [str(exe), "--remote-debugging-port=9222"]
             if project_dir and project_dir.is_dir():
                 cmd.append(str(project_dir))
@@ -89,7 +91,7 @@ def _find_cursor_pids() -> set[int]:
                 ok = ctypes.windll.kernel32.Process32Next(snap, ctypes.byref(pe))
             ctypes.windll.kernel32.CloseHandle(snap)
         if pids:
-            logger.info("[Cursor 查找] Toolhelp32 找到 cursor PIDs=%s", pids)
+            logger.debug("[Cursor 查找] Toolhelp32 找到 cursor PIDs=%s", pids)
             return pids
     except Exception as e:
         logger.debug("[Cursor 查找] Toolhelp32 失败: %s", e)
@@ -104,7 +106,7 @@ def _find_cursor_pids() -> set[int]:
             except Exception:
                 pass
         if pids:
-            logger.info("[Cursor 查找] psutil 找到 cursor PIDs=%s", pids)
+            logger.debug("[Cursor 查找] psutil 找到 cursor PIDs=%s", pids)
             return pids
     except Exception:
         pass
@@ -124,7 +126,7 @@ def _find_cursor_pids() -> set[int]:
                 except ValueError:
                     pass
         if pids:
-            logger.info("[Cursor 查找] tasklist 找到 cursor PIDs=%s", pids)
+            logger.debug("[Cursor 查找] tasklist 找到 cursor PIDs=%s", pids)
     except Exception as e:
         logger.debug("[Cursor 查找] tasklist 失败: %s", e)
 
@@ -167,7 +169,7 @@ def _find_cursor_main_hwnd() -> int | None:
                     r = win32gui.GetWindowRect(hwnd)
                     area = max(0, r[2]-r[0]) * max(0, r[3]-r[1])
                     if area > 100000:  # 至少 ~316x316，排除小窗口
-                        logger.info("[Cursor 查找][all] title=%r area=%d", title, area)
+                        logger.debug("[Cursor 查找][all] title=%r area=%d", title, area)
                         _all_windows.append((area, hwnd, title))
                 except Exception:
                     pass
@@ -185,7 +187,7 @@ def _find_cursor_main_hwnd() -> int | None:
                     logger.info("[Cursor 查找] 最大窗口 %r 不像 IDE，视为 Cursor 未运行", best_title)
             return None
 
-        logger.info("[Cursor 查找] 找到 cursor.exe 进程数: %d PIDs=%s", len(cursor_pids), cursor_pids)
+        logger.debug("[Cursor 查找] 找到 cursor.exe 进程数: %d PIDs=%s", len(cursor_pids), cursor_pids)
 
         best_hwnd: int | None = None
         best_area = -1
@@ -365,6 +367,53 @@ def try_open_simple_browser_embed(url: str, wait_s: float = 0.28) -> tuple[bool,
     return _do_embed(hwnd, url, wait_s=wait_s)
 
 
+def _cursor_has_cdp_port() -> bool:
+    """检测当前运行的 Cursor 进程是否带有 --remote-debugging-port 参数。"""
+    try:
+        import subprocess
+        out = subprocess.check_output(
+            ["wmic", "process", "where", "Name='Cursor.exe'",
+             "get", "CommandLine", "/format:list"],
+            timeout=8, creationflags=0x08000000
+        ).decode(errors="replace")
+        return "remote-debugging-port" in out
+    except Exception:
+        pass
+    try:
+        import urllib.request
+        req = urllib.request.Request("http://127.0.0.1:9222/json",
+                                     headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=2) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
+
+def _restart_cursor_with_cdp(
+    exe: Path | None, project_dir: Path | None
+) -> tuple[bool, str]:
+    """关闭所有 Cursor 进程，然后带 --remote-debugging-port=9222 重启。"""
+    import subprocess
+    logger.info("[CDP 重启] Cursor 运行中但无 CDP 端口，准备重启…")
+    try:
+        subprocess.run(["taskkill", "/f", "/im", "Cursor.exe"],
+                       timeout=10, creationflags=0x08000000,
+                       capture_output=True)
+    except Exception as e:
+        logger.warning("[CDP 重启] taskkill 异常: %s", e)
+    time.sleep(3)
+
+    resolved_exe = exe if (exe and exe.is_file()) else default_cursor_exe()
+    if not resolved_exe:
+        return False, "重启失败：未找到 Cursor 可执行文件"
+
+    launched, msg = try_launch_cursor(resolved_exe, project_dir=project_dir)
+    if not launched:
+        return False, f"重启失败: {msg}"
+    logger.info("[CDP 重启] 已带 CDP 参数重启 Cursor: %s", msg)
+    return True, msg
+
+
 def embed_panel_after_launch(
     url: str,
     *,
@@ -375,17 +424,27 @@ def embed_panel_after_launch(
 ) -> tuple[bool, str]:
     """
     主入口：
-    1. Cursor 已启动 → 直接嵌入
-    2. Cursor 未启动 且 launch_if_no_window=True → 拉起 Cursor（带项目目录），等窗口出现，再嵌入
+    1. Cursor 已启动 + 有 CDP → 直接嵌入
+    2. Cursor 已启动 + 无 CDP → 重启带 CDP 参数，再嵌入
+    3. Cursor 未启动 且 launch_if_no_window=True → 拉起 Cursor（带 CDP），等窗口出现，再嵌入
     """
-    # 情况1：Cursor 已在运行
     hwnd = _find_cursor_main_hwnd()
     if hwnd:
-        logger.info("[Cursor 嵌入] Cursor 已运行，直接嵌入 hwnd=%s", hwnd)
-        time.sleep(1.5)  # Cursor 已在运行时，等焦点稳定再嵌入
+        if not _cursor_has_cdp_port():
+            logger.info("[Cursor 嵌入] Cursor 已运行但无 CDP 端口，尝试重启…")
+            restarted, rmsg = _restart_cursor_with_cdp(cursor_exe, project_dir)
+            if restarted:
+                hwnd = _wait_for_cursor_window(timeout_s=60.0)
+                if not hwnd:
+                    return False, "CDP 重启后等待 Cursor 窗口超时"
+            else:
+                logger.warning("[Cursor 嵌入] CDP 重启失败(%s)，使用已有窗口", rmsg)
+        else:
+            logger.info("[Cursor 嵌入] Cursor 已运行且 CDP 端口就绪 hwnd=%s", hwnd)
+
+        time.sleep(1.5)
         return _do_embed(hwnd, url, wait_s=wait_s)
 
-    # 情况2：Cursor 未运行
     if not launch_if_no_window:
         return False, "未找到 Cursor 窗口且不允许启动"
 

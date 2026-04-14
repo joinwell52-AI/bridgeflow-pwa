@@ -1,4 +1,4 @@
-﻿# CodeFlow Agent File Structure (码流)
+﻿# CodeFlow Agent File Structure
 
 **CodeFlow**'s first phase is not about building a "mobile chat app" — it's about building the file system backbone for "humans entering the team protocol."
 
@@ -9,16 +9,93 @@ Therefore, `docs/agents/` is the core collaboration directory of this project.
 ```text
 docs/agents/
 ├── README.md                  # This file: agent file structure overview
-├── ADMIN-01.md                # Human role ADMIN01 responsibilities
-├── PM-01.md                   # PM01 role definition
-├── DEV-01.md                  # DEV01 role definition
-├── OPS-01.md                  # OPS01 role definition
-├── QA-01.md                   # QA01 role definition
+├── ADMIN-01.md                # Human role ADMIN responsibilities
+├── PM-01.md                   # PM role definition
+├── DEV-01.md                  # DEV role definition
+├── OPS-01.md                  # OPS role definition
+├── QA-01.md                   # QA role definition
+├── E2E-01.md                  # E2E test specialist
 ├── tasks/                     # Task files
 ├── reports/                   # Reply/report files
 ├── log/                       # Notification and archive summaries
 └── issues/                    # Issue records
 ```
+
+---
+
+## Role Naming Convention
+
+The same role has different representations across different contexts. **All four team templates follow these unified rules.**
+
+### Naming Rules
+
+| Context | Format | Example | Description |
+|---------|--------|---------|-------------|
+| **File name sender/recipient** | `ROLE_NAME` (no hyphen, no number) | `PM`, `QA`, `COLLECTOR` | Used in `TASK-*-PM-to-QA.md` |
+| **Cursor Tab display name** | `number-ROLE_NAME` | `01-PM`, `03-QA`, `01-COLLECTOR` | Set when pinning in Cursor Agents panel |
+| **Role definition doc** | `ROLE_NAME-number.md` | `PM-01.md`, `COLLECTOR.md` | In `docs/agents/` or `templates/agents/` |
+| **Patrol engine internal** | Pure role name (auto-normalized) | `PM`, `QA`, `COLLECTOR` | Code uses `_role_key_for_task()` |
+
+### dev-team Roles (Software Development)
+
+| # | Cursor Tab | File Protocol | Definition Doc | Responsibility |
+|---|-----------|--------------|----------------|----------------|
+| 01 | `01-PM` | `PM` | `PM-01.md` | Project Manager / Task Dispatcher |
+| 02 | `02-DEV` | `DEV` | `DEV-01.md` | Full-Stack Developer |
+| 03 | `03-QA` | `QA` | `QA-01.md` | QA Engineer |
+| 04 | `04-OPS` | `OPS` | `OPS-01.md` | Operations & Deployment |
+| 05 | `05-E2E` | `E2E` | `E2E-01.md` | End-to-End Test Specialist |
+| — | — | `ADMIN` | `ADMIN-01.md` | Human Admin (not in Cursor) |
+
+### media-team Roles (Content & Media)
+
+| # | Cursor Tab | File Protocol | Definition Doc | Responsibility |
+|---|-----------|--------------|----------------|----------------|
+| 01 | `01-COLLECTOR` | `COLLECTOR` | `COLLECTOR.md` | Content Collection |
+| 02 | `02-WRITER` | `WRITER` | `WRITER.md` | Content Writing |
+| 03 | `03-EDITOR` | `EDITOR` | `EDITOR.md` | Editing & Review |
+| 04 | `04-PUBLISHER` | `PUBLISHER` | `PUBLISHER.md` | Publishing & Operations |
+
+### mvp-team Roles (Rapid MVP Validation)
+
+| # | Cursor Tab | File Protocol | Definition Doc | Responsibility |
+|---|-----------|--------------|----------------|----------------|
+| 01 | `01-BUILDER` | `BUILDER` | `BUILDER.md` | Product Building |
+| 02 | `02-DESIGNER` | `DESIGNER` | `DESIGNER.md` | UI/UX Design |
+| 03 | `03-MARKETER` | `MARKETER` | `MARKETER.md` | Marketing & Promotion |
+| 04 | `04-RESEARCHER` | `RESEARCHER` | `RESEARCHER.md` | User Research |
+
+### qa-team Roles (Dedicated QA)
+
+| # | Cursor Tab | File Protocol | Definition Doc | Responsibility |
+|---|-----------|--------------|----------------|----------------|
+| 01 | `01-LEAD-QA` | `LEAD-QA` | `LEAD-QA.md` | QA Lead |
+| 02 | `02-TESTER` | `TESTER` | `TESTER.md` | Functional Testing |
+| 03 | `03-AUTO-TESTER` | `AUTO-TESTER` | `AUTO-TESTER.md` | Automation Testing |
+| 04 | `04-PERF-TESTER` | `PERF-TESTER` | `PERF-TESTER.md` | Performance Testing |
+
+### Normalization Rules
+
+The patrol engine uses `_role_key_for_task()` to extract the **pure role name** for matching. All formats are correctly recognized:
+
+```
+PM01           → PM            strip trailing digits
+01-PM          → PM            strip leading number + hyphen
+PM-01          → PM            strip hyphen + trailing digits
+03-QA          → QA
+QA01           → QA
+COLLECTOR      → COLLECTOR     already pure role name
+01-COLLECTOR   → COLLECTOR
+AUTO-TESTER    → AUTO-TESTER   preserves inner hyphen
+03-AUTO-TESTER → AUTO-TESTER
+```
+
+### Historical Compatibility
+
+Legacy file protocol used `PM01`, `QA01` as sender/recipient. The patrol engine normalizes them correctly.
+New task files **should use pure role names** (`PM`, `QA`), but legacy format is also supported.
+
+---
 
 ## File Protocol
 
@@ -32,16 +109,19 @@ TASK-YYYYMMDD-sequence-sender-to-recipient.md
 
 Examples:
 
-- `TASK-20260401-001-ADMIN01-to-PM01.md`
-- `TASK-20260401-002-PM01-to-ADMIN01.md`
-- `TASK-20260401-003-PM01-to-DEV01.md`
+- `TASK-20260401-001-ADMIN-to-PM.md`
+- `TASK-20260401-002-PM-to-ADMIN.md`
+- `TASK-20260401-003-PM-to-DEV.md`
+- `TASK-20260401-004-PM-to-COLLECTOR.md` (media-team scenario)
+
+Legacy format also supported: `TASK-20260401-001-ADMIN01-to-PM01.md`
 
 ### Rules
 
 - One message = one file
-- Text sent from phone to PM must become `TASK-*-ADMIN01-to-PM01.md`
-- PM's reply to ADMIN must become `TASK-*-PM01-to-ADMIN01.md`
-- DEV/OPS/QA replying directly to humans must use `XX01-to-ADMIN01`
+- Text sent from phone to PM must become `TASK-*-ADMIN-to-PM.md`
+- PM's reply to ADMIN must become `TASK-*-PM-to-ADMIN.md`
+- DEV/OPS/QA replying directly to humans must use `XX-to-ADMIN`
 - No secondary "chat-only, no-file" protocol is allowed
 
 ### Standard Write Method
@@ -50,7 +130,7 @@ To avoid field omissions from manual Markdown writing, use the CLI to generate s
 
 ```powershell
 CodeFlow write-admin-task --text "Please have PM arrange the next steps"
-CodeFlow write-reply --sender PM01 --text "Accepted, starting task decomposition" --thread-key "demo-thread-001"
+CodeFlow write-reply --sender PM --text "Accepted, starting task decomposition" --thread-key "demo-thread-001"
 ```
 
 Where:
@@ -68,11 +148,11 @@ Starting from the current version, `TASK` Markdown files carry a lightweight met
 protocol: agent_bridge
 version: 1
 kind: task
-sender: ADMIN01
-recipient: PM01
+sender: ADMIN
+recipient: PM
 priority: P1
-source: ADMIN01-mobile
-thread_key: 20260401-123000-ADMIN01-to-PM01
+source: ADMIN-mobile
+thread_key: 20260401-123000-ADMIN-to-PM
 created_at: 2026-04-01 12:30:00
 attachments_count: 0
 ---
@@ -84,24 +164,43 @@ This metadata serves to:
 - Enable phone-side to aggregate threads by `thread_key`
 - Support future role adapter integrations without relying on plain-text regex guessing
 
+## Team Templates
+
+`codeflow-desktop/templates/agents/` contains multiple pre-built team templates:
+
+| Team Directory | Use Case | Core Roles |
+|----------------|----------|------------|
+| `dev-team/` | Software Development | PM, DEV, OPS, QA, E2E, ADMIN |
+| `media-team/` | Content & Media | COLLECTOR, WRITER, EDITOR, PUBLISHER |
+| `mvp-team/` | Rapid MVP Validation | BUILDER, DESIGNER, MARKETER, RESEARCHER |
+| `qa-team/` | Dedicated QA | LEAD-QA, TESTER, AUTO-TESTER, PERF-TESTER |
+
+When initializing CodeFlow Desktop, users select a team template. The system automatically:
+1. Copies role definition files to `docs/agents/`
+2. Creates corresponding Agent Tabs in Cursor (named by number + role name)
+3. The patrol engine auto-detects all roles and starts patrolling
+
+---
+
 ## Phase 1 Role Positioning
 
-### ADMIN01
+### ADMIN
 
 - Represents the real human user
 - Used by default on the phone PWA
 - Responsible for sending requirements, following up on progress, receiving replies
 
-### PM01
+### PM
 
-- Receives tasks from `ADMIN01`
+- Receives tasks from `ADMIN`
 - Decomposes requirements for DEV / OPS / QA
-- Reports results back to `ADMIN01`
+- Reports results back to `ADMIN`
 
-### DEV01 / OPS01 / QA01
+### DEV / OPS / QA / E2E
 
 - Internal execution roles within the team
-- Phase 1 does not require phone-side direct communication with these three roles
+- Phase 1 does not require phone-side direct communication with these roles
+- `E2E` focuses on end-to-end testing covering PWA / relay / desktop / file protocol / AI role collaboration flows
 
 ## Why This Design
 
@@ -120,6 +219,6 @@ Therefore, CodeFlow Phase 1 insists:
 
 This project internally names this file collaboration approach `agent_bridge`:
 
-- Application-level name: **CodeFlow** (Chinese: 码流)
+- Application-level name: **CodeFlow**
 - Underlying collaboration protocol: `agent_bridge`
 - Protocol core: `TASK-YYYYMMDD-sequence-sender-to-recipient.md`

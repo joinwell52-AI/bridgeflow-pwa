@@ -4,10 +4,16 @@ CodeFlow Nudger — Agent 唤醒器核心模块
 职责：
 1. 监听 docs/agents/tasks/ 和 reports/ 文件变化
 2. 从文件名解析收件人角色
-3. 用 OCR（cursor_vision）识别 Cursor 窗口状态
+3. 识别 Cursor 窗口状态（优先 CDP 直连 DOM，降级到 OCR 截屏识别）
 4. 用快捷键切换到对应 Agent tab
 5. 识别输入框位置 → 精确点击 → 粘贴消息 → 回车
 6. 通过 WebSocket 连接中继服务器，接收 PWA 指令、推送文件变化
+
+巡检模式：
+  CDP 模式：Cursor 以 --remote-debugging-port=9222 启动时自动激活
+            延迟 <100ms，精度 100%，不需要截屏/OCR
+  OCR 模式：CDP 不可用时降级，截屏 → WinOCR → 状态分析
+            延迟 1-3s，精度约 95%，零侵入
 
 核心原则：先看再做 — scan() 确认状态 → 操作 → scan() 验证结果
 """
@@ -74,6 +80,24 @@ except ImportError:
     HAS_WS = False
 
 try:
+    from cursor_cdp import (
+        is_cdp_available,
+        scan as cdp_scan,
+        click_role as cdp_click_role,
+        type_and_send as cdp_type_and_send,
+        press_enter as cdp_press_enter,
+        insert_text as cdp_insert_text,
+        click_approve as cdp_click_approve,
+        CdpCursorState,
+    )
+    HAS_CDP = True
+except ImportError:
+    HAS_CDP = False
+
+# CDP 运行时状态：启动时探测，成功后优先走 CDP
+_cdp_active = False
+
+try:
     from cursor_vision import (
         scan as vision_scan,
         find_main_cursor_window as vision_find_window,
@@ -94,6 +118,29 @@ except ImportError:
 
 _relay_connected = False
 
+
+def _probe_cdp(retries: int = 1, delay: float = 0) -> bool:
+    """探测 CDP 是否可用，可用则激活 CDP 模式。支持重试（Cursor 冷启动时端口延迟就绪）。"""
+    global _cdp_active
+    if not HAS_CDP:
+        return False
+    for attempt in range(1, retries + 1):
+        if attempt > 1 and delay > 0:
+            time.sleep(delay)
+        try:
+            if is_cdp_available():
+                if not _cdp_active:
+                    _cdp_active = True
+                    logger.info("✓ CDP 端口可用（9222），巡检使用 CDP 高速模式（第%d次探测）", attempt)
+                    patrol_trace("cdp_on", "CDP 巡检模式已激活（精度100%、延迟<100ms）")
+                return True
+        except Exception as e:
+            logger.debug("CDP 探测第%d次异常: %s", attempt, e)
+    if not _cdp_active:
+        logger.info("CDP 端口 9222 未响应（%d次尝试），使用 OCR 模式", retries)
+    return False
+
+
 try:
     from watchdog.events import FileSystemEventHandler
     from watchdog.observers import Observer
@@ -108,19 +155,46 @@ pyautogui.FAILSAFE = True
 pyautogui.PAUSE = 0.05
 
 # 角色名标准化映射：OCR 可能识别出的变体 → 标准名
-_ROLE_ALIASES = {
+# 覆盖全部四套团队模板：dev-team / media-team / mvp-team / qa-team
+_ROLE_ALIASES: dict[str, str] = {
+    # ── dev-team ──
     "I-PM": "PM", "1-PM": "PM",
     "2-DEV": "DEV", "I-DEV": "DEV",
     "3-QA": "QA", "I-QA": "QA",
     "4-OPS": "OPS", "I-OPS": "OPS",
+    "5-E2E": "E2E", "I-E2E": "E2E",
+    # ── media-team ──
+    "I-COLLECTOR": "COLLECTOR", "1-COLLECTOR": "COLLECTOR",
+    "2-WRITER": "WRITER", "I-WRITER": "WRITER",
+    "3-EDITOR": "EDITOR", "I-EDITOR": "EDITOR",
+    "4-PUBLISHER": "PUBLISHER", "I-PUBLISHER": "PUBLISHER",
+    # ── mvp-team ──
+    "I-BUILDER": "BUILDER", "1-BUILDER": "BUILDER",
+    "2-DESIGNER": "DESIGNER", "I-DESIGNER": "DESIGNER",
+    "3-MARKETER": "MARKETER", "I-MARKETER": "MARKETER",
+    "4-RESEARCHER": "RESEARCHER", "I-RESEARCHER": "RESEARCHER",
+    # ── qa-team ──
+    "I-LEAD-QA": "LEAD-QA", "1-LEAD-QA": "LEAD-QA",
+    "2-TESTER": "TESTER", "I-TESTER": "TESTER",
+    "3-AUTO-TESTER": "AUTO-TESTER", "I-AUTO-TESTER": "AUTO-TESTER",
+    "4-PERF-TESTER": "PERF-TESTER", "I-PERF-TESTER": "PERF-TESTER",
 }
 
 # 命令面板（Ctrl+Shift+P）里搜索的串，需与 Cursor Pinned Agent 显示名一致
+# 运行时优先从 _UI_LABELS（预检动态注册）读取；此处为全部四套团队的默认回退值
 _PALETTE_ROLE_LABELS: dict[str, str] = {
-    "PM": "1-PM",
-    "DEV": "2-DEV",
-    "QA": "3-QA",
-    "OPS": "4-OPS",
+    # ── dev-team ──
+    "PM": "01-PM", "DEV": "02-DEV", "QA": "03-QA",
+    "OPS": "04-OPS", "E2E": "05-E2E",
+    # ── media-team ──
+    "COLLECTOR": "01-COLLECTOR", "WRITER": "02-WRITER",
+    "EDITOR": "03-EDITOR", "PUBLISHER": "04-PUBLISHER",
+    # ── mvp-team ──
+    "BUILDER": "01-BUILDER", "DESIGNER": "02-DESIGNER",
+    "MARKETER": "03-MARKETER", "RESEARCHER": "04-RESEARCHER",
+    # ── qa-team ──
+    "LEAD-QA": "01-LEAD-QA", "TESTER": "02-TESTER",
+    "AUTO-TESTER": "03-AUTO-TESTER", "PERF-TESTER": "04-PERF-TESTER",
 }
 
 # 切换 Agent：整轮重试次数（每轮内依次 快捷键 → 点击 → 命令面板）
@@ -669,29 +743,46 @@ def _run_command_palette_goto_agent(label: str) -> None:
 
 
 def _wait_while_agent_busy(phase: str) -> None:
-    """当前 Agent 处于生成/思考等忙碌状态时等待，避免打断或抢输入。"""
-    if not HAS_VISION:
-        return
+    """当前 Agent 处于生成/思考等忙碌状态时等待，避免打断或抢输入。
+    CDP 优先（精确检测 Stop 按钮），OCR 兜底。"""
     max_rounds = 48
     poll_s = 4.0
     waited = 0.0
     for _ in range(max_rounds):
-        st = vision_scan()
-        if not st.found:
-            return
-        if not getattr(st, "is_busy", False):
+        is_busy = False
+        hint = ""
+        # CDP 优先
+        if _cdp_active and HAS_CDP:
+            try:
+                cdp_st = cdp_scan()
+                if not cdp_st.found:
+                    return
+                is_busy = cdp_st.is_busy
+                hint = cdp_st.busy_hint or "cdp"
+            except Exception:
+                pass
+        # OCR 兜底
+        if not is_busy and HAS_VISION:
+            try:
+                st = vision_scan()
+                if not st.found:
+                    return
+                is_busy = getattr(st, "is_busy", False)
+                hint = (getattr(st, "busy_hint", None) or "").strip() or "ocr"
+            except Exception:
+                return
+        if not is_busy:
             if waited > 0:
-                logger.info("vision[闲] %s：界面显示已空闲（曾等待 %.1fs）", phase, waited)
+                logger.info("[闲] %s：Agent 已空闲（曾等待 %.1fs）", phase, waited)
             return
-        hint = (getattr(st, "busy_hint", None) or "").strip() or "busy"
         logger.info(
-            "vision[忙] %s：检测到忙碌 [%s]，%.1fs 后再扫（已累计 %.1fs）",
+            "[忙] %s：检测到忙碌 [%s]，%.1fs 后再扫（已累计 %.1fs）",
             phase, hint, poll_s, waited,
         )
         time.sleep(poll_s)
         waited += poll_s
     logger.warning(
-        "vision[忙] %s：等待空闲超时（约 %.0fs），仍继续后续步骤",
+        "[忙] %s：等待空闲超时（约 %.0fs），仍继续后续步骤",
         phase,
         max_rounds * poll_s,
     )
@@ -783,6 +874,55 @@ def reload_cursor_window(config: Any | None = None) -> bool:
 
 # ─── 核心操作：看→判断→操作→验证 ─────────────────────────
 
+
+def _switch_and_send_with_cdp(role: str, resolved: str, message: str,
+                               *, msg_factory=None) -> bool:
+    """CDP 快速通道：通过 DOM 切换角色并发送消息，<200ms 完成。"""
+    if not HAS_CDP:
+        return False
+    try:
+        full_role = _UI_LABELS.get(resolved) or role
+        logger.info("CDP[点] 切换角色 → %s (full=%s)", resolved, full_role)
+        clicked = cdp_click_role(full_role)
+        if not clicked:
+            clicked = cdp_click_role(resolved)
+        if not clicked:
+            logger.info("CDP[点] 未找到角色 %s", resolved)
+            return False
+        time.sleep(0.5)
+
+        # CDP scan 验证切换
+        state = cdp_scan()
+        if state.found and state.agent_role:
+            cdp_role = re.sub(r'^\d+[-_\s]*', '', state.agent_role).upper()
+            if cdp_role != resolved:
+                logger.info("CDP[验] 切换后角色=%s 期望=%s，不匹配", cdp_role, resolved)
+                return False
+        logger.info("CDP[验] 角色切换确认: %s", state.agent_role or resolved)
+
+        msg = msg_factory(resolved) if msg_factory else message
+        if not msg:
+            return False
+
+        logger.info("CDP[发] 输入消息: %s", msg[:60])
+        typed = cdp_type_and_send(msg)
+        if not typed:
+            typed = cdp_insert_text(msg)
+        if not typed:
+            logger.info("CDP[发] 输入失败")
+            return False
+        time.sleep(0.3)
+
+        sent = cdp_press_enter()
+        if sent:
+            logger.info("CDP[完成] 消息已发送 → %s", resolved)
+        return sent
+
+    except Exception as e:
+        logger.info("CDP 发送异常: %s", e)
+        return False
+
+
 def switch_and_send(hwnd: int, role: str, message,
                     input_offset: tuple[float, float] = (0, 0),
                     *,
@@ -793,7 +933,7 @@ def switch_and_send(hwnd: int, role: str, message,
     当传入 callable 时，将在 OCR 确认切换成功、即将粘贴前才调用，
     确保消息内容与当前窗口角色严格一致。
     """
-    resolved = re.sub(r'^\d+[-_\s]*', '', role.upper()).strip() or role.upper()
+    resolved = _role_key_for_task(role) or re.sub(r'^\d+[-_\s]*', '', role.upper()).strip() or role.upper()
 
     if not focus_window(hwnd):
         patrol_trace("send_fail", "无法聚焦 Cursor 窗口", role=resolved)
@@ -803,6 +943,17 @@ def switch_and_send(hwnd: int, role: str, message,
     msg_factory = message if callable(message) else None
     msg_str = "" if msg_factory else (message or "")
 
+    # ── CDP 快速通道 ──
+    if _cdp_active and HAS_CDP:
+        ok = _switch_and_send_with_cdp(role, resolved, msg_str, msg_factory=msg_factory)
+        if ok:
+            prev = (msg_str or "").replace("\n", " ").strip()[:48]
+            patrol_trace("send_ok", "已向 Agent 输入框发送（CDP）",
+                         role=resolved, preview=prev, mode="cdp")
+            return True
+        logger.info("CDP 发送失败，降级到 OCR 模式 → %s", resolved)
+
+    # ── OCR 通道 ──
     vision_sig = ""
     ok, vision_sig = _switch_and_send_with_vision(
         hwnd, role, resolved, msg_str,
@@ -1278,22 +1429,28 @@ def _role_to_file(role_code: str) -> str:
     clean = re.sub(r'^\d+[-_\s]*', '', role_code.upper()).strip()
     # 标准 dev 团队
     _KNOWN = {
+        # ── dev-team ──
         "PM":        "docs/agents/PM-01.md",
         "DEV":       "docs/agents/DEV-01.md",
         "OPS":       "docs/agents/OPS-01.md",
         "QA":        "docs/agents/QA-01.md",
         "E2E":       "docs/agents/E2E-01.md",
         "ADMIN":     "docs/agents/README.md",
-        # 媒体团队
+        # ── media-team ──
+        "COLLECTOR": "docs/agents/COLLECTOR.md",
         "WRITER":    "docs/agents/WRITER.md",
         "EDITOR":    "docs/agents/EDITOR.md",
         "PUBLISHER": "docs/agents/PUBLISHER.md",
-        "COLLECTOR": "docs/agents/COLLECTOR.md",
-        # MVP 团队
+        # ── mvp-team ──
         "BUILDER":    "docs/agents/BUILDER.md",
         "DESIGNER":   "docs/agents/DESIGNER.md",
         "MARKETER":   "docs/agents/MARKETER.md",
         "RESEARCHER": "docs/agents/RESEARCHER.md",
+        # ── qa-team ──
+        "LEAD-QA":     "docs/agents/LEAD-QA.md",
+        "TESTER":      "docs/agents/TESTER.md",
+        "AUTO-TESTER": "docs/agents/AUTO-TESTER.md",
+        "PERF-TESTER": "docs/agents/PERF-TESTER.md",
     }
     return _KNOWN.get(clean, f"docs/agents/{clean}.md")
 
@@ -1688,21 +1845,53 @@ class Nudger:
                     self._on_event(ev)
                 continue
 
-            # 先看 Agent 是否在忙 — 忙碌时不打断，等它干完
-            if HAS_VISION:
+            # 先看目标 Agent 是否在忙 — 忙碌时不打断，等它干完
+            # CDP 优先（精确检测 Stop 按钮），OCR 兜底
+            _target_busy = False
+            _busy_hint_str = ""
+            target_rk = _role_key_for_task(recipient) or _normalize_role(recipient).upper()
+            target_full = _UI_LABELS.get(target_rk) or recipient
+
+            if _cdp_active and HAS_CDP:
+                try:
+                    # CDP：先切到目标 Agent，再检测 is_busy
+                    cdp_click_role(target_full) or cdp_click_role(target_rk)
+                    time.sleep(0.5)
+                    cdp_st = cdp_scan()
+                    if cdp_st.found and cdp_st.is_busy:
+                        _target_busy = True
+                        _busy_hint_str = cdp_st.busy_hint or "cdp:stop_button"
+                        logger.info("CDP 检测：目标 %s 正忙（%s）", target_rk, _busy_hint_str)
+                    else:
+                        logger.debug("CDP 检测：目标 %s 空闲", target_rk)
+                except Exception as e:
+                    logger.debug("CDP 忙碌检测异常: %s", e)
+
+            if not _target_busy and HAS_VISION:
                 try:
                     peek = vision_scan()
                     if peek.found and peek.is_busy:
-                        logger.info("Agent 正忙（%s），暂缓催办 %s",
-                                    peek.busy_hint, filename)
-                        ev["action"] = "deferred_busy"
-                        ev["busy_hint"] = peek.busy_hint
-                        if self._schedule_retry(filename, dir_name, full_path, "agent_busy"):
-                            events.append(ev)
-                            self._on_event(ev)
-                        continue
+                        busy_role = (peek.agent_role or peek.busy_hint or "").upper()
+                        if target_rk in busy_role or busy_role in (
+                            _UI_LABELS.get(target_rk, "").upper(), target_rk
+                        ):
+                            _target_busy = True
+                            _busy_hint_str = peek.busy_hint or "ocr:spinner"
+                        else:
+                            logger.debug("忙碌的是 %s，目标是 %s，不影响催办",
+                                         busy_role, target_rk)
                 except Exception as e:
-                    logger.debug("忙碌检测异常: %s", e)
+                    logger.debug("OCR 忙碌检测异常: %s", e)
+
+            if _target_busy:
+                logger.info("目标 Agent %s 正忙（%s），暂缓催办 %s",
+                            target_rk, _busy_hint_str, filename)
+                ev["action"] = "deferred_busy"
+                ev["busy_hint"] = _busy_hint_str
+                if self._schedule_retry(filename, dir_name, full_path, "agent_busy"):
+                    events.append(ev)
+                    self._on_event(ev)
+                continue
 
             win = find_cursor_window(self.config)
             msg = build_nudge_message(
@@ -1752,53 +1941,74 @@ class Nudger:
         return events
 
     def detect_and_kick_idle(self) -> list[dict]:
-        """用 OCR 检测 Agent 是否在等确认，是则自动发"继续" """
+        """检测 Agent 是否在等确认，是则自动发"继续"。CDP 优先，OCR 兜底。"""
         if not self._running:
-            return []
-        if not HAS_VISION:
             return []
 
         events = []
-        try:
-            state = vision_scan()
-        except Exception as e:
-            logger.debug("idle 检测 scan 异常: %s", e)
-            return []
-
-        if not state.found or not state.chat_panel_open:
-            return []
-
-        if state.is_busy:
-            logger.debug("idle 检测: Agent 正忙（%s），跳过", state.busy_hint)
-            return []
-
-        lang = self.config.lang
-        keywords = _WAITING_KEYWORDS_ZH if lang == "zh" else _WAITING_KEYWORDS_EN
-
-        # 检查聊天区域下半部分（y > 50%）的文字是否含等待确认关键词
-        half_h = state.window.height * 0.50 if state.window else 500
-        right_half = state.window.width * 0.40 if state.window else 400
         waiting_hit = ""
+        role = ""
 
-        for ln in state.lines:
-            if not ln.words:
-                continue
-            first_w = ln.words[0]
-            if first_w.rect.y < half_h or first_w.rect.x < right_half:
-                continue
-            txt_lower = ln.text.lower()
-            for kw in keywords:
-                if kw in txt_lower:
-                    waiting_hit = kw
+        # ── CDP 优先：精确检测 pending_approvals ──
+        if _cdp_active and HAS_CDP:
+            try:
+                cdp_st = cdp_scan()
+                if not cdp_st.found:
+                    pass
+                elif cdp_st.is_busy:
+                    logger.debug("idle 检测(CDP): Agent 正忙（%s），跳过", cdp_st.busy_hint)
+                    return []
+                elif cdp_st.agent_status == "waiting_approval" or len(cdp_st.pending_approvals) > 0:
+                    waiting_hit = "cdp:pending_approval"
+                    role = cdp_st.agent_role or "PM"
+                    logger.info("idle 检测(CDP): %s 有 %d 个待审批",
+                                role, len(cdp_st.pending_approvals))
+            except Exception as e:
+                logger.debug("idle 检测(CDP) 异常: %s", e)
+
+        # ── OCR 兜底 ──
+        if not waiting_hit and HAS_VISION:
+            try:
+                state = vision_scan()
+            except Exception as e:
+                logger.debug("idle 检测(OCR) scan 异常: %s", e)
+                return []
+
+            if not state.found or not state.chat_panel_open:
+                return []
+
+            if state.is_busy:
+                logger.debug("idle 检测(OCR): Agent 正忙（%s），跳过", state.busy_hint)
+                return []
+
+            lang = self.config.lang
+            keywords = _WAITING_KEYWORDS_ZH if lang == "zh" else _WAITING_KEYWORDS_EN
+
+            half_h = state.window.height * 0.50 if state.window else 500
+            right_half = state.window.width * 0.40 if state.window else 400
+
+            for ln in state.lines:
+                if not ln.words:
+                    continue
+                first_w = ln.words[0]
+                if first_w.rect.y < half_h or first_w.rect.x < right_half:
+                    continue
+                txt_lower = ln.text.lower()
+                for kw in keywords:
+                    if kw in txt_lower:
+                        waiting_hit = kw
+                        break
+                if waiting_hit:
                     break
-            if waiting_hit:
-                break
+
+            if not waiting_hit:
+                return []
+
+            role = state.agent_role or "PM"
 
         if not waiting_hit:
             return []
 
-        # 有角色在等确认 → 发"继续"
-        role = state.agent_role or "PM"
         role_std = _normalize_role(role)
         now_str = datetime.now().strftime("%H:%M:%S")
 
@@ -1844,12 +2054,21 @@ class Nudger:
         if not self._running:
             return []
 
-        # 先检测 Agent 是否在忙，忙碌时整体跳过催促
+        # 先检测当前 Agent 是否在忙，忙碌时整体跳过催促
+        # CDP 优先（精确检测 Stop 按钮）
+        if _cdp_active and HAS_CDP:
+            try:
+                cdp_st = cdp_scan()
+                if cdp_st.found and cdp_st.is_busy:
+                    logger.info("auto_nudge: CDP 检测 Agent 正忙（%s），跳过本轮催促", cdp_st.busy_hint)
+                    return []
+            except Exception:
+                pass
         if HAS_VISION:
             try:
                 peek = vision_scan()
                 if peek.found and peek.is_busy:
-                    logger.info("auto_nudge: Agent 正忙（%s），跳过本轮催促", peek.busy_hint)
+                    logger.info("auto_nudge: OCR 检测 Agent 正忙（%s），跳过本轮催促", peek.busy_hint)
                     return []
             except Exception:
                 pass
@@ -1981,8 +2200,24 @@ class Nudger:
             logger.info("打招呼 → %s", role)
 
             sent = False
-            for attempt in range(1, 4):  # 最多重试 3 次
-                # Step1: 点击侧栏中该角色名，切换到对应 Agent Tab
+
+            # ── CDP 快速打招呼 ──
+            if _cdp_active and HAS_CDP:
+                msg = build_nudge_message("", "", role, _lang, mark_greeted=False)
+                logger.info("打招呼(CDP) → %s: %s", role, msg[:60])
+                if _switch_and_send_with_cdp(role, role, msg):
+                    mark_role_greeted(role)
+                    greeted += 1
+                    sent = True
+                    patrol_trace("greet_ok", "打招呼已发送（CDP）", role=role, attempt=1)
+                    logger.info("打招呼成功(CDP) → %s", role)
+                    time.sleep(max(float(self.config.nudge_cooldown), 5.0))
+                else:
+                    logger.info("CDP 打招呼失败，降级 OCR → %s", role)
+
+            # ── OCR 打招呼（CDP 未激活或失败时）──
+            if not sent:
+              for attempt in range(1, 4):
                 focus_window(hwnd)
                 state = vision_scan()
                 clicked = vision_click_role(state, role)
@@ -1993,9 +2228,8 @@ class Nudger:
                     time.sleep(3.0)
                     continue
                 logger.info("打招呼第%d次：已点击侧栏 %s", attempt, role)
-                time.sleep(4.0)  # 等 Cursor 渲染完
+                time.sleep(4.0)
 
-                # Step2: OCR 确认对话区顶部激活的是目标角色
                 if HAS_VISION:
                     try:
                         state = vision_scan()
@@ -2015,11 +2249,9 @@ class Nudger:
                     except Exception as e:
                         logger.debug("打招呼 OCR 异常: %s", e)
 
-                # Step3: 生成消息并发送（消息内容固定用 role，与顺序严格绑定）
                 msg = build_nudge_message("", "", role, _lang, mark_greeted=False)
                 logger.info("打招呼消息: %s", msg[:80])
 
-                # 点击输入框并发送
                 if HAS_VISION:
                     try:
                         state = vision_scan()
@@ -2056,7 +2288,6 @@ class Nudger:
                 patrol_trace("greet_ok", "打招呼已发送", role=role, attempt=attempt)
                 logger.info("打招呼成功 → %s", role)
 
-                # 角色间等一下让 Cursor 稳定
                 time.sleep(max(float(self.config.nudge_cooldown), 8.0))
                 break
 
@@ -2071,6 +2302,7 @@ class Nudger:
         if self._running:
             logger.info("巡检已在运行，忽略重复启动")
             return
+        _probe_cdp(retries=6, delay=5.0)
         _greeted_roles.clear()
         self._running = True
         self._tick_count = 0
@@ -2134,6 +2366,9 @@ class Nudger:
                                 reload_cursor_window(self.config)
                                 _last_reload_t = time.time()
                                 time.sleep(float(getattr(self.config, "reload_window_wait_s", 12.0)))
+                    # ── CDP 延迟探测（未激活时每 30 轮重试一次）────────
+                    if not _cdp_active and HAS_CDP and self._tick_count > 0 and self._tick_count % 30 == 0:
+                        _probe_cdp(retries=1)
                     # ────────────────────────────────────────────────────
                     self.check_and_nudge()
                     self._tick_count += 1
@@ -2220,6 +2455,8 @@ class Nudger:
             "issues_count": issues_count,
             "stats": dict(self.stats),
             "has_vision": HAS_VISION,
+            "has_cdp": HAS_CDP,
+            "cdp_active": _cdp_active,
             "poll_interval_s": float(getattr(self.config, "poll_interval", 5.0)),
             "file_observer_active": bool(self._observer),
             "has_watchdog": HAS_WATCHDOG,
@@ -2241,14 +2478,22 @@ class Nudger:
         return status
 
     def get_cursor_state(self) -> dict:
-        """OCR 扫描 Cursor 窗口，返回视觉识别状态"""
+        """扫描 Cursor 窗口状态。优先 CDP，降级到 OCR。"""
+        if _cdp_active:
+            try:
+                state = cdp_scan()
+                if state.found:
+                    return state.to_dict()
+                logger.info("CDP scan 未找到目标，降级到 OCR")
+            except Exception as e:
+                logger.info("CDP scan 异常 %s，降级到 OCR", e)
         if not HAS_VISION:
-            return {"error": "cursor_vision 模块未加载", "has_vision": False}
+            return {"error": "cursor_vision 模块未加载", "has_vision": False, "has_cdp": HAS_CDP}
         try:
             state = vision_scan(save_screenshot=True)
             return state.to_dict()
         except Exception as e:
-            return {"error": str(e), "has_vision": True}
+            return {"error": str(e), "has_vision": True, "has_cdp": HAS_CDP}
 
 
 # ─── 中继客户端 ───────────────────────────────────────────
@@ -2454,9 +2699,9 @@ async def relay_client(config, nudger: Nudger, stop_event: asyncio.Event | None 
                             ver = getattr(nudger, "_relay_push_version", 0)
                             file_list = nudger.get_file_list()
                             snapshot = json.dumps(
-                                {k: [f["filename"] for f in v]
+                                {k: [f["filename"] for f in v if isinstance(f, dict) and "filename" in f]
                                  for k, v in file_list.items()
-                                 if isinstance(v, list)},
+                                 if isinstance(v, list) and k in ("tasks", "reports", "issues")},
                                 sort_keys=True,
                             )
                             changed = snapshot != _last_file_snapshot
@@ -2520,9 +2765,10 @@ def _read_team_info(config) -> dict:
         role_defs = cfg.get("roles") or []
         if not role_defs:
             TEAM_TEMPLATES = {
-                "dev-team":   [{"code":"PM"},{"code":"DEV"},{"code":"QA"},{"code":"OPS"}],
-                "media-team": [{"code":"PUBLISHER"},{"code":"COLLECTOR"},{"code":"WRITER"},{"code":"EDITOR"}],
-                "mvp-team":   [{"code":"MARKETER"},{"code":"RESEARCHER"},{"code":"DESIGNER"},{"code":"BUILDER"}],
+                "dev-team":   [{"code":"PM"},{"code":"DEV"},{"code":"QA"},{"code":"OPS"},{"code":"E2E"}],
+                "media-team": [{"code":"COLLECTOR"},{"code":"WRITER"},{"code":"EDITOR"},{"code":"PUBLISHER"}],
+                "mvp-team":   [{"code":"BUILDER"},{"code":"DESIGNER"},{"code":"MARKETER"},{"code":"RESEARCHER"}],
+                "qa-team":    [{"code":"LEAD-QA"},{"code":"TESTER"},{"code":"AUTO-TESTER"},{"code":"PERF-TESTER"}],
             }
             role_defs = TEAM_TEMPLATES.get(team_id, [])
         roles = [rd.get("code","").upper() for rd in role_defs if rd.get("code")]

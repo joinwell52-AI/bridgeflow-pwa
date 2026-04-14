@@ -18,7 +18,11 @@ pip install -r requirements.txt
 pip install pyinstaller winocr
 ```
 
-说明：**winocr** 用于 `cursor_vision` OCR；若只做无视觉盲操作，可不装 winocr，但需在 `build.spec` 里去掉对应 `hiddenimports`（不推荐）。
+说明：
+- **winocr** 用于 `cursor_vision` OCR（降级方案）；若只做无视觉盲操作，可不装 winocr
+- **cursor_cdp**（新）：CDP 高速巡检模块，无额外依赖（使用已有的 `websockets`）
+- Cursor 以 `--remote-debugging-port=9222` 启动时自动激活 CDP 模式（延迟<100ms，精度100%）
+- CDP 不可用时自动降级到 OCR 模式（延迟1-3s，精度~95%）
 
 ## 团队模板：初始化后不可在面板内「切换」
 

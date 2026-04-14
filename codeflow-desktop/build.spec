@@ -98,6 +98,7 @@ a = Analysis(
         "tkinter.filedialog",
         "tkinter.messagebox",
         "cursor_vision",
+        "cursor_cdp",
         "nudger",
         "config",
         "web_panel",
