@@ -15,11 +15,11 @@ alwaysApply: false
 
 ### 接收来源
 
-只接收：`TASK-*-PM01-to-LEADQA.md`
+只接收：`TASK-*-PM-to-LEAD-QA.md`
 
 ### 必须接单回执
 
-收到任务后立即写：`TASK-{日期}-{序号}-LEADQA-to-PM01.md`（说明已接单和预计完成时间）。
+收到任务后立即写：`TASK-{日期}-{序号}-LEAD-QA-to-PM.md`（说明已接单和预计完成时间）。
 
 ### 任务必须拆解下发
 

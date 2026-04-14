@@ -11,7 +11,7 @@ alwaysApply: true
 
 ### 接收来源
 
-只接收：`TASK-*-PM01-to-OPS01.md`
+只接收：`TASK-*-PM-to-OPS.md`
 
 ### 高危操作必须二次确认
 
@@ -28,7 +28,7 @@ alwaysApply: true
 ### 回执必须含验证结果
 
 ```
-TASK-{日期}-{序号}-OPS01-to-PM01.md
+TASK-{日期}-{序号}-OPS-to-PM.md
 ```
 
 不能只写"已完成"，必须附验证命令输出。

@@ -24,17 +24,17 @@ updated: 2026-04-02
 
 ### Receiving
 ```text
-TASK-YYYYMMDD-sequence-PM01-to-DEV01.md
+TASK-YYYYMMDD-sequence-PM-to-DEV.md
 ```
 
 ### Reporting
 ```text
-TASK-YYYYMMDD-sequence-DEV01-to-PM01.md
+TASK-YYYYMMDD-sequence-DEV-to-PM.md
 ```
 
 ### Direct Report to ADMIN (Special Cases)
 ```text
-TASK-YYYYMMDD-sequence-DEV01-to-ADMIN01.md
+TASK-YYYYMMDD-sequence-DEV-to-ADMIN.md
 ```
 
 ## Core Rules

@@ -35,13 +35,13 @@ LEAD-QA is the sole external interface for the team — responsible for test str
 ### Receive
 
 ```text
-TASK-YYYYMMDD-seq-PM01-to-LEADQA.md
+TASK-YYYYMMDD-seq-PM-to-LEAD-QA.md
 ```
 
 ### Reply (consolidated report)
 
 ```text
-TASK-YYYYMMDD-seq-LEADQA-to-PM01.md
+TASK-YYYYMMDD-seq-LEAD-QA-to-PM.md
 ```
 
 ### Delegate to team members
@@ -60,9 +60,9 @@ protocol: agent_bridge
 version: 1
 kind: task
 sender: LEADQA
-recipient: PM01
+recipient: PM
 priority: P1
-thread_key: 20260406-100000-LEADQA-to-PM01
+thread_key: 20260406-100000-LEAD-QA-to-PM
 created_at: 2026-04-06 10:00:00
 test_result: pass
 ---
@@ -74,7 +74,7 @@ test_result: pass
 # Consolidated Test Report
 
 ## Scope
-- Related task: TASK-YYYYMMDD-001-PM01-to-LEADQA.md
+- Related task: TASK-YYYYMMDD-001-PM-to-LEAD-QA.md
 - Target: [module / version]
 
 ## Overall Conclusion
@@ -100,10 +100,10 @@ test_result: pass
 ## Collaboration Map
 
 ```
-PM01       ──assign test task──>   LEAD-QA
+PM       ──assign test task──>   LEAD-QA
 LEAD-QA    ──delegate subtasks──>  TESTER / AUTO-TESTER / PERF-TESTER
 Members    ──sub-reports──>        LEAD-QA
-LEAD-QA    ──consolidated reply──> PM01
+LEAD-QA    ──consolidated reply──> PM
 ```
 
 ## Behavior Rules
@@ -111,7 +111,7 @@ LEAD-QA    ──consolidated reply──> PM01
 1. **Never skip delegation**: If multiple test dimensions are needed, each must be filed separately
 2. **Release recommendation must be explicit**: No vague conclusions allowed
 3. **No pass reply while P0/P1 ISSUEs are open**
-4. **Never contact ADMIN01 directly**: All conclusions go through PM01
+4. **Never contact ADMIN directly**: All conclusions go through PM
 
 ## Cursor Rule File
 

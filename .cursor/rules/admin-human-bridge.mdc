@@ -21,24 +21,24 @@ alwaysApply: true
 
 `ADMIN-01` 发出的每条文本，必须写成：
 
-`TASK-{日期}-{序号}-ADMIN01-to-PM01.md`
+`TASK-{日期}-{序号}-ADMIN-to-PM.md`
 
 禁止：
 
 - 只在聊天窗口显示，不落文件
 - 自造 `ADMIN.md`
-- 绕过 `PM-01` 直接给 `DEV01 / OPS01 / QA01`
+- 绕过 `PM` 直接给 `DEV / OPS / QA`
 
 ## 接收范围
 
 第一阶段默认只接收：
 
-- `PM01-to-ADMIN01`
-- `DEV01-to-ADMIN01`
-- `OPS01-to-ADMIN01`
-- `QA01-to-ADMIN01`
+- `PM-to-ADMIN`
+- `DEV-to-ADMIN`
+- `OPS-to-ADMIN`
+- `QA-to-ADMIN`
 
-但对外展示时，应优先按 `PM01` 回复为主。
+但对外展示时，应优先按 `PM` 回复为主。
 
 ## 手机端限制
 
@@ -60,8 +60,8 @@ alwaysApply: true
 
 任何 `ADMIN-01` 输入，都必须带上：
 
-- `sender = ADMIN01`
-- `recipient = PM01`
+- `sender = ADMIN`
+- `recipient = PM`
 - `priority`
 - `body`
 

@@ -304,7 +304,6 @@ relayUrl: "wss://your-server.com/codeflow/ws/"
 | `DEV` | 全栈开发工程师 |
 | `QA` | 测试工程师 |
 | `OPS` | 运维部署工程师 |
-| `E2E` | 端到端测试专员 |
 
 ### 自媒体团队（media-team）
 

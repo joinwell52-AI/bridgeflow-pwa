@@ -22,8 +22,8 @@ updated: 2026-04-02
 
 ## File Protocol
 
-Receiving: `TASK-YYYYMMDD-sequence-PM01-to-OPS01.md`
-Reporting: `TASK-YYYYMMDD-sequence-OPS01-to-PM01.md`
+Receiving: `TASK-YYYYMMDD-sequence-PM-to-OPS.md`
+Reporting: `TASK-YYYYMMDD-sequence-OPS-to-PM.md`
 
 ## Core Rules
 

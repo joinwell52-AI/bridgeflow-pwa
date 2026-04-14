@@ -1,7 +1,7 @@
 # Reddit r/ChatGPTPro Post
 
 **Subreddit:** r/ChatGPTPro (or r/LocalLLaMA / r/artificial)
-**Title:** Built an open-source system where 4 AI agents (PM/DEV/QA/OPS) collaborate autonomously — controlled from your phone
+**Title:** Built an open-source system where 4 AI agents collaborate autonomously — now with CDP patrol (10ms DOM scanning)
 
 ---
 
@@ -15,16 +15,23 @@ Instead of chatting with one AI, I set up 4 specialized roles in Cursor IDE:
 They communicate via markdown files — no databases, no APIs. The filename IS the protocol:
 
 ```
-TASK-20260414-003-PM01-to-DEV01.md
+TASK-20260414-003-PM-to-DEV.md
 ```
 
-I built **CodeFlow** to make this practical:
-- **Desktop app** patrols agents, auto-nudges stuck work, self-heals frozen UIs
-- **Phone PWA** lets you send tasks and review results from anywhere
-- **MCP Plugin** integrates directly into Cursor chat
+**v2.10 upgrade: CDP Patrol Engine**
+
+The desktop app now uses Chrome DevTools Protocol to monitor agents:
+- **10ms DOM scan** (was 300-800ms OCR) — reads `div[role="tab"]` directly
+- **100% accuracy** (was ~90%) — uses `aria-selected` not pixel guessing
+- **3-layer busy detection**: Stop button + Spinner + Status text
+- **Native mouse events**: `Input.dispatchMouseEvent` bypasses Electron event swallowing
+- **Auto-degrades to OCR** if CDP unavailable — zero stuck states
 
 Real results: 87 person-days of work in 17 days. 91 production deployments. Zero incidents.
 
-Open source, MIT licensed: https://github.com/joinwell52-AI/codeflow-pwa
+- GitHub: https://github.com/joinwell52-AI/codeflow-pwa
+- Try the PWA: https://joinwell52-ai.github.io/codeflow-pwa/
+- CDP Tech Doc: https://github.com/joinwell52-AI/codeflow-pwa/blob/main/docs/cdp-multi-agent.md
+- Product page: https://joinwell52-ai.github.io/codeflow-pwa/promotion/
 
-Try the PWA: https://joinwell52-ai.github.io/codeflow-pwa/
+Open source, MIT licensed.

@@ -54,14 +54,14 @@ When a config already exists, `codeflow init --relay-url/--room-key` only update
 |-------|------|---------|----------|-------------|
 | `device_id` | `string` | hostname slug | ✅ | Unique PC identifier for relay routing. Auto-generated from hostname by `codeflow init`, e.g. `my-pc`. Each PC must be different when using multiple machines |
 | `device_name` | `string` | `"{hostname} AI Executor"` | ✅ | Display name shown on dashboard and phone binding info. Can be manually changed |
-| `owner_role` | `string` | `"PM01"` | ✅ | Primary AI role assigned to this machine. Options: `PM01` / `DEV01` / `OPS01` / `QA01` |
+| `owner_role` | `string` | `"PM"` | ✅ | Primary AI role assigned to this machine. Options: `PM` / `DEV` / `OPS` / `QA` |
 | `machine_code` | `string` | `"BF-{12-char hash}"` | ✅ | Machine code for QR scan binding, format `BF-XXXXXXXX`. Generated from hostname + MAC address hash. **Do not manually modify** |
 
 ```json
 "device": {
   "device_id": "my-pc",
   "device_name": "My AI Executor",
-  "owner_role": "PM01",
+  "owner_role": "PM",
   "machine_code": "BF-A3F2C8D1E2F3"
 }
 ```
@@ -159,7 +159,7 @@ Patrol is the mechanism where the PC periodically checks each AI role's task sta
 | `confidence` | `float` | `0.7` | Image matching confidence threshold (0.0–1.0) for window recognition |
 | `templates_dir` | `string` | `"ops/patrol_templates"` | Patrol image template directory |
 | `all_worker_chats` | `array` | `["1-PM", "2-DEV", "3-QA", "4-OPS"]` | All role window names participating in patrol (**fixed, do not change**) |
-| `role_to_chat` | `object` | `{"PM01":"1-PM","DEV01":"2-DEV","QA01":"3-QA","OPS01":"4-OPS"}` | Role ID to Cursor Agent name mapping (**fixed, do not change**) |
+| `role_to_chat` | `object` | `{"PM":"1-PM","DEV":"2-DEV","QA":"3-QA","OPS":"4-OPS"}` | Role ID to Cursor Agent name mapping (**fixed, do not change**) |
 
 ```json
 "patrol": {
@@ -171,10 +171,10 @@ Patrol is the mechanism where the PC periodically checks each AI role's task sta
   "templates_dir": "ops/patrol_templates",
   "all_worker_chats": ["1-PM", "2-DEV", "3-QA", "4-OPS"],
   "role_to_chat": {
-    "PM01": "1-PM",
-    "DEV01": "2-DEV",
-    "QA01": "3-QA",
-    "OPS01": "4-OPS"
+    "PM": "1-PM",
+    "DEV": "2-DEV",
+    "QA": "3-QA",
+    "OPS": "4-OPS"
   }
 }
 ```
@@ -185,14 +185,14 @@ Patrol is the mechanism where the PC periodically checks each AI role's task sta
 
 | Field | Type | Default | Required | Description |
 |-------|------|---------|----------|-------------|
-| `sender` | `string` | `"ADMIN01"` | ✅ | Human role ID, fixed as `ADMIN01`, representing the phone-side operator |
-| `target` | `string` | `"PM01"` | ✅ | Default task recipient. When no recipient is specified, tasks go to this role |
+| `sender` | `string` | `"ADMIN"` | ✅ | Human role ID, fixed as `ADMIN`, representing the phone-side operator |
+| `target` | `string` | `"PM"` | ✅ | Default task recipient. When no recipient is specified, tasks go to this role |
 | `default_priority` | `string` | `"P1"` | ✅ | Default task priority. Options: `P0` (Critical) / `P1` (High) / `P2` (Medium) / `P3` (Low) |
 
 ```json
 "admin": {
-  "sender": "ADMIN01",
-  "target": "PM01",
+  "sender": "ADMIN",
+  "target": "PM",
   "default_priority": "P1"
 }
 ```
@@ -203,7 +203,7 @@ Patrol is the mechanism where the PC periodically checks each AI role's task sta
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `fixed_roles` | `array<string>` | `["ADMIN01","PM01","DEV01","OPS01","QA01"]` | List of all participating role IDs |
+| `fixed_roles` | `array<string>` | `["ADMIN","PM","DEV","OPS","QA"]` | List of all participating role IDs |
 | `cursor_only` | `boolean` | `true` | Whether AI roles only run in Cursor (currently fixed `true`) |
 
 ---
@@ -217,23 +217,23 @@ Patrol is the mechanism where the PC periodically checks each AI role's task sta
 
 ```json
 "roles": {
-  "ADMIN01": {
+  "ADMIN": {
     "role_id": "admin",
     "display_names": ["ADMIN", "User", "Mobile"]
   },
-  "PM01": {
+  "PM": {
     "role_id": "manager",
     "display_names": ["PM", "Project Manager"]
   },
-  "DEV01": {
+  "DEV": {
     "role_id": "dev",
     "display_names": ["DEV", "Developer"]
   },
-  "OPS01": {
+  "OPS": {
     "role_id": "ops",
     "display_names": ["OPS", "Operations"]
   },
-  "QA01": {
+  "QA": {
     "role_id": "qa",
     "display_names": ["QA", "Tester"]
   }
@@ -308,11 +308,11 @@ global.CODEFLOW_CONFIG = {
 
 | Role ID | Type | Description |
 |---------|------|-------------|
-| `ADMIN01` | Human | Phone-side operator (you) |
-| `PM01` | AI | Project Manager — task decomposition and dispatch |
-| `DEV01` | AI | Developer — code implementation |
-| `OPS01` | AI | Operations Engineer — deployment and server operations |
-| `QA01` | AI | QA Engineer — testing and quality verification |
+| `ADMIN` | Human | Phone-side operator (you) |
+| `PM` | AI | Project Manager — task decomposition and dispatch |
+| `DEV` | AI | Developer — code implementation |
+| `OPS` | AI | Operations Engineer — deployment and server operations |
+| `QA` | AI | QA Engineer — testing and quality verification |
 
 ---
 
@@ -329,7 +329,7 @@ global.CODEFLOW_CONFIG = {
   "device": {
     "device_id": "my-pc",
     "device_name": "My PC AI Executor",
-    "owner_role": "PM01",
+    "owner_role": "PM",
     "machine_code": "BF-A3F2C8D1E2F3"
   },
   "bind": {
@@ -366,27 +366,27 @@ global.CODEFLOW_CONFIG = {
     "templates_dir": "ops/patrol_templates",
     "all_worker_chats": ["1-PM", "2-DEV", "3-QA", "4-OPS"],
     "role_to_chat": {
-      "PM01": "1-PM",
-      "DEV01": "2-DEV",
-      "QA01": "3-QA",
-      "OPS01": "4-OPS"
+      "PM": "1-PM",
+      "DEV": "2-DEV",
+      "QA": "3-QA",
+      "OPS": "4-OPS"
     }
   },
   "admin": {
-    "sender": "ADMIN01",
-    "target": "PM01",
+    "sender": "ADMIN",
+    "target": "PM",
     "default_priority": "P1"
   },
   "ai_team": {
-    "fixed_roles": ["ADMIN01", "PM01", "DEV01", "OPS01", "QA01"],
+    "fixed_roles": ["ADMIN", "PM", "DEV", "OPS", "QA"],
     "cursor_only": true
   },
   "roles": {
-    "ADMIN01": { "role_id": "admin", "display_names": ["ADMIN", "User", "Mobile"] },
-    "PM01":    { "role_id": "manager", "display_names": ["PM", "Project Manager"] },
-    "DEV01":   { "role_id": "dev", "display_names": ["DEV", "Developer"] },
-    "OPS01":   { "role_id": "ops", "display_names": ["OPS", "Operations"] },
-    "QA01":    { "role_id": "qa", "display_names": ["QA", "Tester"] }
+    "ADMIN": { "role_id": "admin", "display_names": ["ADMIN", "User", "Mobile"] },
+    "PM":    { "role_id": "manager", "display_names": ["PM", "Project Manager"] },
+    "DEV":   { "role_id": "dev", "display_names": ["DEV", "Developer"] },
+    "OPS":   { "role_id": "ops", "display_names": ["OPS", "Operations"] },
+    "QA":    { "role_id": "qa", "display_names": ["QA", "Tester"] }
   }
 }
 ```

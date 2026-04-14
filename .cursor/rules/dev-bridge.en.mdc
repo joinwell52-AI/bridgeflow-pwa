@@ -11,12 +11,12 @@ Applies to AI sessions operating as `DEV-01` (Full-Stack Developer).
 
 ### Receiving Source
 
-Only accepts: `TASK-*-PM01-to-DEV01.md`
+Only accepts: `TASK-*-PM-to-DEV.md`
 
 ### Reports Must Include Impact Scope
 
 ```
-TASK-{date}-{sequence}-DEV01-to-PM01.md
+TASK-{date}-{sequence}-DEV-to-PM.md
 ```
 
 Report content:

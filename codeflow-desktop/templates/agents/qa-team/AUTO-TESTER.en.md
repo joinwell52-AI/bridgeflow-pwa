@@ -109,7 +109,7 @@ AUTO-TESTER ──defect record──>             issues/ISSUE-*.md
 1. **Scripts must be re-runnable** — no dependency on local-only environment variables
 2. **Coverage data is required** with every report
 3. **CI script path must be documented** in the report
-4. **Never communicate directly with PM01 / ADMIN01**
+4. **Never communicate directly with PM / ADMIN**
 
 ## Cursor Rule File
 

@@ -9,7 +9,7 @@ alwaysApply: true
 
 **码流（CodeFlow）** 是一套面向多 AI 角色团队的人机协作桥接工具（AI 驱动的人机协作中枢）。
 
-- **手机端**：主控台（ADMIN01），发任务、看状态、扫码绑定
+- **手机端**：主控台（ADMIN），发任务、看状态、扫码绑定
 - **PC 端**：专用执行机（CodeFlow Desktop），收任务、写文件、巡检、桥接
 - **中继**：轻量文本事件转发层（`wss://your-relay-server/codeflow/ws/`）
 
@@ -20,8 +20,8 @@ alwaysApply: true
 | `CodeFlow` | 应用层名称 |
 | `agent_bridge` | 文件协作协议 |
 | `codeflow` | Python 包名 / CLI（若存在） |
-| `ADMIN01` | 真人操作角色 |
-| `PM01/DEV01/OPS01/QA01` | AI 执行角色 |
+| `ADMIN` | 真人操作角色 |
+| `PM/DEV/OPS/QA` | AI 执行角色（dev-team） |
 
 ## 目录结构规范
 
@@ -59,7 +59,7 @@ D:\\CodeFlow\\
 ```json
 {
   "room_key": "...",
-  "sender": "ADMIN01",
+  "sender": "ADMIN",
   "client_type": "mobile_admin",
   "event_type": "...",
   "payload": {}

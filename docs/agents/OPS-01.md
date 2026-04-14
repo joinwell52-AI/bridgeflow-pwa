@@ -22,8 +22,8 @@ OPS-01 负责服务器运维、代码部署、监控告警和环境维护。
 
 ## 文件协议
 
-接收：TASK-YYYYMMDD-序号-PM01-to-OPS01.md
-回执：TASK-YYYYMMDD-序号-OPS01-to-PM01.md
+接收：TASK-YYYYMMDD-序号-PM-to-OPS.md
+回执：TASK-YYYYMMDD-序号-OPS-to-PM.md
 
 ## 核心规则
 

@@ -1,6 +1,6 @@
 # Hacker News — Show HN
 
-**Title:** Show HN: CodeFlow – Command AI dev teams from your phone (Desktop+PWA, open source)
+**Title:** Show HN: CodeFlow – CDP-powered patrol engine for multi-agent Cursor IDE teams (open source)
 
 **URL:** https://github.com/joinwell52-AI/codeflow-pwa
 
@@ -10,20 +10,24 @@
 
 CodeFlow is an open-source tool for orchestrating multi-role AI teams in Cursor IDE.
 
-The core idea: "Filename as Protocol." Every task is a markdown file — `TASK-20260414-003-PM01-to-DEV01.md` — with 7 routing fields embedded in the filename. Zero databases, zero message queues.
+Two core innovations:
 
-The product has three parts:
+**1. CDP Patrol Engine** — The desktop app uses Chrome DevTools Protocol to monitor Cursor agents. It reads the DOM in 10ms (vs 300-800ms OCR), detects busy states via Stop button visibility and aria attributes, and switches agents with `Input.dispatchMouseEvent`. Every CDP step auto-degrades to OCR if it fails. Zero stuck states.
 
-1. **Desktop app** (Windows EXE, ~35MB): Patrols Cursor agent windows, auto-nudges stuck tasks, detects UI freezes via OCR, and auto-reloads. Bridges phone commands to Cursor via WebSocket relay.
+| | OCR (before) | CDP (now) |
+|---|---|---|
+| Accuracy | ~90% | 100% |
+| Latency | 300-800ms | 10-15ms |
+| Detection | Screenshot guessing | DOM query exact match |
 
-2. **Mobile PWA**: Send tasks to your AI team from your phone. View real-time status, read markdown reports, filter by team role. Bilingual (EN/中文).
+**2. Filename as Protocol** — Every task is a markdown file: `TASK-20260414-003-PM-to-DEV.md` — 7 routing fields in the filename. Zero databases, zero message queues.
 
-3. **MCP Plugin**: Initialize team templates (dev/media/mvp), dispatch tasks, and read reports — all from within Cursor's chat interface.
+The product: Desktop EXE patrols agents + Phone PWA sends tasks + MCP Plugin for Cursor chat. 4 team templates (dev/media/mvp/qa).
 
-Born from a real production project: 87 person-days of AI output in 17 days, 91 deployments, zero incidents.
+Born from a real production project: 87 person-days in 17 days, 91 deployments, zero incidents.
 
-Started as a methodology write-up (https://joinwell52-ai.github.io/joinwell52/), then became a product.
+- Try the PWA: https://joinwell52-ai.github.io/codeflow-pwa/
+- CDP Technical Doc: https://github.com/joinwell52-AI/codeflow-pwa/blob/main/docs/cdp-multi-agent.md
+- Product page: https://joinwell52-ai.github.io/codeflow-pwa/promotion/
 
-Try the PWA: https://joinwell52-ai.github.io/codeflow-pwa/
-
-MIT licensed. Looking for feedback on the "filename as protocol" approach and the self-healing patrol system.
+MIT licensed. Feedback on the CDP patrol approach welcome.

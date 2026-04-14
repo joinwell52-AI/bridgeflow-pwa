@@ -29,7 +29,7 @@ updated: 2026-04-01
 `ADMIN-01` 发出的每条文本，必须落成：
 
 ```text
-TASK-YYYYMMDD-序号-ADMIN01-to-PM01.md
+TASK-YYYYMMDD-序号-ADMIN-to-PM.md
 ```
 
 不允许只停留在聊天窗口里。
@@ -40,23 +40,23 @@ TASK-YYYYMMDD-序号-ADMIN01-to-PM01.md
 
 也就是说：
 
-- 可以：`ADMIN01 -> PM01`
-- 暂不默认支持：`ADMIN01 -> DEV01`
-- 暂不默认支持：`ADMIN01 -> OPS01`
-- 暂不默认支持：`ADMIN01 -> QA01`
+- 可以：`ADMIN -> PM`
+- 暂不默认支持：`ADMIN -> DEV`
+- 暂不默认支持：`ADMIN -> OPS`
+- 暂不默认支持：`ADMIN -> QA`
 
 ### 3. 回复也必须文件化
 
 `PM-01` 或其它角色回给 `ADMIN-01` 的文本，也必须落成：
 
 ```text
-TASK-YYYYMMDD-序号-PM01-to-ADMIN01.md
+TASK-YYYYMMDD-序号-PM-to-ADMIN.md
 ```
 
 或：
 
 ```text
-TASK-YYYYMMDD-序号-DEV01-to-ADMIN01.md
+TASK-YYYYMMDD-序号-DEV-to-ADMIN.md
 ```
 
 ### 4. 手机端不做 GUI 操作
@@ -76,12 +76,12 @@ TASK-YYYYMMDD-序号-DEV01-to-ADMIN01.md
 
 1. `ADMIN-01` 在手机端输入文本
 2. 文本通过中继到达桌面桥接器
-3. 桌面桥接器写出 `TASK-*-ADMIN01-to-PM01.md`
+3. 桌面桥接器写出 `TASK-*-ADMIN-to-PM.md`
 4. `PM-01` 接收并处理
 
 ### 看回复
 
-1. `PM-01` 写出 `TASK-*-PM01-to-ADMIN01.md`
+1. `PM-01` 写出 `TASK-*-PM-to-ADMIN.md`
 2. 桌面桥接器扫描到该文件
 3. 通过中继发送摘要给手机端
 4. `ADMIN-01` 在手机端打开详情或链接
@@ -91,8 +91,8 @@ TASK-YYYYMMDD-序号-DEV01-to-ADMIN01.md
 `PM-01` 处理 `ADMIN-01` 发来的任务时，必须：
 
 1. 明确回复是否已接单
-2. 若需要拆任务，继续写 `PM01-to-DEV01 / OPS01 / QA01`
-3. 当出现阶段结果时，及时回 `PM01-to-ADMIN01`
+2. 若需要拆任务，继续写 `PM-to-DEV / OPS / QA`
+3. 当出现阶段结果时，及时回 `PM-to-ADMIN`
 4. 不允许长期只在内部流转，不给 `ADMIN-01` 回执
 
 ## 适用场景

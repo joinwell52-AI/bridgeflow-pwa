@@ -14,7 +14,6 @@ docs/agents/
 ├── DEV-01.md                  # DEV role definition
 ├── OPS-01.md                  # OPS role definition
 ├── QA-01.md                   # QA role definition
-├── E2E-01.md                  # E2E test specialist
 ├── tasks/                     # Task files
 ├── reports/                   # Reply/report files
 ├── log/                       # Notification and archive summaries
@@ -44,7 +43,6 @@ The same role has different representations across different contexts. **All fou
 | 02 | `02-DEV` | `DEV` | `DEV-01.md` | Full-Stack Developer |
 | 03 | `03-QA` | `QA` | `QA-01.md` | QA Engineer |
 | 04 | `04-OPS` | `OPS` | `OPS-01.md` | Operations & Deployment |
-| 05 | `05-E2E` | `E2E` | `E2E-01.md` | End-to-End Test Specialist |
 | — | — | `ADMIN` | `ADMIN-01.md` | Human Admin (not in Cursor) |
 
 ### media-team Roles (Content & Media)
@@ -79,11 +77,11 @@ The same role has different representations across different contexts. **All fou
 The patrol engine uses `_role_key_for_task()` to extract the **pure role name** for matching. All formats are correctly recognized:
 
 ```
-PM01           → PM            strip trailing digits
+PM           → PM            strip trailing digits
 01-PM          → PM            strip leading number + hyphen
 PM-01          → PM            strip hyphen + trailing digits
 03-QA          → QA
-QA01           → QA
+QA           → QA
 COLLECTOR      → COLLECTOR     already pure role name
 01-COLLECTOR   → COLLECTOR
 AUTO-TESTER    → AUTO-TESTER   preserves inner hyphen
@@ -92,7 +90,7 @@ AUTO-TESTER    → AUTO-TESTER   preserves inner hyphen
 
 ### Historical Compatibility
 
-Legacy file protocol used `PM01`, `QA01` as sender/recipient. The patrol engine normalizes them correctly.
+Legacy file protocol used `PM`, `QA` as sender/recipient. The patrol engine normalizes them correctly.
 New task files **should use pure role names** (`PM`, `QA`), but legacy format is also supported.
 
 ---
@@ -114,7 +112,7 @@ Examples:
 - `TASK-20260401-003-PM-to-DEV.md`
 - `TASK-20260401-004-PM-to-COLLECTOR.md` (media-team scenario)
 
-Legacy format also supported: `TASK-20260401-001-ADMIN01-to-PM01.md`
+Legacy format also supported: `TASK-20260401-001-ADMIN-to-PM.md`
 
 ### Rules
 
@@ -170,7 +168,7 @@ This metadata serves to:
 
 | Team Directory | Use Case | Core Roles |
 |----------------|----------|------------|
-| `dev-team/` | Software Development | PM, DEV, OPS, QA, E2E, ADMIN |
+| `dev-team/` | Software Development | PM, DEV, OPS, QA, ADMIN |
 | `media-team/` | Content & Media | COLLECTOR, WRITER, EDITOR, PUBLISHER |
 | `mvp-team/` | Rapid MVP Validation | BUILDER, DESIGNER, MARKETER, RESEARCHER |
 | `qa-team/` | Dedicated QA | LEAD-QA, TESTER, AUTO-TESTER, PERF-TESTER |
@@ -196,11 +194,10 @@ When initializing CodeFlow Desktop, users select a team template. The system aut
 - Decomposes requirements for DEV / OPS / QA
 - Reports results back to `ADMIN`
 
-### DEV / OPS / QA / E2E
+### DEV / OPS / QA
 
 - Internal execution roles within the team
 - Phase 1 does not require phone-side direct communication with these roles
-- `E2E` focuses on end-to-end testing covering PWA / relay / desktop / file protocol / AI role collaboration flows
 
 ## Why This Design
 

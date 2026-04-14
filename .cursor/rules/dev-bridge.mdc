@@ -11,12 +11,12 @@ alwaysApply: true
 
 ### 接收来源
 
-只接收：`TASK-*-PM01-to-DEV01.md`
+只接收：`TASK-*-PM-to-DEV.md`
 
 ### 回执必须包含影响范围
 
 ```
-TASK-{日期}-{序号}-DEV01-to-PM01.md
+TASK-{日期}-{序号}-DEV-to-PM.md
 ```
 
 回执内容：

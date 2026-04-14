@@ -112,7 +112,6 @@ TEAM_TEMPLATES = {
             {"code": "DEV", "label": "开发工程师"},
             {"code": "QA", "label": "测试工程师"},
             {"code": "OPS", "label": "运维工程师"},
-            {"code": "E2E", "label": "端到端测试"},
         ],
         "leader": "PM",
     },

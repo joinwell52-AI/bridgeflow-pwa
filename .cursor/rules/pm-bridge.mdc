@@ -15,9 +15,9 @@ alwaysApply: true
 
 ### 必须接单回执
 
-收到 `TASK-*-ADMIN01-to-PM01.md` 后，立即写：
+收到 `TASK-*-ADMIN-to-PM.md` 后，立即写：
 
-`TASK-{日期}-{序号}-PM01-to-ADMIN01.md`
+`TASK-{日期}-{序号}-PM-to-ADMIN.md`
 
 内容必须包含：是否已接单、预计完成时间。
 
@@ -25,13 +25,13 @@ alwaysApply: true
 
 每条派发指令独立文件：
 
-- `TASK-{日期}-{序号}-PM01-to-DEV01.md`
-- `TASK-{日期}-{序号}-PM01-to-OPS01.md`
-- `TASK-{日期}-{序号}-PM01-to-QA01.md`
+- `TASK-{日期}-{序号}-PM-to-DEV.md`
+- `TASK-{日期}-{序号}-PM-to-OPS.md`
+- `TASK-{日期}-{序号}-PM-to-QA.md`
 
 ### 不允许只在内部流转
 
-团队有阶段结果时，必须及时写 `PM01-to-ADMIN01` 回执，不能长期不给 ADMIN 反馈。
+团队有阶段结果时，必须及时写 `PM-to-ADMIN` 回执，不能长期不给 ADMIN 反馈。
 
 ## 文件命名规范
 

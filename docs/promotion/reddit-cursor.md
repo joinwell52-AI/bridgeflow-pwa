@@ -1,48 +1,41 @@
 # Reddit r/cursor Post
 
 **Subreddit:** r/cursor
-**Title:** I built a PWA to command 4 AI agents in Cursor from my phone — not just approve, but dispatch tasks (open source)
+**Title:** CodeFlow v2.10: CDP patrol reads Cursor DOM in 10ms — manage 4 AI agents from your phone (open source)
 
 ---
 
 Hey r/cursor!
 
-You know the pain: you start a Cursor agent, walk away, come back and it's been stuck waiting for approval for 20 minutes. CursorRemote solved this for single-agent approve/reject. But I wanted something different — **what if my phone could dispatch tasks to a whole AI team?**
+You know the pain: your Cursor agent gets stuck, and you don't notice for 20 minutes. OCR-based monitoring was our first solution — but it was slow (~300ms) and only ~90% accurate.
 
-So I built **CodeFlow** — a phone-first PWA + Desktop EXE for managing multi-agent Cursor teams.
+So in v2.10 we rebuilt the patrol engine on **Chrome DevTools Protocol (CDP)**.
 
-**Why PWA instead of a web page or native app?**
-
-- Install to home screen — feels like a real app
-- Works offline (Service Worker cache) — review reports on the subway
-- No app store, no downloads — scan QR, add to home screen, 5 seconds
-- Real-time via WebSocket relay
-- Same codebase for iOS, Android, desktop
+**What CDP does:**
+- Reads `div[role="tab"]` + `aria-selected` to identify which agent is active — **10ms, 100% accurate**
+- Detects busy states via Stop button visibility, Spinner animation, status text — **3-layer detection**
+- Switches agents with `Input.dispatchMouseEvent` (native browser events, not `pyautogui`)
+- Auto-degrades to OCR if CDP is unavailable — **zero stuck states**
 
 **The workflow:**
-
-1. Open PWA on phone → type a task
-2. Task arrives on your PC as a markdown file
-3. PM-01 (AI project manager) breaks it down, dispatches to DEV/QA/OPS
-4. Desktop EXE patrols all agent windows with OCR — if one freezes, auto-restart
+1. Open PWA on phone -> type a task
+2. Task arrives on PC as `TASK-*.md` file
+3. PM-01 decomposes, dispatches to DEV/QA/OPS
+4. Desktop EXE CDP-patrols all agents — auto-nudges stuck tasks
 5. Reports flow back to your phone in real-time
-6. You review from anywhere
 
 **What's included:**
-
-- **Desktop EXE** (~35MB) — OCR self-healing patrol, auto-nudge stuck agents
+- **Desktop EXE** (v2.10.0, ~35MB) — CDP patrol + OCR fallback
 - **Phone PWA** — command center, not just a dashboard
 - **MCP Plugin** — init teams and dispatch from Cursor chat
-- **3 team templates**: dev-team (PM/DEV/QA/OPS), media-team (WRITER/EDITOR/PUBLISHER/COLLECTOR), mvp-team (MARKETER/RESEARCHER/DESIGNER/BUILDER)
+- **4 team templates**: dev-team, media-team, mvp-team, qa-team
 
-**The protocol:** "Filename as Protocol" — every task is a markdown file like `TASK-20260414-003-PM01-to-DEV01.md`. Zero databases, zero message queues. Everything is a traceable file.
-
-Battle-tested: 87 person-days of AI output in 17 days, 91 production deploys, zero incidents.
+**The protocol:** Every task is `TASK-20260414-003-PM-to-DEV.md`. Zero databases.
 
 - **Try PWA now (phone):** https://joinwell52-ai.github.io/codeflow-pwa/
 - **Download Desktop EXE:** https://github.com/joinwell52-AI/codeflow-pwa/releases
+- **CDP Technical Doc:** https://github.com/joinwell52-AI/codeflow-pwa/blob/main/docs/cdp-multi-agent.md
 - **Product page:** https://joinwell52-ai.github.io/codeflow-pwa/promotion/
 - **GitHub:** https://github.com/joinwell52-AI/codeflow-pwa
-- **Methodology:** https://joinwell52-ai.github.io/joinwell52/
 
-MIT licensed, fully bilingual (EN/中文). Free forever. Would love feedback!
+MIT licensed. 91 production deployments, zero incidents. Feedback welcome!

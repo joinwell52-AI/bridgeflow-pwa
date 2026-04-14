@@ -25,9 +25,9 @@ alwaysApply: false
 
 重测前必须核对 ISSUE 列表，确认每个已修复项都执行了回归。
 
-### 不直接联系 PM01 / ADMIN01
+### 不直接联系 PM / ADMIN
 
-所有结论经 LEAD-QA 汇总后回报 PM01。
+所有结论经 LEAD-QA 汇总后回报 PM。
 
 ## 回执格式
 

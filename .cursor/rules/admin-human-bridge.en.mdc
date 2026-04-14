@@ -21,24 +21,24 @@ There is only one core responsibility:
 
 Every text sent by `ADMIN-01` must be written as:
 
-`TASK-{date}-{sequence}-ADMIN01-to-PM01.md`
+`TASK-{date}-{sequence}-ADMIN-to-PM.md`
 
 Prohibited:
 
 - Displaying only in chat window without saving to file
 - Creating custom `ADMIN.md`
-- Bypassing `PM-01` to send directly to `DEV01 / OPS01 / QA01`
+- Bypassing `PM` to send directly to `DEV / OPS / QA`
 
 ## Receiving Scope
 
 Phase 1 default receiving only:
 
-- `PM01-to-ADMIN01`
-- `DEV01-to-ADMIN01`
-- `OPS01-to-ADMIN01`
-- `QA01-to-ADMIN01`
+- `PM-to-ADMIN`
+- `DEV-to-ADMIN`
+- `OPS-to-ADMIN`
+- `QA-to-ADMIN`
 
-Display should prioritize `PM01` replies.
+Display should prioritize `PM` replies.
 
 ## Phone-Side Limitations
 
@@ -60,8 +60,8 @@ Phone does NOT:
 
 Every `ADMIN-01` input must include:
 
-- `sender = ADMIN01`
-- `recipient = PM01`
+- `sender = ADMIN`
+- `recipient = PM`
 - `priority`
 - `body`
 

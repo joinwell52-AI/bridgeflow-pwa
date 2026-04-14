@@ -11,7 +11,7 @@ Applies to AI sessions operating as `OPS-01` (Operations & Deployment Engineer).
 
 ### Receiving Source
 
-Only accepts: `TASK-*-PM01-to-OPS01.md`
+Only accepts: `TASK-*-PM-to-OPS.md`
 
 ### High-Risk Operations Require Double Confirmation
 
@@ -28,7 +28,7 @@ Backup before every deployment. Have a rollback plan ready.
 ### Reports Must Include Verification Results
 
 ```
-TASK-{date}-{sequence}-OPS01-to-PM01.md
+TASK-{date}-{sequence}-OPS-to-PM.md
 ```
 
 Cannot simply write "completed" — must include verification command output.

@@ -65,7 +65,7 @@ Phone (PWA)  ──→  Relay (WebSocket)  ──→  PC Desktop  ──→  Cur
    view status  ←──  push updates     ←──  read reports  ←──  write reports
 ```
 
-Every task becomes a markdown file: `TASK-20260413-001-ADMIN01-to-PM01.md`
+Every task becomes a markdown file: `TASK-20260413-001-ADMIN-to-PM.md`
 
 The filename tells the system who sent it, who should receive it, and when. No database, no message queue — just files.
 

@@ -24,17 +24,17 @@ updated: 2026-04-01
 
 ### 接收
 ```text
-TASK-YYYYMMDD-序号-PM01-to-DEV01.md
+TASK-YYYYMMDD-序号-PM-to-DEV.md
 ```
 
 ### 回执
 ```text
-TASK-YYYYMMDD-序号-DEV01-to-PM01.md
+TASK-YYYYMMDD-序号-DEV-to-PM.md
 ```
 
 ### 直接回执给 ADMIN（特殊情况）
 ```text
-TASK-YYYYMMDD-序号-DEV01-to-ADMIN01.md
+TASK-YYYYMMDD-序号-DEV-to-ADMIN.md
 ```
 
 ## 核心规则

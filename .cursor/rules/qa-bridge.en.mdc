@@ -11,12 +11,12 @@ Applies to AI sessions operating as `QA-01` (QA Engineer).
 
 ### Receiving Source
 
-Only accepts: `TASK-*-PM01-to-QA01.md`
+Only accepts: `TASK-*-PM-to-QA.md`
 
 ### Test Results Must Be Filed
 
 ```
-TASK-{date}-{sequence}-QA01-to-PM01.md
+TASK-{date}-{sequence}-QA-to-PM.md
 ```
 
 Report content:

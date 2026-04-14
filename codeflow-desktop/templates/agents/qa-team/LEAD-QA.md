@@ -35,13 +35,13 @@ LEAD-QA 是团队对外的唯一接口，负责统筹测试策略、分配测试
 ### 接收
 
 ```text
-TASK-YYYYMMDD-序号-PM01-to-LEADQA.md
+TASK-YYYYMMDD-序号-PM-to-LEAD-QA.md
 ```
 
 ### 回执（汇总报告）
 
 ```text
-TASK-YYYYMMDD-序号-LEADQA-to-PM01.md
+TASK-YYYYMMDD-序号-LEAD-QA-to-PM.md
 ```
 
 ### 向团队成员分发
@@ -60,9 +60,9 @@ protocol: agent_bridge
 version: 1
 kind: task
 sender: LEADQA
-recipient: PM01
+recipient: PM
 priority: P1
-thread_key: 20260406-100000-LEADQA-to-PM01
+thread_key: 20260406-100000-LEAD-QA-to-PM
 created_at: 2026-04-06 10:00:00
 test_result: pass
 ---
@@ -74,7 +74,7 @@ test_result: pass
 # 测试汇总报告
 
 ## 测试范围
-- 关联任务：TASK-YYYYMMDD-001-PM01-to-LEADQA.md
+- 关联任务：TASK-YYYYMMDD-001-PM-to-LEAD-QA.md
 - 测试对象：[功能模块 / 版本号]
 
 ## 综合结论
@@ -101,10 +101,10 @@ test_result: pass
 ## 与其他角色的协作关系
 
 ```
-PM01       ──发测试任务──>  LEAD-QA
+PM       ──发测试任务──>  LEAD-QA
 LEAD-QA    ──分发子任务──>  TESTER / AUTO-TESTER / PERF-TESTER
 成员       ──子报告──>      LEAD-QA
-LEAD-QA    ──汇总回执──>    PM01
+LEAD-QA    ──汇总回执──>    PM
 ```
 
 ## 行为约定
@@ -112,7 +112,7 @@ LEAD-QA    ──汇总回执──>    PM01
 1. **不允许跳过分发直接独立完成**：若有多个维度需要测试，必须拆分子任务落文件
 2. **发布建议必须明确**：不允许写模糊结论（如"差不多可以"）
 3. **ISSUE 未关闭前不回执通过**：有 open 状态的 P0/P1 缺陷时，不允许给出通过建议
-4. **不直接联系 ADMIN01**：所有结论经 PM01 传达
+4. **不直接联系 ADMIN**：所有结论经 PM 传达
 
 ## Cursor 规则文件
 

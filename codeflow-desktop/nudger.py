@@ -162,7 +162,6 @@ _ROLE_ALIASES: dict[str, str] = {
     "2-DEV": "DEV", "I-DEV": "DEV",
     "3-QA": "QA", "I-QA": "QA",
     "4-OPS": "OPS", "I-OPS": "OPS",
-    "5-E2E": "E2E", "I-E2E": "E2E",
     # ── media-team ──
     "I-COLLECTOR": "COLLECTOR", "1-COLLECTOR": "COLLECTOR",
     "2-WRITER": "WRITER", "I-WRITER": "WRITER",
@@ -185,7 +184,7 @@ _ROLE_ALIASES: dict[str, str] = {
 _PALETTE_ROLE_LABELS: dict[str, str] = {
     # ── dev-team ──
     "PM": "01-PM", "DEV": "02-DEV", "QA": "03-QA",
-    "OPS": "04-OPS", "E2E": "05-E2E",
+    "OPS": "04-OPS",
     # ── media-team ──
     "COLLECTOR": "01-COLLECTOR", "WRITER": "02-WRITER",
     "EDITOR": "03-EDITOR", "PUBLISHER": "04-PUBLISHER",
@@ -490,12 +489,12 @@ def _normalize_role(ocr_role: str) -> str:
 def _role_key_for_task(recipient: str) -> str:
     """任务文件名/OCR标题中的角色名 → 纯角色后缀（去掉所有数字和分隔符）
     例：COLLECTOR / 02-COLLECTOR / COLLECTOR01 → COLLECTOR
-        PM01 / 01-PM → PM
+        PM / 01-PM → PM
     """
     if not recipient:
         return ""
     s = recipient.upper().strip()
-    # 去掉末尾数字（PM01 → PM）
+    # 去掉末尾数字（PM → PM）
     s = re.sub(r"\d+$", "", s)
     # 去掉 XX- 前缀数字（02-COLLECTOR → COLLECTOR）
     s = re.sub(r"^\d+[-_\s]*", "", s)
@@ -1327,7 +1326,7 @@ _WAITING_KEYWORDS_EN = [
 _greeted_roles: set[str] = set()
 
 # ADMIN 是人类操作员，不自动催办 Cursor；其他角色都是 Agent
-_NO_NUDGE_RECIPIENTS = frozenset({"ADMIN01", "ADMIN"})
+_NO_NUDGE_RECIPIENTS = frozenset({"ADMIN", "ADMIN"})
 
 
 def collect_closed_task_ids(config) -> set[str]:
@@ -1434,7 +1433,6 @@ def _role_to_file(role_code: str) -> str:
         "DEV":       "docs/agents/DEV-01.md",
         "OPS":       "docs/agents/OPS-01.md",
         "QA":        "docs/agents/QA-01.md",
-        "E2E":       "docs/agents/E2E-01.md",
         "ADMIN":     "docs/agents/README.md",
         # ── media-team ──
         "COLLECTOR": "docs/agents/COLLECTOR.md",
@@ -2765,7 +2763,7 @@ def _read_team_info(config) -> dict:
         role_defs = cfg.get("roles") or []
         if not role_defs:
             TEAM_TEMPLATES = {
-                "dev-team":   [{"code":"PM"},{"code":"DEV"},{"code":"QA"},{"code":"OPS"},{"code":"E2E"}],
+                "dev-team":   [{"code":"PM"},{"code":"DEV"},{"code":"QA"},{"code":"OPS"}],
                 "media-team": [{"code":"COLLECTOR"},{"code":"WRITER"},{"code":"EDITOR"},{"code":"PUBLISHER"}],
                 "mvp-team":   [{"code":"BUILDER"},{"code":"DESIGNER"},{"code":"MARKETER"},{"code":"RESEARCHER"}],
                 "qa-team":    [{"code":"LEAD-QA"},{"code":"TESTER"},{"code":"AUTO-TESTER"},{"code":"PERF-TESTER"}],
@@ -3032,16 +3030,16 @@ def _handle_admin_command(config, text: str, target_role: str = "",
             except Exception:
                 leader = "PM"
 
-    filename = f"{task_id}-ADMIN01-to-{leader}.md"
+    filename = f"{task_id}-ADMIN-to-{leader}.md"
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     content = (
         f"---\nprotocol: agent_bridge\nversion: 1\nkind: task\n"
-        f"task_id: {task_id}\nsender: ADMIN01\nrecipient: {leader}\n"
+        f"task_id: {task_id}\nsender: ADMIN\nrecipient: {leader}\n"
         f"created_at: {now_str}\npriority: {priority}\n"
-        f"type: admin_command\nsource: ADMIN01-mobile\n---\n\n"
+        f"type: admin_command\nsource: ADMIN-mobile\n---\n\n"
         f"# {text[:60]}\n\n"
         f"- 任务类型：`ADMIN请求`\n"
-        f"- 发送方：`ADMIN01`\n"
+        f"- 发送方：`ADMIN`\n"
         f"- 接收方：`{leader}`\n"
         f"- 优先级：`{priority}`\n"
         f"- 时间：`{now_str}`\n\n"

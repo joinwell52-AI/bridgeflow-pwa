@@ -9,7 +9,7 @@ alwaysApply: true
 
 **CodeFlow** (Chinese name: 码流) is a human-AI collaboration hub for multi-AI-role teams.
 
-- **Phone**: Command center (ADMIN01) — send tasks, view status, scan to bind
+- **Phone**: Command center (ADMIN) — send tasks, view status, scan to bind
 - **PC**: Dedicated execution machine (CodeFlow Desktop) — receive tasks, write files, patrol, bridge
 - **Relay**: Lightweight text event forwarding layer (`wss://your-relay-server/codeflow/ws/`)
 
@@ -20,8 +20,8 @@ alwaysApply: true
 | `CodeFlow` | Application-level name |
 | `agent_bridge` | File collaboration protocol |
 | `codeflow` | Python package / CLI (if present) |
-| `ADMIN01` | Human operator |
-| `PM01/DEV01/OPS01/QA01` | AI execution roles |
+| `ADMIN` | Human operator |
+| `PM/DEV/OPS/QA` | AI execution roles (dev-team) |
 
 ## Directory layout
 
@@ -59,7 +59,7 @@ Outgoing events must include:
 ```json
 {
   "room_key": "...",
-  "sender": "ADMIN01",
+  "sender": "ADMIN",
   "client_type": "mobile_admin",
   "event_type": "...",
   "payload": {}

@@ -29,7 +29,7 @@ This role participates in team collaboration through the `agent_bridge` protocol
 Every text sent by `ADMIN-01` must be saved as:
 
 ```text
-TASK-YYYYMMDD-sequence-ADMIN01-to-PM01.md
+TASK-YYYYMMDD-sequence-ADMIN-to-PM.md
 ```
 
 Messages must not only exist in the chat window.
@@ -40,23 +40,23 @@ In Phase 1, `ADMIN-01` sends text only to `PM-01` by default.
 
 That means:
 
-- Allowed: `ADMIN01 -> PM01`
-- Not supported by default: `ADMIN01 -> DEV01`
-- Not supported by default: `ADMIN01 -> OPS01`
-- Not supported by default: `ADMIN01 -> QA01`
+- Allowed: `ADMIN -> PM`
+- Not supported by default: `ADMIN -> DEV`
+- Not supported by default: `ADMIN -> OPS`
+- Not supported by default: `ADMIN -> QA`
 
 ### 3. Replies Must Also Be Filed
 
 Text from `PM-01` or other roles replying to `ADMIN-01` must also be saved as:
 
 ```text
-TASK-YYYYMMDD-sequence-PM01-to-ADMIN01.md
+TASK-YYYYMMDD-sequence-PM-to-ADMIN.md
 ```
 
 Or:
 
 ```text
-TASK-YYYYMMDD-sequence-DEV01-to-ADMIN01.md
+TASK-YYYYMMDD-sequence-DEV-to-ADMIN.md
 ```
 
 ### 4. Phone Does Not Perform GUI Operations
@@ -76,12 +76,12 @@ Therefore:
 
 1. `ADMIN-01` enters text on the phone
 2. Text reaches the desktop bridge via relay
-3. Desktop bridge writes `TASK-*-ADMIN01-to-PM01.md`
+3. Desktop bridge writes `TASK-*-ADMIN-to-PM.md`
 4. `PM-01` receives and processes
 
 ### Viewing Replies
 
-1. `PM-01` writes `TASK-*-PM01-to-ADMIN01.md`
+1. `PM-01` writes `TASK-*-PM-to-ADMIN.md`
 2. Desktop bridge detects the file
 3. Sends summary to phone via relay
 4. `ADMIN-01` opens details or links on phone
@@ -91,8 +91,8 @@ Therefore:
 When `PM-01` processes tasks from `ADMIN-01`, it must:
 
 1. Clearly reply whether the task is accepted
-2. If decomposition is needed, continue writing `PM01-to-DEV01 / OPS01 / QA01`
-3. Promptly send `PM01-to-ADMIN01` when interim results are available
+2. If decomposition is needed, continue writing `PM-to-DEV / OPS / QA`
+3. Promptly send `PM-to-ADMIN` when interim results are available
 4. Never keep results circulating internally without reporting back to `ADMIN-01`
 
 ## Applicable Scenarios

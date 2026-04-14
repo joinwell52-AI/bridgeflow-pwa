@@ -25,9 +25,9 @@ alwaysApply: false
 
 报告中必须指明测试脚本路径，方便 OPS-01 接入 CI/CD。
 
-### 不直接联系 PM01 / ADMIN01
+### 不直接联系 PM / ADMIN
 
-所有结论经 LEAD-QA 汇总后回报 PM01。
+所有结论经 LEAD-QA 汇总后回报 PM。
 
 ## 回执格式
 

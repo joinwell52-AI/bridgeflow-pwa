@@ -14,7 +14,6 @@ docs/agents/
 ├── DEV-01.md                  # DEV 角色说明
 ├── OPS-01.md                  # OPS 角色说明
 ├── QA-01.md                   # QA 角色说明
-├── E2E-01.md                  # 端到端测试专员
 ├── tasks/                     # 任务文件
 ├── reports/                   # 回执/报告文件
 ├── log/                       # 通知与归档摘要
@@ -44,7 +43,6 @@ docs/agents/
 | 02 | `02-DEV` | `DEV` | `DEV-01.md` | 全栈开发 |
 | 03 | `03-QA` | `QA` | `QA-01.md` | 测试工程师 |
 | 04 | `04-OPS` | `OPS` | `OPS-01.md` | 运维部署 |
-| 05 | `05-E2E` | `E2E` | `E2E-01.md` | 端到端测试 |
 | — | — | `ADMIN` | `ADMIN-01.md` | 真人管理员（不在 Cursor 中） |
 
 ### media-team 角色清单（自媒体内容）
@@ -79,11 +77,11 @@ docs/agents/
 巡检器用 `_role_key_for_task()` 统一提取**纯角色名**做匹配，所有写法都能正确识别：
 
 ```
-PM01           → PM            去尾部数字
+PM           → PM            去尾部数字
 01-PM          → PM            去前缀数字+连字符
 PM-01          → PM            去连字符+尾部数字
 03-QA          → QA
-QA01           → QA
+QA           → QA
 COLLECTOR      → COLLECTOR     已经是纯角色名
 01-COLLECTOR   → COLLECTOR
 AUTO-TESTER    → AUTO-TESTER   保留中间连字符
@@ -92,7 +90,7 @@ AUTO-TESTER    → AUTO-TESTER   保留中间连字符
 
 ### 历史兼容
 
-旧版文件协议使用 `PM01`、`QA01` 作为 sender/recipient，巡检器能正确归一化处理。
+旧版文件协议使用 `PM`、`QA` 作为 sender/recipient，巡检器能正确归一化处理。
 新建任务文件**建议直接用纯角色名**（`PM`、`QA`），也兼容旧格式。
 
 ---
@@ -114,7 +112,7 @@ TASK-YYYYMMDD-序号-发送方-to-接收方.md
 - `TASK-20260401-003-PM-to-DEV.md`
 - `TASK-20260401-004-PM-to-COLLECTOR.md`（media-team 场景）
 
-历史格式也兼容：`TASK-20260401-001-ADMIN01-to-PM01.md`
+历史格式也兼容：`TASK-20260401-001-ADMIN-to-PM.md`
 
 ### 规则
 
@@ -170,7 +168,7 @@ attachments_count: 0
 
 | 团队目录 | 适用场景 | 核心角色 |
 |----------|----------|----------|
-| `dev-team/` | 软件研发团队 | PM, DEV, OPS, QA, E2E, ADMIN |
+| `dev-team/` | 软件研发团队 | PM, DEV, OPS, QA, ADMIN |
 | `media-team/` | 自媒体内容团队 | COLLECTOR, WRITER, EDITOR, PUBLISHER |
 | `mvp-team/` | 快速 MVP 验证 | BUILDER, DESIGNER, MARKETER, RESEARCHER |
 | `qa-team/` | 专项测试 / 质量团队 | LEAD-QA, TESTER, AUTO-TESTER, PERF-TESTER |
@@ -196,11 +194,10 @@ attachments_count: 0
 - 把需求拆给 DEV / OPS / QA
 - 再把结果回给 `ADMIN`
 
-### DEV / OPS / QA / E2E
+### DEV / OPS / QA
 
 - 作为团队内部执行角色
-- 第一阶段不要求手机端直接与这四者沟通
-- `E2E` 专注全链路端到端测试，覆盖 PWA / 中继 / 桌面端 / 文件协议 / AI角色协作流
+- 第一阶段不要求手机端直接与这三者沟通
 
 ## 为什么要这样设计
 

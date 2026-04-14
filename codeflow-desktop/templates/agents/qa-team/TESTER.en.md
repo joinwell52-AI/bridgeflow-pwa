@@ -106,7 +106,7 @@ TESTER   ──defect record──>             issues/ISSUE-*.md
 
 1. **Record actual results for every case** — no pass without details
 2. **Write an ISSUE file for every defect found**
-3. **Never communicate directly with PM01 / ADMIN01**
+3. **Never communicate directly with PM / ADMIN**
 4. **Regression must cover all fixed ISSUEs**
 
 ## Cursor Rule File

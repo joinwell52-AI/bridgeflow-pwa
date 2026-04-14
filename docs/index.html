@@ -2393,7 +2393,7 @@
 
     function sendEvent(eventType, payload) {
       if (!ws || ws.readyState !== WebSocket.OPEN) { appendLog("尚未连接中继"); return false; }
-      ws.send(JSON.stringify({ room_key: ROOM_KEY, sender: "ADMIN01", client_type: "mobile_admin", event_type: eventType, payload: payload || {} }));
+      ws.send(JSON.stringify({ room_key: ROOM_KEY, sender: "ADMIN", client_type: "mobile_admin", event_type: eventType, payload: payload || {} }));
       return true;
     }
 
@@ -2692,7 +2692,7 @@
         updateStatus(t("connected"), "status-ok");
         appendLog(currentLang === "en" ? "Connected to relay" : "已连接到中继");
         updateConnectInfo(t("connected"));
-        sendEvent("hello", { device_id: localMobileDeviceId, device_name: t("mobile"), owner_role: "ADMIN01" });
+        sendEvent("hello", { device_id: localMobileDeviceId, device_name: t("mobile"), owner_role: "ADMIN" });
         requestDeviceRoster();
         if (rosterPolling) clearInterval(rosterPolling);
         rosterPolling = setInterval(requestDeviceRoster, 15000);

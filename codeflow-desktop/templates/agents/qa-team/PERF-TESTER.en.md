@@ -114,7 +114,7 @@ PERF-TESTER  ──issue record──>        issues/ISSUE-*.md
 1. **All metrics must be quantified** — no vague descriptions like "response is fast"
 2. **Results must compare against target values**
 3. **Test script path is required** in every report
-4. **Never communicate directly with PM01 / ADMIN01**
+4. **Never communicate directly with PM / ADMIN**
 
 ## Cursor Rule File
 

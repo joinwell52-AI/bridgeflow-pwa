@@ -7,12 +7,12 @@ CodeFlow (码流)
 Command your AI dev team from your phone. Open source.
 
 ## Alternative Taglines
+- CDP-powered AI agent patrol — 10ms response, 100% accuracy
 - One person, one AI team, shipping real products
 - Filename as Protocol — the simplest multi-agent orchestration
-- Turn Cursor IDE into a self-healing AI factory
 
 ## Description (260 chars)
-CodeFlow orchestrates multi-role AI teams (PM/DEV/QA/OPS) in Cursor IDE. Send tasks from your phone, agents execute on PC, everything is a markdown file. Self-healing patrol, 3 team templates, bilingual. 87 person-days done in 17 days.
+CodeFlow orchestrates multi-role AI teams (PM/DEV/QA/OPS) in Cursor IDE. CDP patrol engine reads DOM in 10ms — 60x faster than OCR. Send tasks from phone, agents execute on PC, everything is a markdown file. 3 team templates, bilingual, self-healing.
 
 ## Topics
 - Developer Tools
@@ -34,22 +34,38 @@ Hi Product Hunt! I'm the maker of CodeFlow.
 
 I started by writing a tutorial on how to run a 4-role AI team in Cursor IDE. The result was surprising: 87 person-days of work completed in 17 days, 91 production deployments, zero incidents.
 
-But the setup was manual — you had to configure everything yourself. So I built CodeFlow to make it one-click:
+But the setup was manual and fragile. OCR-based agent monitoring was slow (300-800ms) and only ~90% accurate. So I rebuilt the entire patrol engine on **Chrome DevTools Protocol (CDP)**.
 
-**Download EXE → double-click → scan QR on phone → send tasks**
+### What CDP changed:
 
-The core innovation is "Filename as Protocol" — every task is a markdown file like `TASK-20260414-003-PM01-to-DEV01.md`. The filename itself contains all routing information. No databases, no message queues, no config code.
+| | OCR (before) | CDP (now) |
+|---|---|---|
+| Accuracy | ~90% | **100%** |
+| Latency | 300-800ms | **10-15ms** |
+| Agent detection | Screenshot guessing | DOM query exact match |
+| Click method | Screen coordinates | Native browser events |
 
-What I'm most proud of:
-- **Self-healing**: The desktop app watches Cursor via OCR. If the UI freezes, it auto-reloads the window. Your agents never stay stuck.
-- **Team templates**: dev-team, media-team, mvp-team — one MCP command to set up
-- **Phone control**: Send "do a security audit" from your couch, come back to find the report
+CDP reads Cursor's DOM directly — `div[role="tab"]` for agent tabs, `aria-selected` for active state, Stop button visibility for busy detection. Every CDP step auto-degrades to OCR if anything fails. Zero stuck states.
 
-MIT licensed, fully open source. Try the PWA right now on your phone:
+### The full stack:
+
+- **Desktop EXE** (v2.10.0): CDP patrol engine monitors all agents, auto-nudges stuck tasks, self-heals frozen Cursor windows
+- **Phone PWA**: Send "do a security audit" from your couch, come back to find the report
+- **MCP Plugin**: Init teams, dispatch tasks, read reports — all from Cursor chat
+- **Protocol**: Every task is `TASK-20260414-003-PM-to-DEV.md`. The filename IS the routing. No databases, no message queues.
+
+3 team templates (dev/media/mvp), full EN+ZH bilingual, MIT licensed.
+
+Try the PWA right now on your phone:
 https://joinwell52-ai.github.io/codeflow-pwa/
+
+CDP technical deep-dive:
+https://github.com/joinwell52-AI/codeflow-pwa/blob/main/docs/cdp-multi-agent.md
 
 Would love your feedback!
 
 ## Links
 - Website: https://joinwell52-ai.github.io/codeflow-pwa/promotion/
 - GitHub: https://github.com/joinwell52-AI/codeflow-pwa
+- CDP Tech Doc: https://github.com/joinwell52-AI/codeflow-pwa/blob/main/docs/cdp-multi-agent.md
+- Desktop Download: https://github.com/joinwell52-AI/codeflow-pwa/releases
