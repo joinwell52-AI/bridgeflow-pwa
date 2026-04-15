@@ -105,6 +105,40 @@ For full documentation, see [English](README.en.md) | [中文](README.zh.md).
 
 ---
 
+### Development / 开发
+
+Want to build from source or contribute? See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+```bash
+# Desktop (Python 3.12, Windows)
+cd codeflow-desktop
+pip install pyautogui pyperclip pywin32 websockets winocr Pillow watchdog psutil
+python main.py
+
+# PWA (no build step)
+python -m http.server 8080 -d web/pwa
+```
+
+Project structure:
+```
+codeflow-desktop/    # Desktop app (Python → EXE)
+codeflow-plugin/     # Cursor MCP plugin
+web/pwa/             # PWA (HTML/JS, no framework)
+docs/                # Bilingual documentation
+server/relay/        # WebSocket relay
+```
+
+---
+
+### Community / 社区
+
+- [Contributing Guide / 贡献指南](CONTRIBUTING.md)
+- [Code of Conduct / 行为准则](CODE_OF_CONDUCT.md)
+- [Security Policy / 安全策略](SECURITY.md)
+- [Discussions / 讨论区](https://github.com/joinwell52-AI/codeflow-pwa/discussions)
+
+---
+
 ### License
 
 MIT License. © 2026 joinwell52-AI

@@ -36,8 +36,6 @@ coverage.xml
 .pyright/
 
 # ── 构建产物 ──
-dist/
-build/
 *.whl
 *.tar.gz
 
@@ -46,7 +44,6 @@ node_modules/
 .nuxt/
 .next/
 .output/
-dist/
 
 # ── IDE ──
 .idea/

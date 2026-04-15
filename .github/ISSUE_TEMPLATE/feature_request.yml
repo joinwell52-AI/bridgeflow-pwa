@@ -1,0 +1,42 @@
+name: "Feature Request / 功能建议"
+description: "Suggest a new feature / 提出功能建议"
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We'd love to hear your ideas! / 期待你的想法！
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: "Component / 组件"
+      options:
+        - Desktop (EXE)
+        - PWA (Mobile)
+        - MCP Plugin
+        - Relay Server
+        - Agent Roles / Rules
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Problem / 遇到的问题"
+      placeholder: "What problem does this solve? / 这个功能解决什么问题？"
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: "Proposed Solution / 建议方案"
+      placeholder: "How should it work? / 期望如何工作？"
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Alternatives Considered / 备选方案"
+      placeholder: "Any other approaches? / 还有其他方案吗？"
