@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
@@ -2358,7 +2358,8 @@
       _agentMonitorEl.classList.add("visible");
       if (_agentMonitorOverlayEl) _agentMonitorOverlayEl.classList.add("visible");
       if (ws && ws.readyState === WebSocket.OPEN) {
-        sendEvent("request_agent_live", {});
+        const did = _pcDeviceId();
+        sendEvent("request_agent_live", did ? { target_device_id: did } : {});
       }
     }
 

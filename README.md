@@ -1,4 +1,4 @@
-﻿# How to Build an Automated AI Team with Cursor
+# How to Build an Automated AI Team with Cursor
 
 ## 如何在 Cursor 中搭建 AI 自动化团队
 
