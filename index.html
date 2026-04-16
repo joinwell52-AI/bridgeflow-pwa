@@ -1148,7 +1148,15 @@
       else if (f === "progress") allItems = allItems.filter(isTaskInProgress);
       else if (f === "done") allItems = allItems.filter(isTaskDone);
 
-      allItems = allItems.filter(item => (item.dir || "tasks") === _taskListDirFilter);
+      if (_taskListDirFilter === "reports") {
+        // reports tab：显示含有 reports 消息的记录，或 dir 本身是 reports 的
+        allItems = allItems.filter(item =>
+          (item.dir || "tasks") === "reports" ||
+          (Array.isArray(item.messages) && item.messages.some(m => (m.dir || "tasks") === "reports"))
+        );
+      } else {
+        allItems = allItems.filter(item => (item.dir || "tasks") === _taskListDirFilter);
+      }
 
       fullTaskListEl.innerHTML = allItems.length ? allItems.map((item) => {
         const progress = mapProgress(item.progress);
