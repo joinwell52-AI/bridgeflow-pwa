@@ -2998,7 +2998,10 @@
           renderDevices(data.payload?.devices || []);
           const pcNow = !!_pcDeviceId();
             if (pcNow) {
-            if (!_pcWasOnline) appendLog(currentLang === "en" ? "PC online" : "PC 已上线");
+            if (!_pcWasOnline) {
+              appendLog(currentLang === "en" ? "PC online" : "PC 已上线");
+              addMsgRecord("sys", currentLang === "en" ? "PC online" : "PC 已上线");
+            }
             _pcWasOnline = true;
             updateHeaderStatus();
             requestDashboard();
