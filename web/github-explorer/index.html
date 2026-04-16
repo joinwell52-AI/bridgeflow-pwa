@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitHub 开源仓库排行榜</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0d1117;--surface:#161b22;--border:#30363d;
+  --text:#e6edf3;--muted:#8b949e;--accent:#58a6ff;
+  --green:#3fb950;--yellow:#d29922;--red:#f85149;
+  --purple:#bc8cff;--orange:#ffa657;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 20px;position:sticky;top:0;z-index:100}
+.header h1{font-size:18px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.header h1 span{font-size:20px}
+.search-row{display:flex;gap:8px;flex-wrap:wrap}
+.search-box{flex:1;min-width:200px;display:flex;gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--bg)}
+.search-box input{flex:1;background:transparent;border:none;padding:10px 14px;color:var(--text);font-size:14px;outline:none}
+.search-box input::placeholder{color:var(--muted)}
+.btn{padding:10px 16px;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:#79c0ff}
+.btn-primary:disabled{background:#21262d;color:var(--muted);cursor:not-allowed}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.filter-label{font-size:12px;color:var(--muted)}
+.filter-group{display:flex;gap:4px}
+.chip{padding:4px 10px;border:1px solid var(--border);border-radius:20px;font-size:12px;cursor:pointer;color:var(--muted);background:transparent;transition:all .15s}
+.chip.active{border-color:var(--accent);color:var(--accent);background:rgba(88,166,255,.1)}
+.chip:hover:not(.active){border-color:var(--muted)}
+.stats-bar{padding:10px 20px;display:flex;gap:16px;align-items:center;border-bottom:1px solid var(--border);font-size:13px;flex-wrap:wrap}
+.stat-item{display:flex;align-items:center;gap:6px;color:var(--muted)}
+.stat-item strong{color:var(--text)}
+.sort-tabs{margin-left:auto;display:flex;gap:4px}
+.sort-tab{padding:4px 12px;border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;color:var(--muted);background:transparent}
+.sort-tab.active{border-color:var(--accent);color:var(--accent);background:rgba(88,166,255,.1)}
+.container{padding:12px 20px;max-width:900px;margin:0 auto}
+.repo-grid{display:flex;flex-direction:column;gap:10px}
+.repo-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;transition:border-color .15s;cursor:pointer;text-decoration:none;display:block;color:inherit}
+.repo-card:hover{border-color:var(--accent)}
+.repo-header{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px}
+.rank{font-size:18px;font-weight:700;color:var(--muted);min-width:32px;text-align:center;line-height:1.2}
+.rank.top1{color:#ffd700}
+.rank.top2{color:#c0c0c0}
+.rank.top3{color:#cd7f32}
+.repo-info{flex:1;min-width:0}
+.repo-name{font-size:15px;font-weight:600;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.repo-full{font-size:12px;color:var(--muted);margin-top:1px}
+.repo-desc{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.repo-meta{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.meta-item{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted)}
+.meta-item svg{flex-shrink:0}
+.lang-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.badge{padding:2px 8px;border-radius:12px;font-size:11px;font-weight:500}
+.badge-star{background:rgba(210,153,34,.15);color:var(--yellow)}
+.badge-fork{background:rgba(63,185,80,.15);color:var(--green)}
+.badge-watch{background:rgba(188,140,255,.15);color:var(--purple)}
+.topics{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.topic{padding:2px 8px;border-radius:12px;font-size:11px;background:rgba(88,166,255,.1);color:var(--accent);border:1px solid rgba(88,166,255,.2)}
+.empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty .icon{font-size:48px;margin-bottom:12px}
+.empty p{font-size:14px;line-height:1.6}
+.loading{text-align:center;padding:40px;color:var(--muted)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.progress-bar{height:3px;background:var(--border);border-radius:2px;margin-top:8px;overflow:hidden}
+.progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .3s}
+.error-msg{background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.3);border-radius:8px;padding:12px 16px;color:var(--red);font-size:13px;margin:12px 0}
+.token-tip{background:rgba(210,153,34,.08);border:1px solid rgba(210,153,34,.3);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--yellow);margin-top:8px;line-height:1.6}
+.token-tip a{color:var(--accent)}
+.token-row{display:flex;gap:8px;margin-top:6px}
+.token-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:12px;outline:none;font-family:monospace}
+.rate-info{font-size:11px;color:var(--muted);margin-top:4px}
+.rate-ok{color:var(--green)}
+.rate-warn{color:var(--yellow)}
+.rate-bad{color:var(--red)}
+.load-more{text-align:center;margin:16px 0}
+@media(max-width:600px){
+  .header{padding:12px 14px}
+  .container{padding:10px 12px}
+  .stats-bar{padding:8px 14px}
+  .sort-tabs{margin-left:0;width:100%}
+  .repo-card{padding:12px}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span>📊</span> GitHub 开源仓库排行榜</h1>
+  <div class="search-row">
+    <div class="search-box">
+      <input type="text" id="keyword" placeholder="输入关键词，如 cursor、ai-agent、mcp..." value="cursor" autocomplete="off">
+    </div>
+    <button class="btn btn-primary" id="searchBtn" onclick="startSearch()">搜索</button>
+  </div>
+  <div class="filters">
+    <span class="filter-label">最低 Star：</span>
+    <div class="filter-group" id="starFilter">
+      <button class="chip" data-val="0" onclick="setFilter('star',0)">全部</button>
+      <button class="chip active" data-val="10" onclick="setFilter('star',10)">10+</button>
+      <button class="chip" data-val="100" onclick="setFilter('star',100)">100+</button>
+      <button class="chip" data-val="500" onclick="setFilter('star',500)">500+</button>
+      <button class="chip" data-val="1000" onclick="setFilter('star',1000)">1k+</button>
+    </div>
+    <span class="filter-label" style="margin-left:8px">更新：</span>
+    <div class="filter-group" id="dateFilter">
+      <button class="chip" data-val="" onclick="setFilter('date','')">不限</button>
+      <button class="chip active" data-val="2024-01-01" onclick="setFilter('date','2024-01-01')">近2年</button>
+      <button class="chip" data-val="2025-01-01" onclick="setFilter('date','2025-01-01')">近1年</button>
+    </div>
+  </div>
+  <div class="token-tip" id="tokenTip">
+    ⚡ 未认证：60次/小时限额。输入 <a href="https://github.com/settings/tokens" target="_blank">GitHub Token</a> 可提升到 5000次：
+    <div class="token-row">
+      <input type="password" class="token-input" id="tokenInput" placeholder="ghp_xxxxxxxxxxxx（可选）">
+      <button class="btn btn-primary" style="padding:6px 12px;font-size:12px" onclick="saveToken()">保存</button>
+    </div>
+    <div class="rate-info" id="rateInfo"></div>
+  </div>
+</div>
+
+<div class="stats-bar" id="statsBar" style="display:none">
+  <div class="stat-item">🔍 关键词：<strong id="statKeyword"></strong></div>
+  <div class="stat-item">📦 找到：<strong id="statCount"></strong> 个仓库</div>
+  <div class="stat-item">⏱ 耗时：<strong id="statTime"></strong></div>
+  <div class="sort-tabs">
+    <button class="sort-tab active" onclick="setSort('stars')">⭐ Star</button>
+    <button class="sort-tab" onclick="setSort('forks')">🔱 Fork</button>
+    <button class="sort-tab" onclick="setSort('updated')">📅 更新</button>
+  </div>
+</div>
+
+<div class="container">
+  <div id="main">
+    <div class="empty">
+      <div class="icon">🔭</div>
+      <p>输入关键词开始搜索<br><span style="font-size:12px;opacity:.6">搜索策略：topic标签 → 名称匹配 → 描述匹配，自动去重合并</span></p>
+    </div>
+  </div>
+</div>
+
+<script>
+let allRepos = [];
+let sortBy = 'stars';
+let filterStar = 10;
+let filterDate = '2024-01-01';
+let ghToken = localStorage.getItem('gh_token') || '';
+let currentPage = 0;
+const PAGE_SIZE = 30;
+
+const LANG_COLORS = {
+  JavaScript:'#f1e05a',TypeScript:'#3178c6',Python:'#3572A5',
+  Go:'#00ADD8',Rust:'#dea584',Java:'#b07219',
+  'C++':'#f34b7d','C#':'#178600',Ruby:'#701516',
+  Swift:'#fa7343',Kotlin:'#A97BFF',Shell:'#89e051',
+  HTML:'#e34c26',CSS:'#563d7c',Vue:'#41b883',
+  React:'#61dafb',Dart:'#00B4AB',PHP:'#777bb4',
+};
+
+if(ghToken){
+  document.getElementById('tokenInput').value = ghToken;
+  checkRate();
+}
+
+document.getElementById('keyword').addEventListener('keydown', e => {
+  if(e.key === 'Enter') startSearch();
+});
+
+function saveToken(){
+  ghToken = document.getElementById('tokenInput').value.trim();
+  localStorage.setItem('gh_token', ghToken);
+  checkRate();
+}
+
+async function checkRate(){
+  try{
+    const h = ghToken ? {'Authorization':'token '+ghToken} : {};
+    const r = await fetch('https://api.github.com/rate_limit', {headers:h});
+    const d = await r.json();
+    const {remaining, limit, reset} = d.rate_limit || d.resources?.core || {};
+    const resetTime = new Date(reset*1000).toLocaleTimeString();
+    const el = document.getElementById('rateInfo');
+    const cls = remaining > 100 ? 'rate-ok' : remaining > 10 ? 'rate-warn' : 'rate-bad';
+    el.className = 'rate-info ' + cls;
+    el.textContent = `剩余配额：${remaining}/${limit}，${resetTime} 重置`;
+  }catch(e){}
+}
+
+function setFilter(type, val){
+  if(type === 'star'){
+    filterStar = val;
+    document.querySelectorAll('#starFilter .chip').forEach(c => c.classList.toggle('active', +c.dataset.val === val));
+  } else {
+    filterDate = val;
+    document.querySelectorAll('#dateFilter .chip').forEach(c => c.classList.toggle('active', c.dataset.val === val));
+  }
+}
+
+function setSort(s){
+  sortBy = s;
+  document.querySelectorAll('.sort-tab').forEach(t => t.classList.toggle('active', t.textContent.toLowerCase().includes(s)));
+  renderRepos();
+}
+
+async function startSearch(){
+  const kw = document.getElementById('keyword').value.trim();
+  if(!kw) return;
+  allRepos = [];
+  currentPage = 0;
+  document.getElementById('statsBar').style.display = 'none';
+  document.getElementById('searchBtn').disabled = true;
+  document.getElementById('searchBtn').textContent = '搜索中...';
+  document.getElementById('main').innerHTML = `
+    <div class="loading">
+      <div class="spinner"></div>
+      <div>正在搜索 "${kw}"...</div>
+      <div class="progress-bar"><div class="progress-fill" id="prog" style="width:0%"></div></div>
+      <div style="font-size:12px;color:var(--muted);margin-top:8px" id="progText">分层搜索中，请稍候...</div>
+    </div>`;
+
+  const t0 = Date.now();
+  const seen = new Set();
+
+  // 三层搜索策略
+  const queries = [
+    {q:`topic:${kw}`, label:'topic 标签'},
+    {q:`${kw} in:name`, label:'名称匹配'},
+    {q:`${kw} in:description`, label:'描述匹配'},
+  ];
+
+  const starQ = filterStar > 0 ? `+stars:>=${filterStar}` : '';
+  const dateQ = filterDate ? `+pushed:>=${filterDate}` : '';
+
+  for(let i=0; i<queries.length; i++){
+    const {q, label} = queries[i];
+    setProgress((i/queries.length)*90, `${label}（${i+1}/${queries.length}）...`);
+    try{
+      await searchPage(q + starQ + dateQ, seen, 2);
+    }catch(e){
+      console.warn('搜索失败:', q, e);
+    }
+    await sleep(300);
+  }
+
+  setProgress(100, '完成');
+  const elapsed = ((Date.now()-t0)/1000).toFixed(1);
+
+  // 更新统计栏
+  document.getElementById('statsBar').style.display = 'flex';
+  document.getElementById('statKeyword').textContent = kw;
+  document.getElementById('statCount').textContent = allRepos.length;
+  document.getElementById('statTime').textContent = elapsed + 's';
+
+  document.getElementById('searchBtn').disabled = false;
+  document.getElementById('searchBtn').textContent = '搜索';
+  checkRate();
+  renderRepos();
+}
+
+async function searchPage(q, seen, maxPages=2){
+  for(let page=1; page<=maxPages; page++){
+    const url = `https://api.github.com/search/repositories?q=${encodeURIComponent(q)}&sort=stars&order=desc&per_page=50&page=${page}`;
+    const headers = {'Accept':'application/vnd.github+json'};
+    if(ghToken) headers['Authorization'] = 'token ' + ghToken;
+
+    const r = await fetch(url, {headers});
+    if(r.status === 403){
+      const reset = r.headers.get('X-RateLimit-Reset');
+      throw new Error('API 限额已用完，请等待重置或添加 Token');
+    }
+    if(!r.ok) break;
+
+    const d = await r.json();
+    const items = d.items || [];
+    for(const item of items){
+      if(!seen.has(item.id)){
+        seen.add(item.id);
+        allRepos.push(item);
+      }
+    }
+    if(items.length < 50) break;
+    await sleep(200);
+  }
+}
+
+function setProgress(pct, text){
+  const el = document.getElementById('prog');
+  const tel = document.getElementById('progText');
+  if(el) el.style.width = pct + '%';
+  if(tel) tel.textContent = text;
+}
+
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+function renderRepos(){
+  let repos = [...allRepos];
+
+  // 排序
+  if(sortBy === 'stars') repos.sort((a,b) => b.stargazers_count - a.stargazers_count);
+  else if(sortBy === 'forks') repos.sort((a,b) => b.forks_count - a.forks_count);
+  else repos.sort((a,b) => new Date(b.pushed_at) - new Date(a.pushed_at));
+
+  if(repos.length === 0){
+    document.getElementById('main').innerHTML = `
+      <div class="empty">
+        <div class="icon">😕</div>
+        <p>没有找到符合条件的仓库<br><span style="font-size:12px;opacity:.6">试试减少筛选条件</span></p>
+      </div>`;
+    return;
+  }
+
+  const show = repos.slice(0, PAGE_SIZE);
+  document.getElementById('main').innerHTML = `
+    <div class="repo-grid" id="repoGrid">${show.map((r,i) => repoCard(r,i+1)).join('')}</div>
+    ${repos.length > PAGE_SIZE ? `<div class="load-more"><button class="btn btn-primary" onclick="loadMore()">加载更多（${repos.length - PAGE_SIZE} 个）</button></div>` : ''}
+  `;
+  currentPage = 1;
+  window._sortedRepos = repos;
+}
+
+function loadMore(){
+  const repos = window._sortedRepos || [];
+  const start = currentPage * PAGE_SIZE;
+  const more = repos.slice(start, start + PAGE_SIZE);
+  const grid = document.getElementById('repoGrid');
+  if(grid && more.length){
+    more.forEach((r,i) => {
+      grid.insertAdjacentHTML('beforeend', repoCard(r, start+i+1));
+    });
+    currentPage++;
+    const btn = document.querySelector('.load-more button');
+    const remain = repos.length - currentPage * PAGE_SIZE;
+    if(btn) {
+      if(remain > 0) btn.textContent = `加载更多（${remain} 个）`;
+      else btn.parentElement.remove();
+    }
+  }
+}
+
+function repoCard(r, rank){
+  const stars = fmtNum(r.stargazers_count);
+  const forks = fmtNum(r.forks_count);
+  const updated = fmtDate(r.pushed_at);
+  const langColor = LANG_COLORS[r.language] || '#8b949e';
+  const rankCls = rank===1?'top1':rank===2?'top2':rank===3?'top3':'';
+  const topics = (r.topics||[]).slice(0,4).map(t=>`<span class="topic">${t}</span>`).join('');
+  const desc = r.description ? escHtml(r.description) : '<span style="opacity:.4">暂无描述</span>';
+
+  return `
+  <a class="repo-card" href="${r.html_url}" target="_blank" rel="noopener">
+    <div class="repo-header">
+      <div class="rank ${rankCls}">#${rank}</div>
+      <div class="repo-info">
+        <div class="repo-name">${escHtml(r.name)}</div>
+        <div class="repo-full">${escHtml(r.full_name)}</div>
+      </div>
+    </div>
+    <div class="repo-desc">${desc}</div>
+    <div class="repo-meta">
+      ${r.language ? `<span class="meta-item"><span class="lang-dot" style="background:${langColor}"></span>${escHtml(r.language)}</span>` : ''}
+      <span class="badge badge-star">⭐ ${stars}</span>
+      <span class="badge badge-fork">🔱 ${forks}</span>
+      <span class="meta-item" style="margin-left:auto">📅 ${updated}</span>
+    </div>
+    ${topics ? `<div class="topics">${topics}</div>` : ''}
+  </a>`;
+}
+
+function fmtNum(n){
+  if(n >= 1000) return (n/1000).toFixed(1) + 'k';
+  return n.toString();
+}
+
+function fmtDate(s){
+  const d = new Date(s);
+  const now = new Date();
+  const diff = (now - d) / 1000;
+  if(diff < 3600) return Math.floor(diff/60) + ' 分钟前';
+  if(diff < 86400) return Math.floor(diff/3600) + ' 小时前';
+  if(diff < 2592000) return Math.floor(diff/86400) + ' 天前';
+  if(diff < 31536000) return Math.floor(diff/2592000) + ' 月前';
+  return Math.floor(diff/31536000) + ' 年前';
+}
+
+function escHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
