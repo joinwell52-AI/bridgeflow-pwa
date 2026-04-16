@@ -19,6 +19,8 @@
 ::    - gh CLI 已安装并登录（gh auth login）
 ::    - .gitee_token 文件存在（或 GITEE_TOKEN 环境变量）
 ::    - git remote: origin / gitee / backup 已配置
+::    - promotion/index.html 必须在仓库根目录（旧链接保活）
+::    - 使用 D:\Git\cmd\git.exe（系统 git），避免 Cursor 注入 --trailer 报错
 :: ══════════════════════════════════════════════════════════════
 
 cd /d "%~dp0"
@@ -92,6 +94,17 @@ if exist "%GITEE_TOKEN_FILE%" (
     set GITEE_TK=
 )
 
+:: 检查推广页是否在仓库根目录（防止路径乱掉导致旧链接 404）
+if not exist "..\promotion\index.html" (
+    echo.
+    echo  [错误] 推广页 promotion/index.html 不在仓库根目录！
+    echo  旧链接 https://joinwell52-ai.github.io/codeflow-pwa/promotion/ 会 404
+    echo  请确保 promotion/index.html 存在于仓库根目录后再发版。
+    echo.
+    exit /b 1
+)
+echo   √ promotion/index.html 路径正确
+
 echo [1/8] 前置检查通过 ✓
 echo.
 
@@ -126,12 +139,12 @@ echo.
 :: ══════════════════════════════════════════════════════════════
 echo [4/8] 提交代码并打 tag %TAG%...
 cd /d "%~dp0\.."
-git add -A
-git commit -m "release: CodeFlow Desktop %TAG%"
+D:\Git\cmd\git.exe add -A
+D:\Git\cmd\git.exe commit -m "release: CodeFlow Desktop %TAG%"
 if errorlevel 1 (
     echo   提示：无新改动需要提交，继续...
 )
-git tag -a %TAG% -m "CodeFlow Desktop %TAG%" 2>nul
+D:\Git\cmd\git.exe tag -a %TAG% -m "CodeFlow Desktop %TAG%" 2>nul
 if errorlevel 1 (
     echo   提示：tag %TAG% 已存在，继续...
 )
@@ -142,8 +155,8 @@ echo.
 ::  [5/8] git push origin（GitHub 主仓）
 :: ══════════════════════════════════════════════════════════════
 echo [5/8] 推送到 GitHub (origin)...
-git push origin main
-git push origin %TAG%
+D:\Git\cmd\git.exe push origin main
+D:\Git\cmd\git.exe push origin %TAG%
 if errorlevel 1 (
     echo  [警告] origin push 可能失败，请检查网络
 )
@@ -177,7 +190,7 @@ echo [7/8] 同步到 Gitee (国内镜像)...
 cd /d "%~dp0\.."
 
 :: 推送代码和 tag
-git push gitee main --tags 2>nul
+D:\Git\cmd\git.exe push gitee main --tags 2>nul
 if errorlevel 1 (
     echo   [警告] gitee push 部分失败（可能有已存在的 tag）
 )
@@ -201,7 +214,7 @@ echo.
 :: ══════════════════════════════════════════════════════════════
 echo [8/8] 同步到 backup 仓库...
 cd /d "%~dp0\.."
-git push backup main --tags 2>nul
+D:\Git\cmd\git.exe push backup main --tags 2>nul
 if errorlevel 1 (
     echo   [警告] backup push 部分失败
 )
