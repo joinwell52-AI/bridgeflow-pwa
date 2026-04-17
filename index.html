@@ -3252,7 +3252,7 @@
 
     const connectBtnEl = document.getElementById("connectBtn");
     const disconnectBtnEl = document.getElementById("disconnectBtn");
-    const refreshBtnEl = document.getElementById("refreshBtn");
+    const refreshBtnEl = null; // headerRefreshBtn 已在下方单独绑定
     const newThreadBtnEl = document.getElementById("newThreadBtn");
     if (connectBtnEl) connectBtnEl.onclick = () => connect(false);
     if (disconnectBtnEl) disconnectBtnEl.onclick = disconnect;
