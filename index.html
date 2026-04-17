@@ -1174,14 +1174,8 @@
       }
       const f = _taskListFilter;
       if (f === "reply") {
-        // 今日回复：只取发给 ADMIN 的交付报告（排除角色间中间报告）
-        allItems = taskItems.filter(i => {
-          const isReport = (i.dir || "") === "reports";
-          const recip = String(i.recipient || "").toUpperCase();
-          const fn = String(i.filename || "").toUpperCase();
-          const isToAdmin = recip.includes("ADMIN") || /TO-ADMIN/i.test(fn);
-          return isReport && isToAdmin;
-        });
+        // 今日回复：所有报告，含 agent 间中间报告（DEV→PM、QA→PM 等）
+        allItems = taskItems.filter(i => (i.dir || "") === "reports");
       } else if (f === "done") {
         // 已完成：ADMIN 收到的 reports（recipient=ADMIN 的交付报告）
         allItems = taskItems.filter(i => {
@@ -2943,8 +2937,7 @@
       const running = !!payload.patrol_running;
 
       const todayTasks = payload.today_tasks ?? tasks.filter(f => f.today).length;
-      // 只统计发给 ADMIN 的报告作为今日回复数
-      const todayReports = payload.today_reports ?? reports.filter(f => f.today && /to-admin/i.test(f.filename || "")).length;
+      const todayReports = payload.today_reports ?? reports.filter(f => f.today).length;
       const todayIssues = payload.today_issues ?? issues.filter(f => f.today).length;
 
       document.getElementById("todayTasks").textContent = String(todayTasks);
