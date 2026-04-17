@@ -2324,7 +2324,7 @@
         `;
       }).join("");
       listEl.querySelectorAll(".task-card").forEach((node) => {
-        node.onclick = () => openTaskListPage(null, selectedRole);
+        node.onclick = () => openTaskDetailPage(node.dataset.file);
       });
     }
 
