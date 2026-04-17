@@ -3009,8 +3009,8 @@ def _build_dashboard(config, nudger: Nudger) -> dict:
         "leader": team_info.get("leader", ""),
         "stats": {
             "today_tasks": tasks_count,
-            # 今日回复 = 只统计发给 ADMIN 的报告（交付报告），不含角色间中间报告
-            "today_replies": sum(1 for i in items if i.get("dir") == "reports" and "ADMIN" in str(i.get("recipient", "")).upper()),
+            # 今日回复 = 所有报告（含 agent 间中间报告）
+            "today_replies": reports_count,
             "in_progress_threads": sum(1 for i in items if i.get("progress") in ("pending", "in_progress")),
             "replied_threads": sum(1 for i in items if i.get("dir") == "reports" and "ADMIN" in str(i.get("recipient", "")).upper()),
             "nudge_ok": stats.get("nudge_ok", 0),
