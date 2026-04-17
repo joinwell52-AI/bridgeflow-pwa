@@ -2778,9 +2778,23 @@
       return true;
     }
 
+    let _dashboardThrottleTimer = null;
+    let _dashboardLastSent = 0;
     function requestDashboard() {
+      const now = Date.now();
+      // 3 秒内只发一次，避免日志刷屏
+      if (now - _dashboardLastSent < 3000) {
+        if (!_dashboardThrottleTimer) {
+          _dashboardThrottleTimer = setTimeout(() => {
+            _dashboardThrottleTimer = null;
+            requestDashboard();
+          }, 3000 - (now - _dashboardLastSent));
+        }
+        return;
+      }
       const target = currentTargetDevice() || onlineDevices.find((item) => normalizeRole(item.owner_role) === preferredContextRole()) || onlineDevices[0];
-      if (!target) { appendLog("暂无可用设备，无法刷新任务"); return; }
+      if (!target) { return; }
+      _dashboardLastSent = now;
       sendEvent("request_dashboard", { target_device_id: target.device_id });
     }
 
@@ -3081,9 +3095,8 @@
         requestDeviceRoster();
         if (rosterPolling) clearInterval(rosterPolling);
         rosterPolling = setInterval(requestDeviceRoster, 15000);
-        // 连接成功后主动拉一次 dashboard（不依赖 roster 先到）
-        setTimeout(() => requestDashboard(), 1500);
-        setTimeout(() => requestDashboard(), 4000);
+        // 连接成功后主动拉一次 dashboard（roster 回来后也会拉，节流合并）
+        setTimeout(() => requestDashboard(), 2000);
       };
       const _silentEvents = new Set(["pong","patrol_state","device_roster","bind_state","file_list","patrol_trace","agent_live_state"]);
       ws.onmessage = (event) => {
@@ -3109,11 +3122,8 @@
             }
             _pcWasOnline = true;
             updateHeaderStatus();
-            requestDashboard();
-            // PC 刚上线时连接可能未稳定，递增重试 2s/5s/12s
-            setTimeout(() => requestDashboard(), 2000);
-            setTimeout(() => requestDashboard(), 5000);
-            setTimeout(() => requestDashboard(), 12000);
+            // PC 上线后稍等再拉，节流函数会自动合并重复请求
+            setTimeout(() => requestDashboard(), 1000);
             requestPatrolStatus();
             if (!patrolPolling) patrolPolling = setInterval(requestPatrolStatus, 30000);
             startTracePolling();
