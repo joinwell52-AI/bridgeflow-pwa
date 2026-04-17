@@ -1,5 +1,7 @@
 # 码流（CodeFlow）— 软件开发团队
 
+> **主控角色：01-PM** | 各模板对比：dev-team=PM / mvp-team=MARKETER / media-team=PUBLISHER / qa-team=LEAD-QA
+
 ## 团队构成
 
 | 角色 | 代码 | 职责 |
