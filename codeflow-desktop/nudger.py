@@ -2774,31 +2774,42 @@ async def relay_client(config, nudger: Nudger, stop_event: asyncio.Event | None 
                             # ── 执行切换 ──
                             if target_role:
                                 role_key = _normalize_role(target_role).upper()
+                                # 尝试找完整 label（如 "01-PM"），命令面板搜索更精准
+                                full_label = _UI_LABELS.get(role_key) or role_key
                                 _sw_clicked = False
-                                # ① CDP 通道
-                                try:
-                                    from cursor_cdp import is_cdp_available as _cdp_avail2
-                                    if _cdp_avail2():
-                                        from cursor_cdp import click_role as _cdp_click2
-                                        _sw_clicked = await asyncio.get_event_loop().run_in_executor(
-                                            None, lambda: _cdp_click2(role_key) or _cdp_click2(target_role)
-                                        )
-                                        logger.info("switch_agent_focus CDP 点击: %s", _sw_clicked)
-                                except Exception as _cdp_sw_exc:
-                                    logger.debug("switch_agent_focus CDP 不可用: %s", _cdp_sw_exc)
-                                # ② 坐标点击回退
-                                if not _sw_clicked:
+
+                                def _do_switch_sync():
+                                    """同步切换逻辑，在线程池中执行，三条路依次尝试"""
+                                    nonlocal _sw_clicked
+                                    # ① CDP 通道（最快，不抢焦点）
+                                    if HAS_CDP:
+                                        try:
+                                            if is_cdp_available():
+                                                ok = cdp_click_role(full_label) or cdp_click_role(role_key)
+                                                if ok:
+                                                    logger.info("switch_agent_focus ① CDP 成功: %s", full_label)
+                                                    return True
+                                        except Exception as _e1:
+                                            logger.debug("switch_agent_focus CDP 失败: %s", _e1)
+                                    # ② 坐标点击
+                                    ok = _click_agent_by_coord(role_key, 0)
+                                    if ok:
+                                        logger.info("switch_agent_focus ② 坐标点击成功: %s", role_key)
+                                        return True
+                                    # ③ 命令面板（最可靠，任何情况都能用）
                                     try:
                                         win = find_cursor_window(nudger.config) if nudger else None
                                         if win:
-                                            import ctypes as _ct2
-                                            _u = _ct2.windll.user32
-                                            _u.ShowWindow(win[0], 3 if _u.IsZoomed(win[0]) else 5)
-                                            _u.SetForegroundWindow(win[0])
-                                        _sw_clicked = _click_agent_by_coord(target_role, win[0] if win else 0)
-                                        logger.info("switch_agent_focus 坐标点击: %s", _sw_clicked)
-                                    except Exception as _sw_exc:
-                                        logger.warning("switch_agent_focus 坐标点击失败: %s", _sw_exc)
+                                            focus_window(win[0])
+                                            time.sleep(0.3)
+                                            _run_command_palette_goto_agent(full_label)
+                                            logger.info("switch_agent_focus ③ 命令面板: %s", full_label)
+                                            return True
+                                    except Exception as _e3:
+                                        logger.warning("switch_agent_focus 命令面板失败: %s", _e3)
+                                    return False
+
+                                _sw_clicked = await asyncio.get_event_loop().run_in_executor(None, _do_switch_sync)
                                 if _sw_clicked:
                                     await asyncio.sleep(1.5)  # 等 Cursor 刷新 agent_role
                             # ── 推送 live state ──
