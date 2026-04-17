@@ -2899,6 +2899,7 @@
     let rosterPolling = null;
     let _pcWasOnline = false;
     let _patrolRunning = false;
+    let _pendingRefreshBind = false; // 刷新按钮触发，等 roster 后发 bind_code
     let _wsConnected = false;
 
     // Agent 实时状态（CDP 推送）
@@ -3148,8 +3149,20 @@
             }
             _pcWasOnline = true;
             updateHeaderStatus();
-            // PC 上线后稍等再拉，节流函数会自动合并重复请求
-            setTimeout(() => requestDashboardForce(), 1000);
+            if (_pendingRefreshBind) {
+              _pendingRefreshBind = false;
+              const did = _pcDeviceId();
+              if (did) {
+                sendEvent("request_bind_code", {
+                  target_device_id: did,
+                  mobile_device_id: localMobileDeviceId,
+                  mobile_device_name: `${currentLang === "en" ? "Mobile" : "手机"} / ${navigator.platform || "Unknown"}`
+                });
+                appendLog("刷新绑定成功：" + did);
+              }
+            } else {
+              setTimeout(() => requestDashboardForce(), 1000);
+            }
             requestPatrolStatus();
             if (!patrolPolling) patrolPolling = setInterval(requestPatrolStatus, 30000);
             startTracePolling();
@@ -3439,20 +3452,26 @@
           }
         } catch (e) { /* SW 不可用时静默忽略 */ }
         if (!updated) {
-          // 没有新版本：走和扫码绑定完全一样的逻辑
+          // 没有新版本：和扫码绑定完全一样 —— 用已保存的 device_id 直接发 request_bind_code
           if (ws && ws.readyState === WebSocket.OPEN) {
-            const target = currentTargetDevice() || onlineDevices[0];
-            if (target) {
+            // 优先用上次记住的 target device_id（不依赖 onlineDevices 是否已加载）
+            const savedDeviceId = localStorage.getItem("codeflow_target_device_id") || "";
+            const target = (savedDeviceId && onlineDevices.find(d => d.device_id === savedDeviceId))
+                           || currentTargetDevice() || onlineDevices[0];
+            const deviceId = (target && target.device_id) || savedDeviceId;
+            if (deviceId) {
               sendEvent("request_bind_code", {
-                target_device_id: target.device_id,
+                target_device_id: deviceId,
                 mobile_device_id: localMobileDeviceId,
                 mobile_device_name: `${currentLang === "en" ? "Mobile" : "手机"} / ${navigator.platform || "Unknown"}`
               });
+              appendLog("刷新：重新绑定 " + deviceId);
             } else {
-              // 没有 PC 设备，先重新握手再拉
+              // roster 还没来，设标志等 roster 回来后自动触发
+              _pendingRefreshBind = true;
               sendEvent("hello", { device_id: localMobileDeviceId, device_name: t("mobile"), owner_role: "ADMIN" });
               requestDeviceRoster();
-              setTimeout(() => requestDashboardForce(), 1500);
+              appendLog("刷新：等待 PC 上线...");
             }
           } else {
             connect(true);
