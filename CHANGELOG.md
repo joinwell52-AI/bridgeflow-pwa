@@ -8,6 +8,17 @@
 
 ---
 
+## [2.12.9] - 2026-04-17
+
+### 桌面端
+
+#### 修复：switch_agent_focus 改用命令面板 + AttachThreadInput 强制前置
+
+- 放弃 CDP click（后台线程无法真实点击），改用命令面板
+- 用 AttachThreadInput 绕过 Windows 焦点保护，确保 Ctrl+Shift+P 生效
+
+---
+
 ## [2.12.8] - 2026-04-17
 
 ### 桌面端（`codeflow-desktop`）

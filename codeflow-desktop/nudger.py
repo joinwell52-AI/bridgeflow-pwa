@@ -2789,49 +2789,43 @@ async def relay_client(config, nudger: Nudger, stop_event: asyncio.Event | None 
                                 _sw_clicked = False
 
                                 def _do_switch_sync():
-                                    """复用切换实测的 CDP 路径，只切换不发消息"""
+                                    """命令面板切换 agent（最可靠，必须先强制前置窗口）"""
                                     win = find_cursor_window(nudger.config) if nudger else None
                                     if not win:
                                         logger.warning("switch_agent_focus: 未找到 Cursor 窗口")
                                         return False
                                     hwnd = win[0]
-                                    # ① CDP（和切换实测完全一致）
-                                    if HAS_CDP:
-                                        try:
-                                            if is_cdp_available():
-                                                ok = cdp_click_role(full_label) or cdp_click_role(role_key)
-                                                logger.info("switch_agent_focus CDP click=%s label=%s", ok, full_label)
-                                                if ok:
-                                                    return True
-                                        except Exception as _e1:
-                                            logger.debug("CDP click 异常: %s", _e1)
-                                    # ② OCR 坐标（和切换实测完全一致）
                                     try:
                                         import ctypes as _ct
-                                        _u32 = _ct.windll.user32
-                                        if _u32.IsZoomed(hwnd): _u32.ShowWindow(hwnd, 3)
-                                        else: _u32.ShowWindow(hwnd, 5)
-                                        _u32.SetForegroundWindow(hwnd)
-                                        time.sleep(0.3)
-                                        # 先试缓存坐标
-                                        xy = _AGENT_COORDS.get(role_key)
-                                        if not xy:
-                                            # 再试 OCR 扫描
-                                            try:
-                                                from cursor_vision import scan as _cv_scan2, find_keyword_position as _fkp2
-                                                st = _cv_scan2()
-                                                if st and st.found:
-                                                    xy = _fkp2(st, full_label) or _fkp2(st, role_key)
-                                            except Exception:
-                                                pass
-                                        if xy:
-                                            pyautogui.click(int(xy[0]), int(xy[1]))
-                                            logger.info("switch_agent_focus OCR/坐标 click=(%s,%s)", xy[0], xy[1])
-                                            return True
-                                    except Exception as _e2:
-                                        logger.warning("switch_agent_focus OCR 失败: %s", _e2)
-                                    logger.warning("switch_agent_focus: CDP 和坐标都失败，role=%s", full_label)
-                                    return False
+                                        u32 = _ct.windll.user32
+                                        # 恢复最小化
+                                        if u32.IsIconic(hwnd):
+                                            u32.ShowWindow(hwnd, 9)
+                                            time.sleep(0.3)
+                                        # AttachThreadInput 强制拿焦点（绕过 Windows 焦点保护）
+                                        cur_tid = u32.GetCurrentThreadId()
+                                        fg_hwnd = u32.GetForegroundWindow()
+                                        fg_tid = u32.GetWindowThreadProcessId(fg_hwnd, None)
+                                        attached = False
+                                        if fg_tid and fg_tid != cur_tid:
+                                            u32.AttachThreadInput(cur_tid, fg_tid, True)
+                                            attached = True
+                                        u32.ShowWindow(hwnd, 5)   # SW_SHOW
+                                        u32.SetForegroundWindow(hwnd)
+                                        u32.BringWindowToTop(hwnd)
+                                        if attached:
+                                            u32.AttachThreadInput(cur_tid, fg_tid, False)
+                                        time.sleep(0.4)
+                                    except Exception as _fe:
+                                        logger.warning("强制前置失败: %s", _fe)
+                                    # 命令面板切换
+                                    try:
+                                        _run_command_palette_goto_agent(full_label)
+                                        logger.info("switch_agent_focus 命令面板成功: %s", full_label)
+                                        return True
+                                    except Exception as _e:
+                                        logger.warning("switch_agent_focus 命令面板失败: %s", _e)
+                                        return False
 
                                 _sw_clicked = await asyncio.get_event_loop().run_in_executor(None, _do_switch_sync)
                                 if _sw_clicked:
