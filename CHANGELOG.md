@@ -8,6 +8,36 @@
 
 ---
 
+## [2.12.0] - 2026-04-06
+
+### 桌面端（`codeflow-desktop`）
+
+#### 修复：Dashboard 状态字段兼容性
+
+- **`nudger.py` status→progress 兼容**：`_build_dashboard` 读取文件 YAML 时同时检查 `status` 和 `progress` 字段，报告文件（`status: completed`）不再显示"等待中"
+- **`nudger.py` sender 兜底**：`sender` 字段为空时自动回退到 `reporter` / `author` 字段，修复"发起人显示 ADMIN→ADMIN"问题
+- **`nudger.py` 已完成统计精准化**：`replied_threads` 只统计 `recipient` 含 ADMIN 的 reports，不再把所有报告都算进去
+- **`nudger.py` 队长字段**：`_read_team_info` 新增 `leader` 字段，按团队模板默认（mvp-team→MARKETER，dev-team→PM，media-team→PUBLISHER，qa-team→LEAD-QA）
+- **`cursor_cdp.py` 完整 Markdown 提取**：新增 `elToMd()` 函数将 Cursor DOM 转换为 Markdown 文本，通过 `msg.md` 字段传输（最多 3000 字节），取代截断的 summary
+
+### PWA（`web/pwa/`）
+
+#### 新增
+
+- **工作实况 Markdown 渲染**：新增 `renderMd()` 函数，支持加粗、斜体、标题、列表、代码块、行内代码的渲染，消息气泡内直接显示格式化内容
+- **工作实况气泡对话样式**：用户消息右对齐蓝色气泡，Agent 消息左对齐紫色气泡，与 PC 端 Cursor 对话风格一致
+- **工作实况不截断**：优先使用 `msg.md` 完整内容渲染，不再有"展开"按钮
+- **团队卡片队长星标**：主控角色（队长）卡片右上角显示金色 ★，方便识别
+- **任务列表刷新按钮**：任务列表页右上角增加 ↻ 刷新按钮，点击重新拉取 dashboard 数据
+
+#### 修复
+
+- **已完成任务列表**：只显示 `recipient` 含 ADMIN 的 reports，不再把所有回报都列入
+- **今日回复列表**：正确过滤 `dir=reports` 的条目，解决点进去空白的问题
+- **任务状态显示**：从文件 YAML 的 `status` 字段读取状态，报告文件正确显示"已完成"
+
+---
+
 ## [2.11.0] - 2026-04-16
 
 ### 桌面端（`codeflow-desktop`）

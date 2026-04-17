@@ -311,6 +311,7 @@
     .team-icon-card.active { border-color:var(--blue); background:linear-gradient(160deg, rgba(30,50,80,.95) 0%, rgba(20,35,65,.98) 60%, rgba(40,60,90,.9) 100%); box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 0 28px rgba(59,130,246,.12), 0 4px 16px rgba(0,0,0,.25); }
     .team-icon { width:44px; height:44px; margin:0 auto 6px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; color:#fff; background:linear-gradient(145deg,#5c9cf5 0%,#3b82f6 50%,#2563eb 100%); box-shadow:inset 0 1px 0 rgba(255,255,255,.3), 0 4px 12px rgba(59,130,246,.4); transition:box-shadow .25s ease-out; letter-spacing:-0.5px; line-height:1.1; text-align:center; padding:2px; }
     .team-icon-label { font-size:9px; color:var(--text2); margin-top:1px; text-align:center; max-width:60px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .team-leader-star { font-size:10px; color:#fbbf24; vertical-align:super; margin-left:1px; line-height:1; }
     .team-icon-card:hover .team-icon { box-shadow:0 4px 16px rgba(59,130,246,.55); }
     .team-icon-card.active .team-icon { box-shadow:0 0 22px rgba(59,130,246,.5), 0 4px 12px rgba(59,130,246,.4); }
     .team-role-state { margin-top:4px; font-size:10px; color:var(--text3); }
@@ -380,14 +381,25 @@
     .agent-monitor-status { font-size:11px; color:var(--text2); }
     .agent-monitor-meta { display:flex; flex-wrap:wrap; gap:8px; padding:4px 16px 8px; font-size:10px; color:var(--text3); flex-shrink:0; border-bottom:1px solid rgba(180,200,220,.1); }
     .agent-monitor-messages { flex:1; overflow-y:auto; padding-bottom:env(safe-area-inset-bottom,12px); }
-    .agent-msg { padding:10px 16px; border-bottom:1px solid rgba(180,200,220,.06); font-size:12px; line-height:1.5; }
-    .agent-msg:last-child { border-bottom:none; }
-    .agent-msg-role { font-size:10px; font-weight:600; margin-bottom:2px; }
+    .agent-msg { padding:8px 12px 8px 12px; font-size:12px; line-height:1.6; display:flex; flex-direction:column; }
+    .agent-msg.user { align-items:flex-end; }
+    .agent-msg.assistant { align-items:flex-start; }
+    .agent-msg-role { font-size:10px; font-weight:600; margin-bottom:3px; }
     .agent-msg-role.user { color:#60a5fa; }
     .agent-msg-role.assistant { color:#a78bfa; }
     .agent-msg-type { display:inline-block; font-size:9px; padding:1px 5px; border-radius:4px; margin-left:6px; background:rgba(148,163,184,.15); color:var(--text3); }
-    .agent-msg-summary { color:var(--text2); word-break:break-word; }
-    .agent-msg-context { margin-top:2px; font-size:11px; color:var(--text3); font-style:italic; }
+    .agent-msg-body { max-width:92%; word-break:break-word; color:var(--text2); padding:7px 10px; border-radius:10px; }
+    .agent-msg.user .agent-msg-body { background:rgba(96,165,250,.13); border-radius:10px 10px 2px 10px; }
+    .agent-msg.assistant .agent-msg-body { background:rgba(139,92,246,.10); border-radius:10px 10px 10px 2px; }
+    /* Markdown 元素 */
+    .agent-msg-body strong { color:var(--text); }
+    .agent-msg-body em { color:var(--text3); font-style:italic; }
+    .agent-msg-body .am-heading { font-weight:700; color:var(--text); margin:4px 0 2px; font-size:13px; }
+    .agent-msg-body .am-li { padding-left:10px; color:var(--text2); }
+    .agent-msg-body .am-li::before { content:"• "; color:#60a5fa; }
+    .agent-msg-body .am-gap { height:6px; }
+    .agent-msg-body .am-pre { background:rgba(0,0,0,.3); border-radius:6px; padding:6px 8px; font-size:10px; font-family:monospace; overflow-x:auto; white-space:pre-wrap; margin:4px 0; color:#86efac; }
+    .agent-msg-body .am-code { background:rgba(0,0,0,.25); border-radius:3px; padding:1px 4px; font-family:monospace; font-size:10px; color:#fbbf24; }
     .agent-monitor-empty { padding:32px 16px; text-align:center; font-size:13px; color:var(--text3); }
     .agent-monitor-close { background:none; border:none; color:var(--text3); cursor:pointer; font-size:16px; padding:4px 8px; min-height:auto; min-width:auto; box-shadow:none; }
     .agent-monitor-close:hover { color:var(--text); }
@@ -476,6 +488,10 @@
     }
     .fullscreen-back-btn:hover { background:rgba(59,130,246,.2); border-color:rgba(96,165,250,.4); }
     .fullscreen-page-title { font-family:"Fira Code",monospace; font-weight:700; font-size:15px; color:var(--text); flex:1; }
+    .fullscreen-refresh-btn { background:none; border:1px solid rgba(200,218,235,.22); border-radius:20px; color:#58a6ff; font-size:16px; font-weight:700; padding:4px 10px; cursor:pointer; }
+    .fullscreen-refresh-btn:hover { background:rgba(59,130,246,.2); }
+    .fullscreen-refresh-btn.spinning { animation: spin 0.6s linear; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     .fullscreen-page-content { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:10px 12px 24px; }
 
     .task-list-tabs { display:flex; gap:0; margin-bottom:10px; border-radius:10px; overflow:hidden; background:rgba(30,40,60,.5); }
@@ -719,6 +735,7 @@
   <header class="fullscreen-page-header">
     <button id="taskListBackBtn" class="fullscreen-back-btn" type="button">← 返回</button>
     <span id="taskListPageTitle" class="fullscreen-page-title">任务列表</span>
+    <button id="taskListRefreshBtn" class="fullscreen-refresh-btn" type="button" title="刷新">↻</button>
   </header>
   <div class="fullscreen-page-content">
     <div id="taskListTabs" class="task-list-tabs">
@@ -1114,7 +1131,13 @@
     }
     function isTaskReply(item) {
       const fn = String(item.filename || item.primary_filename || "");
-      return /to-PM|REPORT|NOTIFY/i.test(fn);
+      // 匹配回复文件：to-PM / to-ADMIN / to-ADMIN01 / REPORT / NOTIFY
+      if (/to-PM|to-ADMIN|REPORT|NOTIFY/i.test(fn)) return true;
+      // 或者 dir 是 reports
+      if ((item.dir || "") === "reports") return true;
+      // 或者 messages 里有 reports
+      if (Array.isArray(item.messages) && item.messages.some(m => (m.dir || "") === "reports")) return true;
+      return false;
     }
     function isTaskInProgress(item) {
       const p = String(item.progress || "");
@@ -1143,12 +1166,28 @@
         allItems = [...taskRecords];
       }
       const f = _taskListFilter;
-      if (f === "today") allItems = allItems.filter(isTaskToday);
-      else if (f === "reply") allItems = allItems.filter(i => isTaskToday(i) && isTaskReply(i));
-      else if (f === "progress") allItems = allItems.filter(isTaskInProgress);
-      else if (f === "done") allItems = allItems.filter(isTaskDone);
-
-      allItems = allItems.filter(item => (item.dir || "tasks") === _taskListDirFilter);
+      if (f === "reply") {
+        // 今日回复：直接从 taskItems 里取 dir=reports 的
+        allItems = taskItems.filter(i =>
+          (i.dir || "") === "reports" ||
+          /to-ADMIN|to-PM/i.test(i.filename || "")
+        );
+      } else if (f === "done") {
+        // 已完成：ADMIN 收到的 reports（recipient=ADMIN 的交付报告）
+        allItems = taskItems.filter(i => {
+          const recip = String(i.recipient || "").toUpperCase();
+          const fn = String(i.filename || "").toUpperCase();
+          const isToAdmin = recip.includes("ADMIN") || /TO-ADMIN/i.test(fn);
+          const isReport = (i.dir || "") === "reports";
+          return isToAdmin && isReport;
+        });
+      } else if (f === "progress") {
+        // 进行中：tasks+reports 都找
+        allItems = taskItems.filter(isTaskInProgress);
+      } else {
+        if (f === "today") allItems = allItems.filter(isTaskToday);
+        allItems = allItems.filter(item => (item.dir || "tasks") === _taskListDirFilter);
+      }
 
       fullTaskListEl.innerHTML = allItems.length ? allItems.map((item) => {
         const progress = mapProgress(item.progress);
@@ -1168,10 +1207,11 @@
       });
     }
 
-    function openTaskListPage(filter, roleFilter) {
+    function openTaskListPage(filter, roleFilter, dirFilter) {
       _taskListFilter = filter || null;
       _taskListRoleFilter = roleFilter || null;
-      _taskListDirFilter = "tasks";
+      // "reply" 过滤器对应 reports 目录；其他默认 tasks
+      _taskListDirFilter = dirFilter || (filter === "reply" ? "reports" : "tasks");
       const filterLabel = STAT_FILTER_LABELS[currentLang] || STAT_FILTER_LABELS.zh;
       const prefix = roleFilter || (currentLang === "en" ? "All" : "全部");
       let title = filterLabel.all;
@@ -1257,6 +1297,15 @@
 
     taskListBackBtnEl.onclick = closeTaskListPage;
     taskDetailBackBtnEl.onclick = closeTaskDetailPage;
+    const taskListRefreshBtnEl = document.getElementById("taskListRefreshBtn");
+    if (taskListRefreshBtnEl) {
+      taskListRefreshBtnEl.onclick = () => {
+        taskListRefreshBtnEl.classList.add("spinning");
+        setTimeout(() => taskListRefreshBtnEl.classList.remove("spinning"), 700);
+        requestDashboard();
+        setTimeout(() => _renderTaskListItems(), 1500);
+      };
+    }
     fpRecordTabBtnEl.onclick = () => { fpViewMode = "record"; syncFpTabs(); };
     fpMarkdownTabBtnEl.onclick = () => {
       fpViewMode = "markdown"; syncFpTabs();
@@ -2101,6 +2150,7 @@
 
     // 动态角色列表：优先用 PC 端 dashboard 下发的 team_roles，否则降级为本地缓存，最后才用默认值
     let _dynamicTeamRoles = JSON.parse(localStorage.getItem("codeflow_team_roles") || "null");
+    let _teamLeader = localStorage.getItem("codeflow_team_leader") || "";
     const _cachedTeamName = localStorage.getItem("codeflow_team_name") || "";
     if (_cachedTeamName) {
       const _ttEl = document.getElementById("teamTitle");
@@ -2303,9 +2353,11 @@
         const liveHtml = live
           ? `<div class="agent-live-hint"><span class="agent-live-dot ${live.dot}"></span>${live.text}</div>`
           : "";
+        const isLeader = _teamLeader && role.toUpperCase() === _teamLeader.toUpperCase();
+        const leaderBadge = isLeader ? `<span class="team-leader-star" title="队长">★</span>` : "";
         return `
           <div class="role-card team-icon-card${offlineCls} ${selectedRole === role ? "active" : ""}" data-role="${role}">
-            <div class="team-icon">${abbr}</div>
+            <div class="team-icon">${abbr}${leaderBadge}</div>
             ${showLabel ? `<div class="team-icon-label">${role}</div>` : ""}
             <div class="team-role-state"><span class="badge ${state.cls}">${state.text}</span> <span style="font-size:9px;color:var(--text3);">${roleItems.length}</span></div>
             ${liveHtml}
@@ -2366,6 +2418,29 @@
     function msgTypeIcon(type) {
       const icons = { text: "💬", code: "📝", terminal: "⚙️", file_edit: "✏️", tool: "🔧", thinking: "💭", image: "🖼️" };
       return icons[type] || "💬";
+    }
+
+    // 轻量 Markdown → HTML（仅用于工作实况气泡）
+    function renderMd(text) {
+      if (!text) return "";
+      let html = text
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        // 代码块
+        .replace(/```[\w]*\n?([\s\S]*?)```/g, (_, c) => `<pre class="am-pre">${c.trim()}</pre>`)
+        // 行内代码
+        .replace(/`([^`]+)`/g, '<code class="am-code">$1</code>')
+        // 加粗
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        // 斜体
+        .replace(/_(.+?)_/g, '<em>$1</em>')
+        // 标题（## xxx → 加粗大一号）
+        .replace(/^#{1,3}\s+(.+)$/gm, '<div class="am-heading">$1</div>')
+        // 无序列表
+        .replace(/^[•\-\*]\s+(.+)$/gm, '<div class="am-li">$1</div>')
+        // 换行
+        .replace(/\n\n/g, '<div class="am-gap"></div>')
+        .replace(/\n/g, "<br>");
+      return html;
     }
 
     function msgTypeLabel(type) {
@@ -2451,17 +2526,16 @@
         return;
       }
 
-      _agentMonitorMsgsEl.innerHTML = msgs.map(m => {
+      _agentMonitorMsgsEl.innerHTML = msgs.map((m) => {
         const roleLabel = m.role === "user" ? t("agentMsgUser") : t("agentMsgAssistant");
         const roleCls = m.role === "user" ? "user" : "assistant";
         const icon = msgTypeIcon(m.type);
         const typeTag = m.type !== "text" ? `<span class="agent-msg-type">${msgTypeLabel(m.type)}</span>` : "";
-        const summary = (m.summary || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        const context = m.context ? `<div class="agent-msg-context">${m.context.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>` : "";
-        return `<div class="agent-msg">
+        // 优先用完整 md 渲染，无 md 则 fallback 到 summary
+        const bodyHtml = m.md ? renderMd(m.md) : (m.summary || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>");
+        return `<div class="agent-msg ${roleCls}">
           <div class="agent-msg-role ${roleCls}">${icon} ${roleLabel} ${typeTag}</div>
-          <div class="agent-msg-summary">${summary}</div>
-          ${context}
+          <div class="agent-msg-body">${bodyHtml}</div>
         </div>`;
       }).join("");
 
@@ -2486,7 +2560,33 @@
       updateCurrentTaskSummary();
     }
 
+    function _parseRolesFromFilename(fn) {
+      // TASK-20260417-003-MARKETER-to-ADMIN.md → {sender:"MARKETER", recipient:"ADMIN"}
+      const m = String(fn || "").match(/TASK-\d+-\d+-([A-Z0-9]+)-to-([A-Z0-9]+)/i);
+      return m ? { sender: m[1].toUpperCase(), recipient: m[2].toUpperCase() } : null;
+    }
     function _ensureItemMd(item) {
+      // reporter/author 字段兜底为 sender
+      if (!item.sender && item.reporter) item.sender = item.reporter;
+      if (!item.sender && item.author) item.sender = item.author;
+      // status 字段兜底为 progress（报告文件用 status: completed）
+      if ((!item.progress || item.progress === "pending") && item.status) item.progress = item.status;
+      // 从 raw_markdown YAML 里解析 status/progress（Desktop只取了progress字段）
+      if ((!item.progress || item.progress === "pending") && item.raw_markdown) {
+        const yamlMatch = String(item.raw_markdown).match(/^---\s*\n([\s\S]*?)\n---/);
+        if (yamlMatch) {
+          const statusM = yamlMatch[1].match(/^\s*status\s*:\s*(.+)$/m);
+          if (statusM) item.progress = statusM[1].trim();
+        }
+      }
+      // 从文件名兜底补全 sender/recipient
+      if (!item.sender || !item.recipient) {
+        const parsed = _parseRolesFromFilename(item.filename);
+        if (parsed) {
+          if (!item.sender) item.sender = parsed.sender;
+          if (!item.recipient) item.recipient = parsed.recipient;
+        }
+      }
       if (!item.markdown && !item.raw_markdown && !item.body && !item.summary) {
         item.body = item.task_id || item.filename || "";
         item.markdown = [
@@ -2518,6 +2618,7 @@
           applyTeamRoles(payload.team_roles);
         }
         if (payload.team_name) applyTeamName(payload.team_name);
+        if (payload.leader) { _teamLeader = String(payload.leader).toUpperCase(); localStorage.setItem("codeflow_team_leader", _teamLeader); }
         if (payload.stats) {
           document.getElementById("todayTasks").textContent = String(payload.stats.today_tasks || 0);
           document.getElementById("todayReplies").textContent = String(payload.stats.today_replies || 0);
@@ -2543,6 +2644,7 @@
         applyTeamRoles(payload.team_roles);
       }
       if (payload.team_name) applyTeamName(payload.team_name);
+      if (payload.leader) { _teamLeader = String(payload.leader).toUpperCase(); localStorage.setItem("codeflow_team_leader", _teamLeader); }
       mergeDashboardItems(payload.items || []);
       document.getElementById("todayTasks").textContent = String(payload.stats?.today_tasks || 0);
       document.getElementById("todayReplies").textContent = String(payload.stats?.today_replies || 0);
@@ -2967,7 +3069,7 @@
         if (rosterPolling) clearInterval(rosterPolling);
         rosterPolling = setInterval(requestDeviceRoster, 15000);
       };
-      const _silentEvents = new Set(["pong","patrol_state","dashboard_state","device_roster","bind_state","file_list","patrol_trace","agent_live_state"]);
+      const _silentEvents = new Set(["pong","patrol_state","device_roster","bind_state","file_list","patrol_trace","agent_live_state"]);
       ws.onmessage = (event) => {
         let data = null;
         try { data = JSON.parse(event.data); } catch (error) { appendLog(`收到无法解析的消息: ${error.message}`); return; }
@@ -2975,21 +3077,24 @@
         if (!_silentEvents.has(et)) appendLog(`收到事件: ${et}`);
         if (et === "dashboard_state") {
           const p = data.payload || {};
-          const _di = (p.items||[])[0];
-          if (_di) {
-            appendLog(`dashboard[0]: ${JSON.stringify(_di).slice(0,300)}`);
-          }
-          appendLog(`dashboard: items=${(p.items||[]).length}, chunk=${!!p._chunked||!!p._chunk}`);
+          const isChunked = !!p._chunked;
+          const isChunk = !!p._chunk;
+          const itemDirs = (p.items||[]).map(i=>i.dir||'?').join(',');
+          appendLog(`dashboard: items=${(p.items||[]).length} dirs=[${itemDirs}] chunked=${isChunked} chunk=${isChunk} total=${p._total_items||'-'}`);
           applyDashboard(p);
         }
         else if (et === "device_roster") {
           renderDevices(data.payload?.devices || []);
           const pcNow = !!_pcDeviceId();
-          if (pcNow) {
-            if (!_pcWasOnline) appendLog(currentLang === "en" ? "PC online" : "PC 已上线");
+            if (pcNow) {
+            if (!_pcWasOnline) {
+              appendLog(currentLang === "en" ? "PC online" : "PC 已上线");
+              addMsgRecord("sys", currentLang === "en" ? "PC online" : "PC 已上线");
+            }
             _pcWasOnline = true;
             updateHeaderStatus();
             requestDashboard();
+            setTimeout(() => requestDashboard(), 2000);  // PC刚上线时roster可能未稳定，2s后重试
             requestPatrolStatus();
             if (!patrolPolling) patrolPolling = setInterval(requestPatrolStatus, 30000);
             startTracePolling();
