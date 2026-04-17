@@ -2972,6 +2972,12 @@ def _build_dashboard(config, nudger: Nudger) -> dict:
                     if line:
                         summary = line.lstrip("# ").strip()[:80]
                         break
+            _time_raw = (front.get("created_at") or front.get("reported_at") or "").strip()
+            # 如果只有日期（10位），补上文件修改时间的时分秒
+            if len(_time_raw) == 10:
+                _time_raw = _time_raw + " " + datetime.fromtimestamp(f.stat().st_mtime).strftime("%H:%M:%S")
+            if not _time_raw:
+                _time_raw = datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
             items.append({
                 "filename": f.name,
                 "dir": d,
@@ -2981,7 +2987,7 @@ def _build_dashboard(config, nudger: Nudger) -> dict:
                 "priority": front.get("priority", ""),
                 "progress": front.get("progress") or front.get("status", "pending"),
                 "type": front.get("type", d.rstrip("s")),
-                "created_at": front.get("created_at", ""),
+                "created_at": _time_raw,
                 "thread_key": front.get("thread_key", ""),
                 "body": summary,
                 "markdown": body_text[:8000],

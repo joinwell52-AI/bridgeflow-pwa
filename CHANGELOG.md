@@ -8,6 +8,17 @@
 
 ---
 
+## [2.12.1] - 2026-04-17
+
+### 桌面端（`codeflow-desktop`）
+
+#### 修复：报告文件时间字段补全
+
+- **`nudger.py` reported_at 补全**：报告文件 YAML 中 `reported_at` 只有日期（`2026-04-17`）时，自动补上文件修改时间的时分秒，显示完整时间戳（`2026-04-17 01:10:56`）
+- **`nudger.py` created_at 兜底**：`created_at` 为空时依次回退到 `reported_at`、文件 mtime
+
+---
+
 ## [2.12.0] - 2026-04-06
 
 ### 桌面端（`codeflow-desktop`）
