@@ -1258,44 +1258,51 @@
 
     function openTaskDetailPage(filename) {
       if (!filename) return;
-      const item = getTaskByFilename(filename);
-      if (!item) return;
-      _fpDetailFilename = filename;
-      const roles = taskRoles(item);
-      const progress = mapProgress(item.progress);
-      taskDetailPageTitleEl.textContent = currentLang === "en" ? "Task Detail" : "任务详情";
-      document.getElementById("fpDetailTaskId").textContent = item.task_id || "--";
-      document.getElementById("fpDetailFileName").textContent = item.filename || "--";
-      document.getElementById("fpDetailPriority").textContent = taskPriority(item);
-      document.getElementById("fpDetailType").textContent = inferTaskType(item);
-      document.getElementById("fpDetailSender").textContent = roles.sender;
-      document.getElementById("fpDetailRecipient").textContent = roles.recipient;
-      document.getElementById("fpDetailTime").textContent = item.time || item.created_at || "--";
-      document.getElementById("fpDetailStatus").textContent = progress.text;
-      document.getElementById("fpDetailFlow").textContent = `${roles.sender} -> ${roles.recipient}`;
-      const messages = Array.isArray(item.messages) ? item.messages : [];
-      document.getElementById("fpMessages").innerHTML = messages.map((m) => `
-        <div class="task-record-item ${normalizeRole(m.sender) === "ADMIN" ? "mine" : ""}">
-          <div class="task-record-meta">${normalizeRole(m.sender)} -> ${normalizeRole(m.recipient)} | ${m.time || ""}</div>
-          <div>${m.body || m.summary || ""}</div>
-        </div>
-      `).join("") || `<div class="muted">${currentLang === "en" ? "No records" : "暂无记录"}</div>`;
-      // 优先从 record 取 markdown，fallback 到原始 taskItems 和 messages
-      let mdContent = detailMarkdownContent(item);
-      if (!mdContent && Array.isArray(item.messages)) {
-        for (const msg of item.messages) {
-          const mc = detailMarkdownContent(msg);
-          if (mc) { mdContent = mc; break; }
+      // 无论内部填充是否出错，都要打开详情页
+      try {
+        const item = getTaskByFilename(filename);
+        if (item) {
+          const roles = taskRoles(item) || {};
+          const progress = mapProgress(item.progress) || {};
+          if (taskDetailPageTitleEl) taskDetailPageTitleEl.textContent = currentLang === "en" ? "Task Detail" : "任务详情";
+          const _set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val || "--"; };
+          _set("fpDetailTaskId", item.task_id);
+          _set("fpDetailFileName", item.filename);
+          _set("fpDetailPriority", taskPriority(item));
+          _set("fpDetailType", inferTaskType(item));
+          _set("fpDetailSender", roles.sender);
+          _set("fpDetailRecipient", roles.recipient);
+          _set("fpDetailTime", item.time || item.created_at);
+          _set("fpDetailStatus", progress.text);
+          const flowEl = document.getElementById("fpDetailFlow");
+          if (flowEl) flowEl.textContent = `${roles.sender || "?"} -> ${roles.recipient || "?"}`;
+          const messages = Array.isArray(item.messages) ? item.messages : [];
+          const msgEl = document.getElementById("fpMessages");
+          if (msgEl) msgEl.innerHTML = messages.map((m) => `
+            <div class="task-record-item ${normalizeRole(m.sender) === "ADMIN" ? "mine" : ""}">
+              <div class="task-record-meta">${normalizeRole(m.sender)} -> ${normalizeRole(m.recipient)} | ${m.time || ""}</div>
+              <div>${m.body || m.summary || ""}</div>
+            </div>
+          `).join("") || `<div class="muted">${currentLang === "en" ? "No records" : "暂无记录"}</div>`;
+          let mdContent = detailMarkdownContent(item) || "";
+          if (!mdContent && Array.isArray(item.messages)) {
+            for (const msg of item.messages) { const mc = detailMarkdownContent(msg); if (mc) { mdContent = mc; break; } }
+          }
+          if (!mdContent) { const raw = taskItems.find(t => t.filename === filename); if (raw) mdContent = detailMarkdownContent(raw) || ""; }
+          const mdEl = document.getElementById("fpMarkdown");
+          if (mdEl) mdEl.textContent = mdContent || (currentLang === "en" ? "(Loading MD...)" : "（正在加载 MD 内容…）");
+          const mfEl = document.getElementById("fpMarkdownFile");
+          if (mfEl) mfEl.textContent = currentLang === "en" ? `Source: ${item.filename || "--"}` : `关联文件：${item.filename || "--"}`;
+          _fpDetailFilename = item.primary_filename || item.filename || filename;
+        } else {
+          _fpDetailFilename = filename;
+          appendLog(`[warn] openTaskDetailPage: item not found for ${filename}`);
         }
+      } catch (e) {
+        appendLog(`[error] openTaskDetailPage: ${e.message}`);
+        _fpDetailFilename = filename;
       }
-      if (!mdContent) {
-        const raw = taskItems.find(t => t.filename === filename);
-        if (raw) mdContent = detailMarkdownContent(raw);
-      }
-      document.getElementById("fpMarkdown").textContent = mdContent || (currentLang === "en" ? "(Loading MD...)" : "（正在加载 MD 内容…）");
-      document.getElementById("fpMarkdownFile").textContent = currentLang === "en" ? `Source: ${item.filename || "--"}` : `关联文件：${item.filename || "--"}`;
-      appendLog(`MD原文: len=${(mdContent||'').length}, keys=${Object.keys(item).join(",")}, md50=${(item.markdown||'').slice(0,50)}, body50=${(item.body||'').slice(0,50)}`);
-      _fpDetailFilename = item.primary_filename || item.filename;
+      // 无论如何都要打开页面
       fpViewMode = "record";
       syncFpTabs();
       taskDetailPageEl.classList.add("open");
