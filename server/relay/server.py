@@ -48,6 +48,9 @@ ALLOWED_EVENTS = {
     # Agent 实时监控（CDP → PWA）
     "agent_live_state",
     "request_agent_live",
+    # PWA → PC Agent 切换控制
+    "switch_agent_focus",
+    "resume_patrol",
 }
 MAX_MESSAGE_BYTES = 256 * 1024
 TRANSPORT_MAX_BYTES = 512 * 1024
@@ -260,6 +263,9 @@ async def relay_handler(websocket) -> None:
                 "request_bind_state",
                 "request_bind_code",
                 "execute_desktop_action",
+                "switch_agent_focus",
+                "resume_patrol",
+                "request_agent_live",
             }:
                 target_device_id = str(payload.get("target_device_id", "")).strip()
                 if not target_device_id:
