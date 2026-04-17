@@ -212,7 +212,7 @@ PC 端 Cursor 与手机端 PWA 工作实况内容保持一致：
 <p align="center">
   <img src="images/PC-agent.png" width="380" alt="PC 端 Cursor Agent 对话" />
   &nbsp;&nbsp;
-  <img src="images/pwa-agent.png" width="220" alt="手机端 PWA 工作实况" />
+  <img src="images/pwa-agent.jpg" width="220" alt="手机端 PWA 工作实况" />
 </p>
 
 > 左：PC 端 Cursor Agent 对话原文 ｜ 右：手机 PWA 工作实况（Markdown 渲染后）
