@@ -337,6 +337,14 @@ a:hover{text-decoration:underline}
     </div>
   </div>
 
+  <!-- 升级展示区（有新版本时显示，隐藏主操作区） -->
+  <div id="update-hero" style="display:none;text-align:center;padding:40px 20px 30px">
+    <img src="product.png" alt="CodeFlow" style="max-width:100%;max-height:60vh;border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,.5);object-fit:contain">
+    <div id="heroMsg" style="margin-top:22px;color:#94a3b8;font-size:.92rem">新版本正在下载，完成后点击顶部横幅立即更新重启</div>
+  </div>
+
+  <!-- 主操作区（有新版本时隐藏） -->
+  <div id="mainContent">
   <!-- Agent 命名指引（选了团队就显示，常驻在巡检控制上方） -->
   <div id="agentNameGuide" style="display:none;margin-bottom:14px;padding:10px 16px;background:rgba(234,179,8,.07);border:1px solid rgba(234,179,8,.28);border-radius:8px;font-size:12px;line-height:1.7">
     <div style="font-weight:700;color:#fbbf24;margin-bottom:4px" data-i18n="agent_guide_title">💡 如何在 Cursor 创建团队 Agent</div>
@@ -541,6 +549,8 @@ a:hover{text-decoration:underline}
   <div style="text-align:center;padding:24px 0 8px;color:var(--muted);font-size:.85rem;border-top:1px solid var(--border);margin-top:12px">
     &copy; 2026 joinwell52-AI &middot; Non-commercial use only &middot; From real production experience
   </div>
+
+  </div><!-- /mainContent -->
 
 </div>
 
@@ -2272,11 +2282,15 @@ setInterval(fetchPatrolTrace,3000);
     fetch('/api/update/check').then(r=>r.json()).then(d=>{
       if(!d.ok) return;
       const s=d.status;
+      const hero=$('update-hero');
+      const main=$('mainContent');
       if(s==='downloading'){
         bar.style.display='flex';
         msg.textContent='正在下载新版本 v'+d.latest+'…';
         prog.textContent=d.progress+'%';
         btn.style.display='none';
+        if(hero) hero.style.display='block';
+        if(main) main.style.display='none';
         if(!bar._dlStart) bar._dlStart = Date.now();
         if(d.progress===0 && Date.now()-bar._dlStart > 30000){
           msg.innerHTML='下载较慢（GitHub 国内访问慢），建议 <a href="https://github.com/joinwell52-AI/codeflow-pwa/releases/latest" target="_blank" style="color:#4ade80;font-weight:600">手动下载最新版</a>';
@@ -2287,6 +2301,10 @@ setInterval(fetchPatrolTrace,3000);
         msg.textContent='新版本 v'+d.latest+' 已下载完成，点击立即更新重启';
         prog.textContent='';
         btn.style.display='';
+        const heroMsg=$('heroMsg');
+        if(heroMsg) heroMsg.textContent='新版本已下载完成，点击顶部横幅立即更新重启 🎉';
+        if(hero) hero.style.display='block';
+        if(main) main.style.display='none';
       } else if(s==='error'){
         // 静默失败，不显示横幅
       }
