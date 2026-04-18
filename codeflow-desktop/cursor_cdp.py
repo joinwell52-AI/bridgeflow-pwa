@@ -599,22 +599,26 @@ def _js_find_role_position(role_name: str) -> str:
             return n === target || m[2].toUpperCase() === shortName;
         }}
 
-        // 候选元素收集：Tab 栏 + 侧栏，包含不可见元素
-        const candidates = [
-            ...document.querySelectorAll('div[role="tab"]'),
-            ...document.querySelectorAll('span.agent-sidebar-cell-text'),
-            ...document.querySelectorAll('[class*="agentTab"],[class*="agent-tab"],[class*="AgentTab"]'),
+        // 按优先级搜索：顶部 tab → 侧栏 cell → agentTab class
+        const selectors = [
+            'div[role="tab"]',
+            'span.agent-sidebar-cell-text',
+            '[class*="agentTab"],[class*="agent-tab"],[class*="AgentTab"]',
         ];
-        for (const el of candidates) {{
-            if (match(el.textContent || '')) {{
+        for (const sel of selectors) {{
+            for (const el of document.querySelectorAll(sel)) {{
+                if (!match(el.textContent || '')) continue;
                 const rect = el.getBoundingClientRect();
-                // 优先可见元素（有坐标）；不可见时也记录以便 JS click 兜底
                 if (rect.width > 0 && rect.height > 0) {{
-                    return {{ found: true, x: Math.round(rect.x + rect.width / 2), y: Math.round(rect.y + rect.height / 2), text: el.textContent.trim(), source: 'visible', js_click: false }};
+                    // 可见，直接返回坐标
+                    return {{ found: true, x: Math.round(rect.x + rect.width/2), y: Math.round(rect.y + rect.height/2), text: el.textContent.trim(), source: sel }};
                 }}
-                // 不可见：尝试 JS click（触发 React 合成事件）
-                try {{ el.click(); }} catch(e) {{}}
-                return {{ found: true, x: 0, y: 0, text: el.textContent.trim(), source: 'hidden_jsclick', js_click: true }};
+                // 不可见：scrollIntoView 后重新取坐标
+                try {{ el.scrollIntoView({{block:'center',inline:'center'}}); }} catch(e) {{}}
+                const rect2 = el.getBoundingClientRect();
+                if (rect2.width > 0 && rect2.height > 0) {{
+                    return {{ found: true, x: Math.round(rect2.x + rect2.width/2), y: Math.round(rect2.y + rect2.height/2), text: el.textContent.trim(), source: sel + '_scrolled' }};
+                }}
             }}
         }}
 
@@ -852,11 +856,6 @@ def click_role(role: str) -> bool:
     x, y = pos["x"], pos["y"]
     source = pos.get("source", "")
     logger.info("CDP click_role(%s) 定位: (%d, %d) text=%s source=%s", role, x, y, pos.get("text", ""), source)
-
-    if pos.get("js_click"):
-        # 元素不可见（tab 折叠），已在 JS 里直接 click()，无需再发鼠标事件
-        logger.info("CDP click_role(%s) → JS click 已发送（元素不可见）", role)
-        return True
 
     for evt_type in ("mousePressed", "mouseReleased"):
         conn.send_command("Input.dispatchMouseEvent", {
