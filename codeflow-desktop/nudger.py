@@ -10,7 +10,7 @@ CodeFlow Nudger — Agent 唤醒器核心模块
 6. 通过 WebSocket 连接中继服务器，接收 PWA 指令、推送文件变化
 
 巡检模式：
-  CDP 模式：Cursor 以 --remote-debugging-port=9222 启动时自动激活
+  CDP 模式：Cursor 以 --remote-debugging-port=5253 启动时自动激活
             延迟 <100ms，精度 100%，不需要截屏/OCR
   OCR 模式：CDP 不可用时降级，截屏 → WinOCR → 状态分析
             延迟 1-3s，精度约 95%，零侵入
@@ -145,6 +145,12 @@ except ImportError:
 _relay_connected = False
 
 
+def _reset_cdp_active(value: bool) -> None:
+    """线程安全地修改模块级 _cdp_active 标志。"""
+    global _cdp_active
+    _cdp_active = value
+
+
 def _probe_cdp(retries: int = 1, delay: float = 0) -> bool:
     """探测 CDP 是否可用，可用则激活 CDP 模式。支持重试（Cursor 冷启动时端口延迟就绪）。"""
     global _cdp_active
@@ -157,13 +163,13 @@ def _probe_cdp(retries: int = 1, delay: float = 0) -> bool:
             if is_cdp_available():
                 if not _cdp_active:
                     _cdp_active = True
-                    logger.info("✓ CDP 端口可用（9222），巡检使用 CDP 高速模式（第%d次探测）", attempt)
+                    logger.info("✓ CDP 端口可用（5253），巡检使用 CDP 高速模式（第%d次探测）", attempt)
                     patrol_trace("cdp_on", _T("tr_cdp_active"))
                 return True
         except Exception as e:
             logger.debug("CDP 探测第%d次异常: %s", attempt, e)
     if not _cdp_active:
-        logger.info("CDP 端口 9222 未响应（%d次尝试），使用 OCR 模式", retries)
+        logger.info("CDP 端口 5253 未响应（%d次尝试），使用 OCR 模式", retries)
     return False
 
 
@@ -2383,6 +2389,10 @@ class Nudger:
         _conn_err_n = max(1, int(getattr(self.config, "conn_error_check_every_n", 1)))
         _last_reload_t: float = 0.0
         _reload_cooldown = float(getattr(self.config, "conn_error_reload_cooldown_s", 120.0))
+        # CDP 断线自动重连
+        _cdp_lost_count = 0          # 连续 CDP 失败计数
+        _CDP_LOST_THRESHOLD = 3      # 连续失败 3 次认定断线
+        _cdp_reconnect_every = 12    # 断线后每 12 轮（约 60s）尝试重探一次
 
         try:
             while True:
@@ -2397,9 +2407,29 @@ class Nudger:
                                 reload_cursor_window(self.config)
                                 _last_reload_t = time.time()
                                 time.sleep(float(getattr(self.config, "reload_window_wait_s", 12.0)))
-                    # ── CDP 延迟探测（未激活时每 30 轮重试一次）────────
-                    if not _cdp_active and HAS_CDP and self._tick_count > 0 and self._tick_count % 30 == 0:
-                        _probe_cdp(retries=1)
+                    # ── CDP 断线检测 + 自动重连 ──────────────────────────
+                    if _cdp_active and HAS_CDP:
+                        try:
+                            _quick = cdp_scan()
+                            if getattr(_quick, "cdp_lost", False):
+                                _cdp_lost_count += 1
+                                if _cdp_lost_count >= _CDP_LOST_THRESHOLD:
+                                    _reset_cdp_active(False)
+                                    _cdp_lost_count = 0
+                                    logger.warning(
+                                        "CDP 连续 %d 次无响应，判定 Cursor 已崩溃/退出，切回 OCR 模式，等待 Cursor 重启后自动重连",
+                                        _CDP_LOST_THRESHOLD,
+                                    )
+                                    patrol_trace("cdp_lost", "CDP断线，切回OCR，等待Cursor重启")
+                            else:
+                                _cdp_lost_count = 0   # 恢复正常，清零
+                        except Exception:
+                            pass
+                    # ── CDP 延迟探测（未激活时每 N 轮重试一次）────────
+                    if not _cdp_active and HAS_CDP and self._tick_count > 0 and self._tick_count % _cdp_reconnect_every == 0:
+                        if _probe_cdp(retries=1):
+                            logger.info("CDP 自动重连成功，恢复 CDP 高速模式")
+                            patrol_trace("cdp_reconnect", "CDP自动重连成功")
                     # ────────────────────────────────────────────────────
                     self.check_and_nudge()
                     self._tick_count += 1

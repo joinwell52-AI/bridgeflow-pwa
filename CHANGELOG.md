@@ -8,6 +8,25 @@
 
 ---
 
+## [2.12.16] - 2026-04-18
+
+### 桌面端
+
+#### 修复：CDP 断线后自动重连（Cursor OOM 崩溃无需重启 EXE）
+
+- `cursor_cdp.py` 新增 `cdp_lost` 字段，CDP 端口无响应时标记断线
+- 巡检循环检测到 CDP 连续 3 次失败，自动重置为 OCR 模式
+- Cursor 重启后每 12 轮（约 60s）自动重探 CDP 端口，恢复高速模式
+- 无需手动重启 CodeFlow Desktop EXE
+
+#### 变更：CDP 调试端口 9222 → 5253
+
+- 与 CodeFlow 中继端口 5252 形成统一端口体系（5252=中继，5253=CDP）
+- 与竞品（CursorRemote 等使用 9222）明确区分
+- 所有 .py 源码、文档同步更新
+
+---
+
 ## [2.12.15] - 2026-04-17
 
 ### 桌面端
@@ -298,7 +317,7 @@
 
 全面引入 CDP 作为 Cursor IDE 交互的主力通道，OCR 降级为纯备用。
 
-- **新增 `cursor_cdp.py` 模块**：通过 WebSocket 连接 Cursor 的 `--remote-debugging-port=9222`，直接读取 DOM
+- **新增 `cursor_cdp.py` 模块**：通过 WebSocket 连接 Cursor 的 `--remote-debugging-port=5253`，直接读取 DOM
 - **精确 Agent 区分**：使用 `div[role="tab"]` + `aria-selected` 精确识别当前活跃角色，不再依赖 OCR 猜测
 - **原生鼠标事件切换角色**：`Input.dispatchMouseEvent` 实时坐标点击，替代 `pyautogui` 屏幕坐标
 - **精确忙碌检测**：检测 Stop/Cancel 按钮可见性 + Composer 区域 spinner，替代 OCR 字符猜测

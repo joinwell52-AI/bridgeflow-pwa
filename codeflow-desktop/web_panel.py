@@ -2147,7 +2147,7 @@ class PanelHandler(BaseHTTPRequestHandler):
                     if _cdp_avail():
                         from cursor_cdp import click_role as _cdp_click, scan as _cdp_scan_fn
                         _use_cdp = True
-                        logger.info("[实测] CDP 端口 9222 可用，优先走 CDP 通道")
+                        logger.info("[实测] CDP 端口 5253 可用，优先走 CDP 通道")
                 except Exception as _imp_err:
                     logger.debug("[实测] CDP 模块不可用: %s", _imp_err)
 

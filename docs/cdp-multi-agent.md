@@ -1,7 +1,7 @@
 # CDP 多 Agent 区分机制
 
 > 适用模块：`cursor_cdp.py`、`nudger.py`、`web_panel.py`  
-> 前置条件：Cursor 以 `--remote-debugging-port=9222` 启动
+> 前置条件：Cursor 以 `--remote-debugging-port=5253` 启动
 
 ---
 
@@ -331,9 +331,9 @@ CDP 根据忙碌状态推导 `agent_status` 供面板展示：
 
 | 场景 | 原因 | 现有应对 | 表现 |
 |------|------|----------|------|
-| Cursor 未带 CDP 端口启动 | 用户直接双击图标，没有 `--remote-debugging-port=9222` | `cursor_embed.py` 检测到后自动 kill 并重启 Cursor | 首次启动延迟 5–10s |
-| 端口 9222 被占用 | 其他 Chrome/Electron 应用抢占了 9222 | 连接到错误应用 → 扫描不到角色 → 降级 OCR | 日志出现 "未找到 CDP 目标" |
-| 防火墙/安全软件拦截 | 拦截 `localhost:9222` 的 HTTP/WebSocket | 连接超时 → 降级 OCR | 日志出现 "CDP targets 获取失败" |
+| Cursor 未带 CDP 端口启动 | 用户直接双击图标，没有 `--remote-debugging-port=5253` | `cursor_embed.py` 检测到后自动 kill 并重启 Cursor | 首次启动延迟 5–10s |
+| 端口 5253 被占用 | 其他 Chrome/Electron 应用抢占了 5253 | 连接到错误应用 → 扫描不到角色 → 降级 OCR | 日志出现 "未找到 CDP 目标" |
+| 防火墙/安全软件拦截 | 拦截 `localhost:5253` 的 HTTP/WebSocket | 连接超时 → 降级 OCR | 日志出现 "CDP targets 获取失败" |
 
 ### 8.2 运行层
 

@@ -242,7 +242,7 @@ PC 端 Cursor 与手机端 PWA 工作实况内容保持一致：
 
 | 场景 | Desktop 行为 |
 |------|-------------|
-| Cursor 未运行 | 启动时自动带 `--remote-debugging-port=9222` 参数拉起 Cursor |
+| Cursor 未运行 | 启动时自动带 `--remote-debugging-port=5253` 参数拉起 Cursor |
 | Cursor 已运行但无 CDP | 自动静默重启 Cursor 并注入 CDP 参数（保留项目目录） |
 | Cursor 已运行且有 CDP | 直接连接，无任何打扰 |
 | CDP 不可用（极少数情况） | 自动降级为 OCR 模式，工作实况显示状态但无消息详情 |

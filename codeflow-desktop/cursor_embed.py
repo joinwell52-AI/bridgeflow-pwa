@@ -43,14 +43,14 @@ def try_launch_cursor(exe: Path, project_dir: Path | None = None) -> tuple[bool,
         if sys.platform == "darwin":
             if project_dir:
                 subprocess.Popen(["open", "-a", "Cursor", "--args",
-                                  "--remote-debugging-port=9222", str(project_dir)])
+                                  "--remote-debugging-port=5253", str(project_dir)])
             else:
                 subprocess.Popen(["open", "-a", "Cursor", "--args",
-                                  "--remote-debugging-port=9222"])
+                                  "--remote-debugging-port=5253"])
         else:
-            # --remote-debugging-port=9222 启用 CDP 调试端口
+            # --remote-debugging-port=5253 启用 CDP 调试端口
             # cursor_cdp.py 通过此端口直连 DOM，实现高速巡检（<100ms, 精度100%）
-            cmd = [str(exe), "--remote-debugging-port=9222"]
+            cmd = [str(exe), "--remote-debugging-port=5253"]
             if project_dir and project_dir.is_dir():
                 cmd.append(str(project_dir))
             subprocess.Popen(cmd, cwd=str(exe.parent), shell=False)
@@ -383,7 +383,7 @@ def _cursor_has_cdp_port() -> bool:
         pass
     try:
         import urllib.request
-        req = urllib.request.Request("http://127.0.0.1:9222/json",
+        req = urllib.request.Request("http://127.0.0.1:5253/json",
                                      headers={"Accept": "application/json"})
         with urllib.request.urlopen(req, timeout=2) as resp:
             return resp.status == 200
@@ -394,7 +394,7 @@ def _cursor_has_cdp_port() -> bool:
 def _restart_cursor_with_cdp(
     exe: Path | None, project_dir: Path | None
 ) -> tuple[bool, str]:
-    """关闭所有 Cursor 进程，然后带 --remote-debugging-port=9222 重启。"""
+    """关闭所有 Cursor 进程，然后带 --remote-debugging-port=5253 重启。"""
     import subprocess
     logger.info("[CDP 重启] Cursor 运行中但无 CDP 端口，准备重启…")
     try:

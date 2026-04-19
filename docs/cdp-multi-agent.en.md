@@ -1,7 +1,7 @@
 # CDP Multi-Agent Differentiation Mechanism
 
 > Applicable modules: `cursor_cdp.py`, `nudger.py`, `web_panel.py`  
-> Prerequisite: Cursor launched with `--remote-debugging-port=9222`
+> Prerequisite: Cursor launched with `--remote-debugging-port=5253`
 
 ---
 
@@ -331,9 +331,9 @@ All failure scenarios **automatically degrade to OCR** — no stuck states or lo
 
 | Scenario | Cause | Mitigation | Behavior |
 |----------|-------|------------|----------|
-| Cursor launched without CDP port | User double-clicked icon without `--remote-debugging-port=9222` | `cursor_embed.py` detects and auto-kills + relaunches Cursor | 5–10s first-launch delay |
-| Port 9222 occupied | Another Chrome/Electron app claimed 9222 | Connects to wrong app → can't find roles → degrades to OCR | Log shows "CDP target not found" |
-| Firewall/security software blocks | `localhost:9222` HTTP/WebSocket blocked | Connection timeout → degrades to OCR | Log shows "CDP targets fetch failed" |
+| Cursor launched without CDP port | User double-clicked icon without `--remote-debugging-port=5253` | `cursor_embed.py` detects and auto-kills + relaunches Cursor | 5–10s first-launch delay |
+| Port 5253 occupied | Another Chrome/Electron app claimed 5253 | Connects to wrong app → can't find roles → degrades to OCR | Log shows "CDP target not found" |
+| Firewall/security software blocks | `localhost:5253` HTTP/WebSocket blocked | Connection timeout → degrades to OCR | Log shows "CDP targets fetch failed" |
 
 ### 8.2 Runtime Layer
 
