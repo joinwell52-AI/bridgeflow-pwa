@@ -6,6 +6,49 @@
 
 ## [Unreleased]
 
+### 协议（规则收编）
+
+#### 新增"核心原则"（FCoP 北极星条款）
+
+`codeflow-project.mdc` / `codeflow-project.en.mdc` 顶部新增 **Core Principle** 章节：
+
+> **AI 角色之间不能只在脑子里说话，必须落成文件。**
+
+这条总则**不是人写的**——它由一个 Cursor agent 在执行完全无关的视频生成任务时，
+从本文件"文件协议"和"严禁事项"两节里**升华**得出，再被反向收编为总则。
+
+在这条总则下，后续所有具体规定（命名格式、YAML 元数据、中继事件、严禁事项等）都可以被
+理解为"这条原则在不同场景下的具体落地"。完整事件记录与证据档案见
+[FCoP 公仓 · fcop-natural-protocol.md](https://github.com/joinwell52-AI/FCoP/blob/main/essays/fcop-natural-protocol.md)。
+
+### 文档与证据档案
+
+#### 收录自然涌现的 FCoP 实例（`scripts/gen_song_video.py` + `docs/agents/tasks/*-20260420-*`）
+
+2026-04-20 出现的"agent 自发把自己拆成 4 个 FCoP 角色、为一个视频生成任务写了 4 份内部公文"的
+完整证据：
+
+- **触发脚本**：`scripts/gen_song_video.py`（MoviePy 版本，初始方案；DEV agent 后升级到 Banana 生成）
+- **四份公文**：`docs/agents/tasks/TASK-20260420-001-{ADMIN-to-PM, PM-to-ADMIN, PM-to-DEV, DEV-to-PM}.md`
+- **原始事件发生地**：`D:\CloudMusic`（不在本仓库内；完整副本在 FCoP 公仓的
+  [evidence 档案](https://github.com/joinwell52-AI/FCoP/tree/main/essays/fcop-natural-protocol-evidence)）
+
+这组文件不是"按规则执行的任务"，而是"规则的自然涌现证据"。
+**请勿合并/重构/挪动这些 20260420 的任务文件**——它们的价值在于原样保留。
+`docs/agents/tasks/README.md` 做了专门标注。
+
+### 外部发布
+
+Essay 02 *An unexplainable thing I saw: the agent didn't just comply with rules — it endorsed them*
+已同步上线多个渠道：
+
+| 渠道 | 语言 | URL |
+|---|---|---|
+| GitHub（FCoP 公仓） | 中 + 英 | `joinwell52-AI/FCoP/essays/fcop-natural-protocol.md` |
+| CSDN | 中 | `blog.csdn.net/m0_51507544/article/details/160345043` |
+| Dev.to | 英 | `dev.to/joinwell52/an-unexplainable-thing-i-saw-...` |
+| Cursor Community Forum | 英 | `forum.cursor.com/t/.../158524` |
+
 ---
 
 ## [2.12.17] - 2026-04-19

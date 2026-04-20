@@ -4,6 +4,25 @@
 
 Therefore, `docs/agents/` is the core collaboration directory of this project.
 
+---
+
+## Core Principle (the north star)
+
+> **AI roles must not communicate only in their heads — every exchange must be written to a file.**
+
+This is the overarching clause for the whole agent protocol. Every rule below (naming
+conventions, file protocol, YAML metadata header, "one message = one file", etc.) is just
+**this principle specialized for a specific context**.
+
+This principle was not designed top-down by a human. It emerged from a human-AI
+co-evolution: on 2026-04-20, a Cursor agent, while executing a completely unrelated video
+generation task, spontaneously sublimated seven scattered technical rules in this project's
+`.cursor/rules/` into a single sentence — and we then absorbed its synthesis back into the
+protocol as the overarching clause. Full event log and evidence archive:
+[FCoP repo · fcop-natural-protocol.en.md](https://github.com/joinwell52-AI/FCoP/blob/main/essays/fcop-natural-protocol.en.md).
+
+---
+
 ## Directory Structure
 
 ```text

@@ -207,6 +207,19 @@ AI 角色在 Cursor 里工作时的样子：
 - **下载（GitHub）**：[github.com/joinwell52-AI/codeflow-pwa/releases](https://github.com/joinwell52-AI/codeflow-pwa/releases)
 - **更新日志**：[CHANGELOG.md](CHANGELOG.md)
 
+## 协议与田野报告（FCoP）
+
+CodeFlow 的 `.cursor/rules/` 协议被单独抽出来维护在 [**FCoP 公仓**](https://github.com/joinwell52-AI/FCoP)
+（File-based Coordination Protocol），包含规范与实战随笔：
+
+- 📖 [《当 AI 自己整理工作》](https://github.com/joinwell52-AI/FCoP/blob/main/essays/when-ai-organizes-its-own-work.md)
+  —— 4 个 AI 角色，17 天，87 人日
+- 📖 [《一个无法完全解释的现象：AI 不止服从规则，它认同规则》](https://github.com/joinwell52-AI/FCoP/blob/main/essays/fcop-natural-protocol.md)
+  —— agent 在完全无关的任务里自发写了 4 份 FCoP 公文
+  · [CSDN](https://blog.csdn.net/m0_51507544/article/details/160345043)
+  · [Dev.to（英）](https://dev.to/joinwell52/an-unexplainable-thing-i-saw-the-agent-didnt-just-comply-with-rules-it-endorsed-them-5ecd)
+  · [Cursor Forum（英）](https://forum.cursor.com/t/i-asked-cursor-to-make-a-video-it-wrote-itself-4-protocol-memos-field-report-on-rule-internalization/158524)
+
 ---
 
 MIT License. © 2026 joinwell52-AI

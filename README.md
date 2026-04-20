@@ -151,6 +151,12 @@ server/relay/        # WebSocket relay
 - [Security Policy / 安全策略](SECURITY.md)
 - [Discussions / 讨论区](https://github.com/joinwell52-AI/codeflow-pwa/discussions)
 
+### Further reading · FCoP protocol & field reports / 延伸阅读
+
+- **[FCoP — File-based Coordination Protocol](https://github.com/joinwell52-AI/FCoP)** — the distilled protocol spec and essays behind CodeFlow's `.cursor/rules/` design / CodeFlow `.cursor/rules/` 背后的协议规范与随笔集
+- [*When AI organizes its own work*](https://github.com/joinwell52-AI/FCoP/blob/main/essays/when-ai-organizes-its-own-work.md) — a 4-AI-role team delivering 87 person-days in 17 days / 4 个 AI 角色在 17 天交付 87 人日
+- [*An unexplainable thing I saw: the agent didn't just comply with rules — it endorsed them*](https://github.com/joinwell52-AI/FCoP/blob/main/essays/fcop-natural-protocol.en.md) — an agent spontaneously wrote itself 4 FCoP memos on an unrelated task. [中文](https://github.com/joinwell52-AI/FCoP/blob/main/essays/fcop-natural-protocol.md) · [CSDN](https://blog.csdn.net/m0_51507544/article/details/160345043) · [Dev.to](https://dev.to/joinwell52/an-unexplainable-thing-i-saw-the-agent-didnt-just-comply-with-rules-it-endorsed-them-5ecd) · [Cursor Forum](https://forum.cursor.com/t/i-asked-cursor-to-make-a-video-it-wrote-itself-4-protocol-memos-field-report-on-rule-internalization/158524)
+
 ---
 
 ### License

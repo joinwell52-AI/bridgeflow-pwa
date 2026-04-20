@@ -4,6 +4,22 @@
 
 因此 `docs/agents/` 是这个项目的核心协作目录。
 
+---
+
+## 核心原则（北极星）
+
+> **AI 角色之间不能只在脑子里说话，必须落成文件。**
+
+这是整套 agent 协议的总则。下面所有规则（命名约定、文件协议、YAML 元数据头、
+"一条消息 = 一条文件"等）都是**这条原则在不同场景下的具体落地**。
+
+这条总则不是人类一次性设计出来的，而是来自一次"人机共同演化"——一个 Cursor agent 在 2026-04-20
+执行完全无关的视频生成任务时，自发把散落在本项目 `.cursor/rules/` 里七条技术规定升华成了
+一句话，我们再把它反向收编成总则。完整事件与证据档案见
+[FCoP 公仓 · fcop-natural-protocol.md](https://github.com/joinwell52-AI/FCoP/blob/main/essays/fcop-natural-protocol.md)。
+
+---
+
 ## 目录结构
 
 ```text

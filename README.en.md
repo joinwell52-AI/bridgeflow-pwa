@@ -207,6 +207,20 @@ Only task status events (JSON text, no file content) pass through the relay. All
 - **Download (GitHub)**: [github.com/joinwell52-AI/codeflow-pwa/releases](https://github.com/joinwell52-AI/codeflow-pwa/releases)
 - **Changelog**: [CHANGELOG.md](CHANGELOG.md)
 
+## Protocol & field reports (FCoP)
+
+The `.cursor/rules/` protocol behind CodeFlow is extracted and maintained separately in the
+[**FCoP repo**](https://github.com/joinwell52-AI/FCoP) (File-based Coordination Protocol),
+along with essays from real deployments:
+
+- 📖 [*When AI organizes its own work*](https://github.com/joinwell52-AI/FCoP/blob/main/essays/when-ai-organizes-its-own-work.en.md)
+  — 4 AI roles, 17 days, 87 person-days delivered
+- 📖 [*An unexplainable thing I saw: the agent didn't just comply with rules — it endorsed them*](https://github.com/joinwell52-AI/FCoP/blob/main/essays/fcop-natural-protocol.en.md)
+  — an agent spontaneously wrote itself 4 FCoP memos on a completely unrelated task
+  · [Dev.to](https://dev.to/joinwell52/an-unexplainable-thing-i-saw-the-agent-didnt-just-comply-with-rules-it-endorsed-them-5ecd)
+  · [Cursor Forum](https://forum.cursor.com/t/i-asked-cursor-to-make-a-video-it-wrote-itself-4-protocol-memos-field-report-on-rule-internalization/158524)
+  · [中文原文](https://github.com/joinwell52-AI/FCoP/blob/main/essays/fcop-natural-protocol.md)
+
 ---
 
 MIT License. © 2026 joinwell52-AI

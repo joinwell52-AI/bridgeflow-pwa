@@ -18,7 +18,10 @@ Under this principle, every specific rule below (naming conventions, YAML metada
 shape, prohibited actions) can be understood as "**this principle, specialized for a specific
 context**."
 
-(Full provenance: see `private/essays/fcop-natural-protocol.md`.)
+(Full provenance: see the [FCoP public
+repo](https://github.com/joinwell52-AI/FCoP/blob/main/essays/fcop-natural-protocol.en.md).
+A local copy lives under `private/essays/fcop-natural-protocol.md`, but `private/` is
+`.gitignore`d, so public readers should follow the GitHub link above.)
 
 ## Positioning
 
