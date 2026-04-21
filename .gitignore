@@ -61,6 +61,9 @@ node_modules/
 *.log
 *.tmp
 
+# ── FCoP Agent 抽屉（私人空间，不入版本库；proposals 不在此列，需进 git）──
+.fcop/drawer/
+
 # ── 配置文件（含敏感信息，不提交） ──
 codeflow_config.json
 bridgeflow_config.json

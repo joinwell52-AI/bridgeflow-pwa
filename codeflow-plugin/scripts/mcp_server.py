@@ -28,13 +28,31 @@ Tool-addition rule (minimization check) / 加工具的判据:
   扳手放进来(语法感知的查询、schema 校验、原子 ID 分配、跨平台路径)。
   意见留在外面——agent 想做,在 tasks/ 下开个子目录自己做就行,不需要协议插手。
 
+  Two shapes of wrench / 扳手有两种形态:
+    (a) Problem-solving wrenches — help agents DO FCoP work correctly.
+        e.g. `inspect_task` catches filename↔frontmatter mismatches that
+        raw read_file + regex would miss.
+    (b) Safety-fuse wrenches — PREVENT specific bad behaviours. Their value
+        shows up in what bad thing does NOT happen, not in what good thing
+        they produce. e.g. `drop_suggestion` exists so agents have a
+        legitimate outlet for protocol disagreement, instead of silently
+        editing `codeflow-core.mdc` themselves. The tool is trivially
+        simple; the value is entirely in the Rules-level sentence
+        "use this instead of touching the rules file".
+
+    (a) 解题型扳手:帮 agent 把 FCoP 的活儿干对(inspect_task 这类)。
+    (b) 保险丝型扳手:拦截特定坏行为,价值体现在"没它时会发生什么坏事",
+        而不是"有它时能做什么好事"(drop_suggestion 这类)。
+
 Current tools:
   - Project initialization (create docs/agents/ structure)
   - Team status overview (task/report/issue counts)
   - Task listing and reading (grammar-aware: to-ROLE / to-ROLE.SLOT / to-TEAM)
   - Task writing with frontmatter validation
+  - Task inspection (schema + filename/frontmatter consistency check) — wrench
   - Report listing and reading
   - Custom team creation with user-defined roles
+  - Suggestion valve (drop_suggestion) — safety fuse for protocol disagreement
   - Bilingual support (zh/en)
 """
 from __future__ import annotations
@@ -632,6 +650,102 @@ def write_task(
     cfg = _load_project_config()
     lang = cfg.get("lang", "zh") if cfg else "zh"
     return f"{t('task_created', lang)}: {filename}"
+
+
+# FCoP 任务文件名语法:TASK-{YYYYMMDD}-{NNN}-{SENDER}-to-{RECIPIENT}.md
+# sender 只含字母/数字/下划线/连字符;recipient 还允许点号(槽位分隔)。
+_TASK_FILENAME_RE = re.compile(
+    r"^TASK-\d{8}-\d{3}-([A-Za-z][A-Za-z0-9_-]*)-to-([A-Za-z][A-Za-z0-9_.-]*)\.md$"
+)
+
+
+@mcp.tool
+def inspect_task(filename: str) -> str:
+    """Validate a task file against FCoP grammar (schema + filename↔frontmatter).
+
+    This is a **wrench**: it catches the deterministic violations that raw
+    read_file + regex agents routinely miss — filename says `to-DEV` but
+    frontmatter says `recipient: QA`, `protocol` field mistyped, required
+    field missing. Returns PASS or a bulleted list of violations.
+
+    FCoP 文件语法校验工具。专门捕捉"文件名和 frontmatter 不一致""协议字段拼错"
+    "必填字段缺失"这类 agent 用 read_file + 正则容易漏掉的确定性错误。
+
+    Args:
+        filename: Task filename or relative path under tasks/
+                  (e.g. TASK-20260418-015-PM-to-DEV.md or batch/sub.md)
+    """
+    fp = TASKS_DIR / filename
+    if not fp.exists():
+        return f"File not found: {filename}"
+
+    violations: list[str] = []
+    fm = _parse_frontmatter(fp)
+    if not fm:
+        return f"FAIL: {fp.name}\n  - No YAML frontmatter found (file must start with ---)"
+
+    for req in ("protocol", "version", "sender", "recipient"):
+        if not fm.get(req, "").strip():
+            violations.append(f"Missing required field: {req}")
+
+    # 别名归一化已经在 _parse_frontmatter 里做过,到这里还不是 'fcop'/'1' 就是真的错了
+    if fm.get("protocol") and fm["protocol"] != "fcop":
+        violations.append(
+            f"protocol value '{fm['protocol']}' is not canonical — expected 'fcop' (or known alias)"
+        )
+    if fm.get("version") and fm["version"] != "1":
+        violations.append(
+            f"version value '{fm['version']}' unexpected — expected integer 1"
+        )
+
+    m = _TASK_FILENAME_RE.match(fp.name)
+    if not m:
+        violations.append(
+            "Filename does not match TASK-YYYYMMDD-NNN-SENDER-to-RECIPIENT.md"
+        )
+    else:
+        fn_sender = m.group(1).upper()
+        fn_recipient = m.group(2).upper()
+        fm_sender = fm.get("sender", "").strip().upper()
+        fm_recipient = fm.get("recipient", "").strip().upper()
+        if fm_sender and fm_sender != fn_sender:
+            violations.append(
+                f"Sender mismatch: filename='{fn_sender}' vs frontmatter='{fm_sender}'"
+            )
+        if fm_recipient and fm_recipient != fn_recipient:
+            violations.append(
+                f"Recipient mismatch: filename='{fn_recipient}' vs frontmatter='{fm_recipient}'"
+            )
+
+    if not violations:
+        return f"PASS: {fp.name}"
+    return f"FAIL: {fp.name}\n  - " + "\n  - ".join(violations)
+
+
+@mcp.tool
+def drop_suggestion(content: str, context: str = "") -> str:
+    """Pressure valve for agents who disagree with the current FCoP protocol.
+
+    Call this INSTEAD of editing `codeflow-core.mdc` yourself. Writes a
+    timestamped Markdown file to `.fcop/proposals/` and returns. No IDs,
+    no schema, no review workflow — just land your disagreement as a file
+    and move on. Humans review asynchronously. The value of this tool is
+    entirely in the Rules-level contract "use this, don't touch the rules".
+
+    协议不满的泄压阀。**不要自己去改 `codeflow-core.mdc`**,调这个就完了。
+
+    Args:
+        content: What you want to suggest, in your own words
+        context: Optional pointer to a task/report/file that triggered this
+    """
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    path = PROJECT_DIR / ".fcop" / "proposals" / f"{ts}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    header = f"# Suggestion @ {ts}\n\n"
+    if context:
+        header += f"**Context**: {context}\n\n"
+    path.write_text(header + content, encoding="utf-8", newline="\n")
+    return f"Dropped: {path.relative_to(PROJECT_DIR).as_posix()}"
 
 
 @mcp.tool
