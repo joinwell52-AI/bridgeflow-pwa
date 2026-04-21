@@ -1,17 +1,21 @@
 """
 fcop — the MCP toolbox for FCoP (File-based Coordination Protocol).
 
-MCP is a **toolbox**, not the protocol. The protocol lives in
-`rules/codeflow-core.mdc` (filename-is-the-spec, YAML frontmatter, flat
-directories). This file is the standard-issue tool belt every agent puts
-on when arriving at the jobsite: same verbs on Windows / macOS / Linux,
-same verbs in Cursor / Claude Desktop / CLI, same verbs across every
-agent role in a multi-agent team.
+MCP is a **toolbox**, not the protocol. The protocol lives in two sibling
+rule files: `rules/fcop-rules.mdc` (the protocol rules) and
+`rules/fcop-protocol.mdc` (the protocol commentary — filename-is-the-spec,
+YAML frontmatter, flat directories, patrol triggers, etc.). Rules say
+*what must hold*; commentary says *how it looks in practice*. This file
+is the standard-issue tool belt every agent puts on when arriving at the
+jobsite: same verbs on Windows / macOS / Linux, same verbs in Cursor /
+Claude Desktop / CLI, same verbs across every agent role in a multi-agent
+team.
 
 四个字:**工具箱**。不是协议,不是注册中心,不是数据库,不是审计员。
 MCP 服务的是"多 agent / 跨平台 / 统一着装 / 快速部署"这四件事——让不同
 宿主、不同操作系统下的 agent,用同一套动词(list_tasks / read_task /
-write_task / ...)说同一种话。协议本身在 codeflow-core.mdc 里。
+write_task / ...)说同一种话。协议本身在 fcop-rules.mdc(协议规则)与
+fcop-protocol.mdc(协议解释)里。
 
 Tool-addition rule (minimization check) / 加工具的判据:
   Before adding a new tool, ask:
@@ -36,9 +40,9 @@ Tool-addition rule (minimization check) / 加工具的判据:
         shows up in what bad thing does NOT happen, not in what good thing
         they produce. e.g. `drop_suggestion` exists so agents have a
         legitimate outlet for protocol disagreement, instead of silently
-        editing `codeflow-core.mdc` themselves. The tool is trivially
-        simple; the value is entirely in the Rules-level sentence
-        "use this instead of touching the rules file".
+        editing `fcop-rules.mdc` / `fcop-protocol.mdc` themselves. The tool
+        is trivially simple; the value is entirely in the Rules-level
+        sentence "use this instead of touching the rules files".
 
     (a) 解题型扳手:帮 agent 把 FCoP 的活儿干对(inspect_task 这类)。
     (b) 保险丝型扳手:拦截特定坏行为,价值体现在"没它时会发生什么坏事",
@@ -74,19 +78,16 @@ from pathlib import Path
 from fastmcp import FastMCP
 
 
-def _packaged_core_mdc() -> Path | None:
-    """Return a filesystem path to the bundled `codeflow-core.mdc`.
+def _packaged_data(filename: str) -> Path | None:
+    """Return a filesystem path to a bundled data file under `fcop/_data/`.
 
-    After `pip install codeflow-mcp` the file lives inside the wheel as
-    package data (`codeflow_mcp/_data/codeflow-core.mdc`). `importlib.resources`
-    is the only portable way to reach it; for a zip-installed wheel we
-    materialize it via `as_file`, but practically Python wheels for pure-python
-    packages are unpacked so the `Traversable` IS a `Path`. We only return a
-    real Path object; callers that need a short-lived copy should use
-    `_packaged_core_mdc_bytes()` instead.
+    After `pip install fcop` the file lives inside the wheel as package data
+    (`fcop/_data/<filename>`). `importlib.resources` is the only portable way
+    to reach it; practically Python wheels for pure-python packages are
+    unpacked so the `Traversable` IS a `Path`.
     """
     try:
-        base = resources.files("codeflow_mcp") / "_data" / "codeflow-core.mdc"
+        base = resources.files("fcop") / "_data" / filename
     except (ModuleNotFoundError, AttributeError):
         return None
     try:
@@ -96,33 +97,43 @@ def _packaged_core_mdc() -> Path | None:
         return None
 
 
-def _packaged_core_mdc_bytes() -> bytes | None:
-    """Byte-level read of the bundled `codeflow-core.mdc` (zipsafe fallback)."""
+def _packaged_data_bytes(filename: str) -> bytes | None:
+    """Byte-level read of a bundled data file (zipsafe fallback)."""
     try:
-        base = resources.files("codeflow_mcp") / "_data" / "codeflow-core.mdc"
+        base = resources.files("fcop") / "_data" / filename
         with ExitStack() as stack:
             path = stack.enter_context(resources.as_file(base))
             return Path(path).read_bytes()
     except Exception:
         return None
 
+
 mcp = FastMCP(
     name="fcop",
     instructions=(
-        "加载了 FCoP 工具箱（fcop），它教你如何通过 FCoP 协议和团队协同。\n"
-        "You've loaded the FCoP toolbox (fcop) — it teaches you how to "
-        "coordinate with the team via FCoP.\n\n"
-        "FCoP · File-based Coordination Protocol —— 多 AI Agent 文件驱动任务管理。\n"
-        "FCoP — a file-based coordination protocol for multi-AI agent teams. "
-        "Bilingual output via the `lang` parameter.\n\n"
-        "【启动必读 / First-action mandate】FCoP v1.1 Rule 0：新会话默认处于 "
-        "UNBOUND 态，第一个动作必须是调用 `unbound_report()` 输出项目客观状态并"
-        "等待 ADMIN 指派身份。不得基于任务内容推断自己是什么角色，不得在未获"
-        "指派前写任何文件。\n"
-        "New sessions start UNBOUND. FIRST action MUST be calling "
-        "`unbound_report()`; wait for ADMIN's explicit role assignment. Do not "
-        "infer your role from task contents; do not write any files before "
-        "assignment."
+        "【目的 / Purpose】本协议让 Agent 通过 FCoP 与团队协同工作；"
+        "团队可以是多 Agent 多角色，也可以是单 Agent 单角色（solo 模式），"
+        "协作都以**文件**为媒介。\n"
+        "This protocol enables agents to coordinate with a team via FCoP; "
+        "teams can be multi-agent or single-agent (solo mode), and "
+        "coordination always happens through files.\n\n"
+        "本项目的协议由两个同级文件共同定义："
+        "`.cursor/rules/fcop-rules.mdc`（协议规则，alwaysApply）+ "
+        "`.cursor/rules/fcop-protocol.mdc`（协议解释，alwaysApply）。"
+        "冲突时以 fcop-rules.mdc 为准。本 MCP（`fcop`）是协议的标准工具箱。\n"
+        "The protocol is defined by two sibling files: "
+        "`.cursor/rules/fcop-rules.mdc` (protocol rules, alwaysApply) + "
+        "`.cursor/rules/fcop-protocol.mdc` (protocol commentary, "
+        "alwaysApply). fcop-rules.mdc wins on conflict. This MCP (`fcop`) "
+        "is the standard toolbox for the protocol.\n\n"
+        "FCoP · File-based Coordination Protocol —— 多 AI Agent 文件驱动协作协议。\n"
+        "FCoP — a file-based coordination protocol for multi-AI agent teams.\n\n"
+        "【Rule 1 · UNBOUND】新会话默认处于 UNBOUND 态，第一个动作必须是"
+        "调用 `unbound_report()` 输出项目客观状态并等待 ADMIN 指派身份。"
+        "不得从上下文推断角色，不得在未获指派前写任何文件。\n"
+        "New sessions start UNBOUND. FIRST action MUST be `unbound_report()`; "
+        "wait for ADMIN's explicit role assignment. Do not infer your role; "
+        "do not write any files before assignment."
     ),
 )
 
@@ -135,7 +146,7 @@ def _env(*names: str, default: str = "") -> str:
     return default
 
 
-PROJECT_DIR = Path(_env("CODEFLOW_PROJECT_DIR", "CODEFLOW_PROJECT_DIR", default=".")).resolve()
+PROJECT_DIR = Path(_env("FCOP_PROJECT_DIR", default=".")).resolve()
 AGENTS_DIR = PROJECT_DIR / "docs" / "agents"
 TASKS_DIR = AGENTS_DIR / "tasks"
 REPORTS_DIR = AGENTS_DIR / "reports"
@@ -165,12 +176,9 @@ def _task_file_matches_recipient(filename: str, recipient: str) -> bool:
 
 
 def _team_config_path_read() -> Path | None:
-    primary = AGENTS_DIR / "codeflow.json"
-    legacy = AGENTS_DIR / "CodeFlow.json"
+    primary = AGENTS_DIR / "fcop.json"
     if primary.exists():
         return primary
-    if legacy.exists():
-        return legacy
     return None
 
 
@@ -446,32 +454,95 @@ def _collect_active_threads(limit: int = 10) -> list[dict]:
     return summary[:limit]
 
 
-def _core_mdc_hash() -> str:
-    """Short hash of codeflow-core.mdc (or first candidate found).
+def _rule_file_hash(filename: str) -> str:
+    """Short hash of a bundled rule file (e.g. ``fcop-rules.mdc`` or
+    ``fcop-protocol.mdc``).
 
-    Used in UNBOUND report so ADMIN can tell at a glance whether two agent
-    sessions are looking at the same protocol version.
+    Used in the UNBOUND report so ADMIN can tell at a glance whether two
+    agent sessions are looking at the same version of a given rule file.
+    Resolution order: deployed copy under ``.cursor/rules/`` → packaged
+    data under ``fcop/_data/``.
     """
-    candidates = [
-        PROJECT_DIR / ".cursor" / "rules" / "codeflow-core.mdc",
-        Path(__file__).resolve().parent.parent / "rules" / "codeflow-core.mdc",
-    ]
-    for c in candidates:
-        if c.exists():
-            try:
-                h = hashlib.sha256(c.read_bytes()).hexdigest()[:12]
-                try:
-                    rel = c.relative_to(PROJECT_DIR).as_posix()
-                except ValueError:
-                    rel = c.name
-                return f"{rel} (sha256:{h})"
-            except Exception:
-                pass
-    pkg_bytes = _packaged_core_mdc_bytes()
+    candidate = PROJECT_DIR / ".cursor" / "rules" / filename
+    if candidate.exists():
+        try:
+            h = hashlib.sha256(candidate.read_bytes()).hexdigest()[:12]
+            return f".cursor/rules/{filename} (sha256:{h})"
+        except Exception:
+            pass
+    pkg_bytes = _packaged_data_bytes(filename)
     if pkg_bytes is not None:
         h = hashlib.sha256(pkg_bytes).hexdigest()[:12]
-        return f"codeflow_mcp/_data/codeflow-core.mdc (sha256:{h})"
-    return "(codeflow-core.mdc 未找到 / not found)"
+        return f"fcop/_data/{filename} (sha256:{h})"
+    return f"({filename} 未找到 / not found)"
+
+
+# ─── Validation helpers ───────────────────────────────────
+
+_ROLE_CODE_RE = re.compile(r"^[A-Z][A-Z0-9_]*$")
+_RESERVED_ROLE_CODES = {"ADMIN", "SYSTEM"}
+
+
+def _validate_role_code(code: str) -> str | None:
+    """Return None if the role code is legal, else a plain-language error.
+
+    Rules derived from the task filename grammar
+    (``_TASK_FILENAME_RE``): role codes become path segments, so they
+    must be ASCII-only, start with an uppercase letter, and contain only
+    ``A-Z`` / ``0-9`` / ``_``. Dashes and dots would collide with the
+    filename's own field separators.
+    """
+    if not code:
+        return "角色代码不能为空 / role code cannot be empty"
+    if not _ROLE_CODE_RE.match(code):
+        return (
+            f"角色代码 '{code}' 非法：必须大写英文字母开头，只能用 A-Z / 0-9 / _"
+            f"（不允许中文、空格、-、. ）。建议用英文职能词（MANAGER / CODER）"
+            f"或全大写拼音（JINGLI / CHENGXU）。\n"
+            f"Role code '{code}' is invalid: must start with an uppercase "
+            f"letter and use only A-Z / 0-9 / _ (no Chinese, spaces, '-', '.'). "
+            f"Prefer English job-function words (MANAGER / CODER) or "
+            f"uppercase Pinyin (JINGLI / CHENGXU)."
+        )
+    if code in _RESERVED_ROLE_CODES:
+        return (
+            f"角色代码 '{code}' 是 FCoP 保留字（ADMIN / SYSTEM），不能作为团队角色。\n"
+            f"Role code '{code}' is reserved by FCoP (ADMIN / SYSTEM) and "
+            f"cannot be used as a team role."
+        )
+    return None
+
+
+def _validate_team_config(
+    roles: list[str], leader: str, *, allow_single: bool = False
+) -> str | None:
+    """Validate the roles list + leader for ``create_custom_team`` / ``init_solo``.
+
+    Returns None if the config is legal, else a plain-language error string.
+    """
+    if not roles:
+        return "角色列表不能为空 / roles list cannot be empty"
+    if not allow_single and len(roles) < 2:
+        return (
+            "至少需要 2 个角色；如果只想一个人做，请用 init_solo(...) 启动 Solo 模式。\n"
+            "At least 2 roles required; for a single-role setup, use init_solo(...) "
+            "to enter Solo mode instead."
+        )
+    seen = set()
+    for r in roles:
+        err = _validate_role_code(r)
+        if err:
+            return err
+        if r in seen:
+            return f"角色代码 '{r}' 重复 / role code '{r}' appears more than once"
+        seen.add(r)
+    if leader not in roles:
+        return (
+            f"leader '{leader}' 必须在角色列表里（当前列表：{', '.join(roles)}）。\n"
+            f"leader '{leader}' must be one of the declared roles "
+            f"(current: {', '.join(roles)})."
+        )
+    return None
 
 
 # ─── MCP Tools ────────────────────────────────────────────
@@ -497,7 +568,7 @@ def unbound_report(lang: str = "zh") -> str:
         "You are {ROLE} on {team}, thread {thread_key} (optional)"
 
     ──────────────────────────────────────────────────────────
-    FCoP v1.1 第 0 条：新会话启动**必调**的第一个工具。
+    FCoP Rule 0 / Rule 1：新会话启动**必调**的第一个工具。
 
     输出一份标准化的 UNBOUND 汇报（项目客观状态 + 身份指派请求模板），原样
     回给 ADMIN 后停住——不要改写、不要润色、不要"顺便做点啥"。
@@ -533,7 +604,8 @@ def unbound_report(lang: str = "zh") -> str:
         rule_files = sorted(f.name for f in rules_dir.glob("*.mdc"))
 
     active = _collect_active_threads(limit=10)
-    core_ver = _core_mdc_hash()
+    rules_ver = _rule_file_hash("fcop-rules.mdc")
+    protocol_ver = _rule_file_hash("fcop-protocol.mdc")
 
     def _fmt_threads() -> list[str]:
         if not active:
@@ -549,8 +621,12 @@ def unbound_report(lang: str = "zh") -> str:
         lines = [
             "## UNBOUND report",
             f"",
+            "> Governed by the **FCoP protocol** — rules in "
+            "`.cursor/rules/fcop-rules.mdc`, commentary in "
+            "`.cursor/rules/fcop-protocol.mdc` (both alwaysApply).",
+            "",
             f"- project: `{PROJECT_DIR}`",
-            f"- codeflow.json present: {'yes' if cfg_present else 'no'}",
+            f"- fcop.json present: {'yes' if cfg_present else 'no'}",
         ]
         if cfg_present:
             lines += [
@@ -560,7 +636,8 @@ def unbound_report(lang: str = "zh") -> str:
             ]
         lines += [
             f"- .cursor/rules/*.mdc: {rule_files if rule_files else '(none)'}",
-            f"- protocol version: {core_ver}",
+            f"- fcop-rules.mdc: {rules_ver}",
+            f"- fcop-protocol.mdc: {protocol_ver}",
             f"- active threads (grouped by thread_key, frontmatter only):",
             *_fmt_threads(),
             "",
@@ -575,14 +652,18 @@ def unbound_report(lang: str = "zh") -> str:
             "> You are PM on dev-team, thread anti_hang_triage_20260421",
             "",
             "Until then I will not read task bodies, will not write files, "
-            "and will not claim a role.",
+            "and will not claim a role. (FCoP Rule 1)",
         ]
     else:
         lines = [
             "## UNBOUND 汇报",
             "",
+            "> 本会话受 **FCoP 协议** 约束 —— 协议规则见 "
+            "`.cursor/rules/fcop-rules.mdc`，协议解释见 "
+            "`.cursor/rules/fcop-protocol.mdc`（均为 alwaysApply）。",
+            "",
             f"- 项目路径：`{PROJECT_DIR}`",
-            f"- codeflow.json 是否存在：{'是' if cfg_present else '否'}",
+            f"- fcop.json 是否存在：{'是' if cfg_present else '否'}",
         ]
         if cfg_present:
             lines += [
@@ -592,7 +673,8 @@ def unbound_report(lang: str = "zh") -> str:
             ]
         lines += [
             f"- .cursor/rules/*.mdc：{rule_files if rule_files else '(无)'}",
-            f"- 协议版本：{core_ver}",
+            f"- fcop-rules.mdc：{rules_ver}",
+            f"- fcop-protocol.mdc：{protocol_ver}",
             f"- 活跃线程（按 thread_key 去重，只读 frontmatter）：",
             *_fmt_threads(),
             "",
@@ -606,7 +688,8 @@ def unbound_report(lang: str = "zh") -> str:
             "例如：",
             "> 你是 PM，在 dev-team，线程 anti_hang_triage_20260421",
             "",
-            "在此之前，我不会读任务正文、不会写文件、不会自认角色。",
+            "在此之前，我不会读任务正文、不会写文件、不会自认角色。"
+            "（FCoP Rule 1）",
         ]
 
     return "\n".join(lines)
@@ -676,6 +759,7 @@ def init_project(team: str = "dev-team", lang: str = "zh") -> str:
         )
 
     config = {
+        "mode": "team",
         "team": team,
         "team_name": name,
         "roles": [{"code": r["code"], "label": _role_label(r, lang)} for r in tmpl["roles"]],
@@ -683,15 +767,15 @@ def init_project(team: str = "dev-team", lang: str = "zh") -> str:
         "lang": lang,
         "created_at": _now(),
     }
-    config_file = AGENTS_DIR / "codeflow.json"
+    config_file = AGENTS_DIR / "fcop.json"
     config_file.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
 
     leader = tmpl["leader"]
     welcome = TASKS_DIR / f"TASK-{_today()}-001-SYSTEM-to-{leader}.md"
     if not welcome.exists():
         welcome.write_text(
-            f"---\ntask_id: TASK-{_today()}-001\nsender: SYSTEM\n"
-            f"recipient: {leader}\ncreated_at: {_now()}\n"
+            f"---\nprotocol: fcop\nversion: 1\ntask_id: TASK-{_today()}-001\n"
+            f"sender: SYSTEM\nrecipient: {leader}\ncreated_at: {_now()}\n"
             f"priority: normal\ntype: setup\n---\n\n"
             f"# {t('welcome_title', lang)}\n\n"
             f"{t('team_template', lang)}: **{name}**\n\n"
@@ -700,37 +784,40 @@ def init_project(team: str = "dev-team", lang: str = "zh") -> str:
             encoding="utf-8",
         )
 
-    rules_note = _deploy_core_mdc_to_project()
+    notes = _deploy_rules_to_project()
+    letter_note = _deploy_letter_to_project(lang)
+    if letter_note:
+        notes.append(letter_note)
 
     return (
         f"Project initialized: {name}\n"
-        f"Directories: tasks/, reports/, issues/, log/\n"
+        f"Directories: tasks/, reports/, issues/, shared/, log/\n"
         f"{t('roles', lang)}:\n{_role_table(tmpl, lang)}\n"
         f"{t('leader', lang)}: {leader}\n"
-        + (rules_note + "\n" if rules_note else "")
+        + ("\n".join(notes) + "\n" if notes else "")
     )
 
 
-def _deploy_core_mdc_to_project() -> str:
-    """Extract bundled `codeflow-core.mdc` into `<project>/.cursor/rules/`.
+def _deploy_one_rule(filename: str, source_subdir: str = "rules") -> str:
+    """Deploy a single bundled rules file into `<project>/.cursor/rules/`.
 
-    No-op if the destination already exists (we never overwrite a file the
-    user may have locally edited). Returns a short human-readable status line
-    (empty string on no-op) so `init_project` can surface the result.
+    Never overwrites an existing file (the user may have edited it locally).
+    Returns a short human-readable status line; empty string on no-op.
     """
-    target = PROJECT_DIR / ".cursor" / "rules" / "codeflow-core.mdc"
+    target = PROJECT_DIR / ".cursor" / "rules" / filename
     if target.exists():
         return ""
-    data = _packaged_core_mdc_bytes()
+    data = _packaged_data_bytes(filename)
     if data is None:
-        src = Path(__file__).resolve().parent.parent / "rules" / "codeflow-core.mdc"
+        # Dev fallback: read from repo's rules/ dir alongside src/
+        src = Path(__file__).resolve().parent.parent.parent / source_subdir / filename
         if src.exists():
             try:
                 data = src.read_bytes()
             except Exception:
                 data = None
     if data is None:
-        return "(codeflow-core.mdc 未释放：源文件不可用 / source not available)"
+        return f"({filename} 未释放：源文件不可用 / source not available)"
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
@@ -738,9 +825,66 @@ def _deploy_core_mdc_to_project() -> str:
             rel = target.relative_to(PROJECT_DIR).as_posix()
         except ValueError:
             rel = str(target)
-        return f"Deployed FCoP rules: {rel}"
+        return f"Deployed: {rel}"
     except Exception as exc:  # pragma: no cover - filesystem surprises
-        return f"(codeflow-core.mdc 未释放：{exc.__class__.__name__})"
+        return f"({filename} 未释放：{exc.__class__.__name__})"
+
+
+def _deploy_rules_to_project() -> list[str]:
+    """Deploy the FCoP ruleset to ``<project>/.cursor/rules/``.
+
+    Two sibling files — protocol rules + protocol commentary:
+
+    - ``fcop-rules.mdc`` — the protocol rules themselves.
+    - ``fcop-protocol.mdc`` — the protocol commentary explaining how each
+      rule applies in practice (file naming, YAML shape, directory layout,
+      patrol triggers, etc.).
+
+    Both are ``alwaysApply: true`` so any Cursor-hosted agent sees them in
+    every session. Never-overwrite on deploy to respect local edits.
+    """
+    notes: list[str] = []
+    for fn in ("fcop-rules.mdc", "fcop-protocol.mdc"):
+        msg = _deploy_one_rule(fn)
+        if msg:
+            notes.append(msg)
+    return notes
+
+
+def _deploy_letter_to_project(lang: str) -> str:
+    """Drop the LETTER-TO-ADMIN manual into ``docs/agents/`` on first init.
+
+    Picks the language-matched bundled file
+    (``letter-to-admin.{lang}.md``) and writes it as
+    ``docs/agents/LETTER-TO-ADMIN.md``. Never overwrites an existing file.
+    """
+    target = AGENTS_DIR / "LETTER-TO-ADMIN.md"
+    if target.exists():
+        return ""
+    lang_key = lang.lower() if lang else "zh"
+    if lang_key not in ("zh", "en"):
+        lang_key = "zh"
+    filename = f"letter-to-admin.{lang_key}.md"
+    data = _packaged_data_bytes(filename)
+    if data is None:
+        src = Path(__file__).resolve().parent / "_data" / filename
+        if src.exists():
+            try:
+                data = src.read_bytes()
+            except Exception:
+                data = None
+    if data is None:
+        return f"(LETTER-TO-ADMIN.md 未释放：{filename} 不可用 / source not available)"
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+        try:
+            rel = target.relative_to(PROJECT_DIR).as_posix()
+        except ValueError:
+            rel = str(target)
+        return f"Deployed: {rel}"
+    except Exception as exc:  # pragma: no cover - filesystem surprises
+        return f"(LETTER-TO-ADMIN.md 未释放：{exc.__class__.__name__})"
 
 
 @mcp.tool
@@ -762,38 +906,39 @@ def create_custom_team(
         lang: Output language: zh or en
     """
     role_list = [r.strip().upper() for r in roles.split(",") if r.strip()]
-    if len(role_list) < 2:
-        return "At least 2 roles required."
-    if leader.upper() not in role_list:
-        return f"Leader '{leader}' must be one of the roles: {', '.join(role_list)}"
+    leader_up = leader.strip().upper()
+    err = _validate_team_config(role_list, leader_up, allow_single=False)
+    if err:
+        return err
 
     for d in [TASKS_DIR, REPORTS_DIR, ISSUES_DIR, SHARED_DIR, LOG_DIR]:
         d.mkdir(parents=True, exist_ok=True)
 
     config = {
+        "mode": "team",
         "team": "custom",
         "team_name": team_name,
         "roles": [{"code": r, "label": r} for r in role_list],
-        "leader": leader.upper(),
+        "leader": leader_up,
         "lang": lang,
         "created_at": _now(),
     }
-    config_file = AGENTS_DIR / "codeflow.json"
+    config_file = AGENTS_DIR / "fcop.json"
     config_file.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
 
     readme = AGENTS_DIR / "README.md"
     readme.write_text(
         f"# FCoP — {team_name}\n\n"
         f"{t('roles', lang)}: {', '.join(role_list)}\n"
-        f"{t('leader', lang)}: {leader.upper()}\n",
+        f"{t('leader', lang)}: {leader_up}\n",
         encoding="utf-8",
     )
 
-    welcome = TASKS_DIR / f"TASK-{_today()}-001-SYSTEM-to-{leader.upper()}.md"
+    welcome = TASKS_DIR / f"TASK-{_today()}-001-SYSTEM-to-{leader_up}.md"
     if not welcome.exists():
         welcome.write_text(
-            f"---\ntask_id: TASK-{_today()}-001\nsender: SYSTEM\n"
-            f"recipient: {leader.upper()}\ncreated_at: {_now()}\n"
+            f"---\nprotocol: fcop\nversion: 1\ntask_id: TASK-{_today()}-001\n"
+            f"sender: SYSTEM\nrecipient: {leader_up}\ncreated_at: {_now()}\n"
             f"priority: normal\ntype: setup\n---\n\n"
             f"# {t('welcome_title', lang)}\n\n"
             f"{t('team_template', lang)}: **{team_name}**\n\n"
@@ -802,10 +947,129 @@ def create_custom_team(
             encoding="utf-8",
         )
 
+    notes = _deploy_rules_to_project()
+    letter_note = _deploy_letter_to_project(lang)
+    if letter_note:
+        notes.append(letter_note)
+
     return (
         f"{t('custom_created', lang)}: {team_name}\n"
         f"{t('roles', lang)}: {', '.join(role_list)}\n"
-        f"{t('leader', lang)}: {leader.upper()}\n"
+        f"{t('leader', lang)}: {leader_up}\n"
+        + ("\n".join(notes) + "\n" if notes else "")
+    )
+
+
+@mcp.tool
+def init_solo(
+    role_code: str = "ME",
+    role_label: str = "",
+    lang: str = "zh",
+) -> str:
+    """Initialize an FCoP project in **Solo mode** (one AI role, no dispatch).
+
+    Solo mode is for projects where a single agent works directly with
+    ADMIN. Rule 0.b still applies: the agent uses files to split itself
+    into *proposer* and *reviewer*, even though there is no second role.
+
+    Args:
+        role_code: The single role code. Must be uppercase letters / digits /
+            underscore, starting with a letter. Cannot be ``ADMIN`` or
+            ``SYSTEM`` (reserved). Default: ``ME``.
+        role_label: Display label for this role (e.g. ``"我自己"`` or
+            ``"Me"``). Defaults to the role code if empty.
+        lang: Output language (``zh`` or ``en``).
+    """
+    role_code_up = role_code.strip().upper() if role_code else ""
+    err = _validate_role_code(role_code_up)
+    if err:
+        return err
+
+    for d in [TASKS_DIR, REPORTS_DIR, ISSUES_DIR, SHARED_DIR, LOG_DIR]:
+        d.mkdir(parents=True, exist_ok=True)
+
+    label = role_label.strip() or role_code_up
+    display_name = "Solo"
+    config = {
+        "mode": "solo",
+        "team": "solo",
+        "team_name": display_name,
+        "roles": [{"code": role_code_up, "label": label}],
+        "leader": role_code_up,
+        "lang": lang,
+        "created_at": _now(),
+    }
+    config_file = AGENTS_DIR / "fcop.json"
+    config_file.write_text(
+        json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+    readme = AGENTS_DIR / "README.md"
+    if not readme.exists():
+        readme.write_text(
+            f"# FCoP — Solo\n\n"
+            f"Mode: **solo**\n\n"
+            f"{t('roles', lang)}: {role_code_up} ({label})\n"
+            f"{t('leader', lang)}: {role_code_up}\n",
+            encoding="utf-8",
+        )
+
+    welcome = TASKS_DIR / f"TASK-{_today()}-001-SYSTEM-to-{role_code_up}.md"
+    if not welcome.exists():
+        welcome.write_text(
+            f"---\nprotocol: fcop\nversion: 1\ntask_id: TASK-{_today()}-001\n"
+            f"sender: SYSTEM\nrecipient: {role_code_up}\ncreated_at: {_now()}\n"
+            f"priority: normal\ntype: setup\n---\n\n"
+            f"# {t('welcome_title', lang)}\n\n"
+            f"Mode: **solo** — {t('your_members', lang)}: {role_code_up} ({label})\n\n"
+            f"{t('welcome_body', lang)}\n",
+            encoding="utf-8",
+        )
+
+    notes = _deploy_rules_to_project()
+    letter_note = _deploy_letter_to_project(lang)
+    if letter_note:
+        notes.append(letter_note)
+
+    header = (
+        "已初始化 Solo 模式项目（一个 AI 角色，直接对 ADMIN）。"
+        if lang == "zh"
+        else "Solo-mode project initialized (one AI role, talks to ADMIN directly)."
+    )
+    return (
+        f"{header}\n"
+        f"mode: solo\n"
+        f"{t('roles', lang)}: {role_code_up} ({label})\n"
+        f"{t('leader', lang)}: {role_code_up}\n"
+        + ("\n".join(notes) + "\n" if notes else "")
+    )
+
+
+@mcp.tool
+def validate_team_config(roles: str, leader: str) -> str:
+    """Dry-run validation for a custom team config.
+
+    Use this **before** calling ``create_custom_team`` to catch illegal
+    role codes (Chinese characters, dashes, reserved names, etc.)
+    without writing anything to disk.
+
+    Args:
+        roles: Comma-separated role codes (e.g. ``"MANAGER,CODER,TESTER"``).
+        leader: Leader role code; must be one of the roles.
+
+    Returns:
+        ``"OK"`` if valid, else a plain-language error explaining what is
+        wrong and how to fix it.
+    """
+    role_list = [r.strip().upper() for r in roles.split(",") if r.strip()]
+    leader_up = leader.strip().upper()
+    err = _validate_team_config(role_list, leader_up, allow_single=False)
+    if err:
+        return err
+    return (
+        "OK — roles and leader are valid.\n"
+        f"  roles: {', '.join(role_list)}\n"
+        f"  leader: {leader_up}"
     )
 
 
@@ -1032,13 +1296,15 @@ def inspect_task(filename: str) -> str:
 def drop_suggestion(content: str, context: str = "") -> str:
     """Pressure valve for agents who disagree with the current FCoP protocol.
 
-    Call this INSTEAD of editing `codeflow-core.mdc` yourself. Writes a
-    timestamped Markdown file to `.fcop/proposals/` and returns. No IDs,
-    no schema, no review workflow — just land your disagreement as a file
-    and move on. Humans review asynchronously. The value of this tool is
-    entirely in the Rules-level contract "use this, don't touch the rules".
+    Call this INSTEAD of editing `fcop-rules.mdc` / `fcop-protocol.mdc`
+    yourself. Writes a timestamped Markdown file to `.fcop/proposals/` and
+    returns. No IDs, no schema, no review workflow — just land your
+    disagreement as a file and move on. Humans review asynchronously. The
+    value of this tool is entirely in the Rules-level contract "use this,
+    don't touch the rules files".
 
-    协议不满的泄压阀。**不要自己去改 `codeflow-core.mdc`**,调这个就完了。
+    协议不满的泄压阀。**不要自己去改 `fcop-rules.mdc` / `fcop-protocol.mdc`**,
+    调这个就完了。
 
     Args:
         content: What you want to suggest, in your own words
@@ -1151,6 +1417,14 @@ def get_available_teams(lang: str = "zh") -> str:
         lang: Output language: zh (Chinese) or en (English)
     """
     lines = [f"{t('available_teams', lang)}:\n"]
+
+    if lang == "en":
+        lines.append("  **solo** — Solo mode (one AI role, talks to ADMIN directly)")
+        lines.append("    tool: init_solo(role_code=\"ME\", lang=\"en\")\n")
+    else:
+        lines.append("  **solo** — Solo 模式（单个 AI 角色，直接对 ADMIN 说话）")
+        lines.append("    工具：init_solo(role_code=\"ME\", lang=\"zh\")\n")
+
     for key, tmpl in TEAM_TEMPLATES.items():
         name = _team_name(tmpl, lang)
         lines.append(f"  **{key}** — {name}")
@@ -1159,11 +1433,16 @@ def get_available_teams(lang: str = "zh") -> str:
             lines.append(f"      {r['code']} — {_role_label(r, lang)}")
         lines.append(f"    {t('leader', lang)}: {tmpl['leader']}\n")
 
-    lines.append(
-        "\nCustom: use `create_custom_team` to define your own roles."
-        if lang == "en" else
-        "\n自定义：使用 `create_custom_team` 定义你自己的角色。"
-    )
+    if lang == "en":
+        lines.append(
+            "\nCustom: use `create_custom_team` to define your own roles."
+            "\nValidate first with `validate_team_config` to check role codes."
+        )
+    else:
+        lines.append(
+            "\n自定义：使用 `create_custom_team` 定义你自己的角色。"
+            "\n不确定角色代码是否合法？先用 `validate_team_config` 做一次干跑。"
+        )
     return "\n".join(lines)
 
 
@@ -1174,15 +1453,9 @@ def _resource_status_impl() -> str:
     return get_team_status()
 
 
-@mcp.resource("codeflow://status")
-def resource_status_codeflow() -> str:
-    """Current project collaboration status summary."""
-    return _resource_status_impl()
-
-
-@mcp.resource("CodeFlow://status")
-def resource_status_codeflow_alias() -> str:
-    """Alias URI for older integrations."""
+@mcp.resource("fcop://status")
+def resource_status() -> str:
+    """Current FCoP project collaboration status summary."""
     return _resource_status_impl()
 
 
@@ -1193,23 +1466,89 @@ def _resource_config_impl() -> str:
     return '{"status": "not initialized"}'
 
 
-@mcp.resource("codeflow://config")
-def resource_config_codeflow() -> str:
-    """Current FCoP project configuration."""
+@mcp.resource("fcop://config")
+def resource_config() -> str:
+    """Current FCoP project configuration (fcop.json)."""
     return _resource_config_impl()
 
 
-@mcp.resource("CodeFlow://config")
-def resource_config_codeflow_alias() -> str:
-    """Alias URI for older integrations."""
-    return _resource_config_impl()
+def _read_packaged_rule(filename: str) -> str:
+    """Return the text of a bundled rule file, preferring the project-deployed
+    copy under ``.cursor/rules/`` over the in-package fallback.
+    """
+    deployed = PROJECT_DIR / ".cursor" / "rules" / filename
+    if deployed.exists():
+        try:
+            return deployed.read_text(encoding="utf-8")
+        except Exception:
+            pass
+    pkg = _packaged_data_bytes(filename)
+    if pkg is not None:
+        try:
+            return pkg.decode("utf-8")
+        except Exception:
+            return pkg.decode("utf-8", errors="replace")
+    return f"({filename} not available)"
+
+
+@mcp.resource("fcop://rules")
+def resource_rules() -> str:
+    """FCoP protocol rules — the rules every agent must follow."""
+    return _read_packaged_rule("fcop-rules.mdc")
+
+
+@mcp.resource("fcop://protocol")
+def resource_protocol() -> str:
+    """FCoP protocol commentary — how each rule applies in practice
+    (file naming, YAML shape, directory layout, patrol triggers).
+    Companion file to ``fcop-rules.mdc``."""
+    return _read_packaged_rule("fcop-protocol.mdc")
+
+
+def _read_packaged_letter(lang: str) -> str:
+    """Return the Letter-to-ADMIN manual for the given language."""
+    lang_key = lang.lower() if lang else "zh"
+    if lang_key not in ("zh", "en"):
+        lang_key = "zh"
+    filename = f"letter-to-admin.{lang_key}.md"
+    deployed = AGENTS_DIR / "LETTER-TO-ADMIN.md"
+    if deployed.exists() and lang_key == (_load_project_config() or {}).get("lang", "zh"):
+        try:
+            return deployed.read_text(encoding="utf-8")
+        except Exception:
+            pass
+    pkg = _packaged_data_bytes(filename)
+    if pkg is not None:
+        try:
+            return pkg.decode("utf-8")
+        except Exception:
+            return pkg.decode("utf-8", errors="replace")
+    src = Path(__file__).resolve().parent / "_data" / filename
+    if src.exists():
+        try:
+            return src.read_text(encoding="utf-8")
+        except Exception:
+            pass
+    return f"({filename} not available)"
+
+
+@mcp.resource("fcop://letter/zh")
+def resource_letter_zh() -> str:
+    """FCoP 致 ADMIN 的一封信 —— 中文说明书（自建角色 / Solo / 预设）。"""
+    return _read_packaged_letter("zh")
+
+
+@mcp.resource("fcop://letter/en")
+def resource_letter_en() -> str:
+    """A Letter from FCoP to ADMIN — English manual (custom / Solo / preset)."""
+    return _read_packaged_letter("en")
 
 
 # ─── Entry Point ──────────────────────────────────────────
 
 
 def main() -> None:
-    """CLI entry point for `codeflow-mcp` / `python -m codeflow_mcp`."""
+    """CLI entry point for `fcop` / `python -m fcop`."""
     mcp.run()
 
 

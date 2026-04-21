@@ -1,23 +1,21 @@
 {
-  "name": "codeflow",
-  "version": "2.0.1",
-  "description": "码流（CodeFlow）— Multi-AI Agent collaboration with file-driven protocol. Supports dev, media, and MVP team templates.",
+  "name": "fcop",
+  "version": "0.3.0",
+  "description": "FCoP — File-based Coordination Protocol for multi-AI-agent collaboration. Supports dev, media, and MVP team templates, plus custom teams.",
   "author": {
-    "name": "CodeFlow",
+    "name": "FCoP Maintainers",
     "email": "joinwell52@gmail.com"
   },
   "homepage": "https://github.com/joinwell52-AI/codeflow-pwa",
   "repository": "https://github.com/joinwell52-AI/codeflow-pwa",
   "license": "MIT",
   "keywords": [
+    "fcop",
     "multi-agent",
     "collaboration",
-    "team",
-    "workflow",
-    "file-driven",
+    "file-based-protocol",
     "mcp",
-    "codeflow",
-    "码流"
+    "cursor"
   ],
   "logo": "assets/logo.svg"
 }

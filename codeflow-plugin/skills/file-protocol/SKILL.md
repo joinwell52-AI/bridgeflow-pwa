@@ -1,15 +1,15 @@
 ---
 name: file-protocol
-description: "CodeFlow file-driven collaboration protocol — read tasks, write reports, manage issues. 文件驱动协作协议——读任务、写报告、管理问题。"
+description: "FCoP file-driven collaboration protocol — read tasks, write reports, manage issues. 文件驱动协作协议——读任务、写报告、管理问题。"
 ---
 
-# CodeFlow File Protocol / 码流（CodeFlow）文件驱动协议
+# FCoP File Protocol / FCoP 文件驱动协议
 
 ## Overview / 概述
 
-**CodeFlow (码流)** uses files as the communication protocol between agents. All collaboration happens through reading and writing Markdown files in `docs/agents/`.
+**FCoP** (File-based Coordination Protocol) uses files as the communication protocol between agents. All collaboration happens through reading and writing Markdown files in `docs/agents/`.
 
-**码流（CodeFlow）** 使用文件作为 Agent 间的通信协议。所有协作通过读写 `docs/agents/` 下的 Markdown 文件完成。
+**FCoP（File-based Coordination Protocol）** 使用文件作为 Agent 间的通信协议。所有协作通过读写 `docs/agents/` 下的 Markdown 文件完成。
 
 ## Directory Layout / 目录结构
 
@@ -18,6 +18,7 @@ description: "CodeFlow file-driven collaboration protocol — read tasks, write 
 | `tasks/` | Task assignments / 任务单 | Leader / External | Assigned role |
 | `reports/` | Completion reports / 完成报告 | Executor | Leader |
 | `issues/` | Issue records / 问题记录 | Anyone | Everyone |
+| `shared/` | Team-wide standing docs / 共享知识 | Anyone | Everyone |
 | `log/` | Archives / 历史归档 | Leader | Read-only |
 
 ## Filename Parsing / 文件名解析
@@ -47,6 +48,8 @@ Example: `BOSS, CODER, TESTER, ARTIST`
 
 ```yaml
 ---
+protocol: fcop
+version: 1
 task_id: TASK-20260403-001
 sender: PM
 recipient: DEV
@@ -60,6 +63,8 @@ type: feature | bugfix | review | deploy | research | content
 
 ```markdown
 ---
+protocol: fcop
+version: 1
 task_id: TASK-20260403-001
 reporter: DEV
 reported_at: 2026-04-03 12:00:00

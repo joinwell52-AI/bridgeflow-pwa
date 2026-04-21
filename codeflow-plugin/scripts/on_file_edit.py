@@ -23,7 +23,7 @@ def main():
 
     log_dir = Path(
         __file__
-    ).resolve().parent.parent.parent / "docs" / "agents" / ".codeflow"
+    ).resolve().parent.parent.parent / "docs" / "agents" / ".fcop"
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / "hook_events.log"
 

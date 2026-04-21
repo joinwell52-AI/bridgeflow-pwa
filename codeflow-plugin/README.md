@@ -1,95 +1,47 @@
-# 码流（CodeFlow）— Multi-AI Agent Collaboration Plugin
+# fcop — MCP toolbox for FCoP
 
-让多个 Cursor Agent 像团队一样协作。
+**FCoP · File-based Coordination Protocol** —— 文件驱动的多 AI Agent 协作协议。
+`fcop` 是该协议的参考实现 MCP 工具箱，让 Cursor / Claude / CLI 里的多个 Agent 像一个真团队一样协作。
 
-## 这是什么？
+> FCoP 是**协议**（规则、术语、文件约定）；`fcop` 是**工具**（MCP 服务）。
+> 协议不依赖工具 —— 只要能读写文件，任何宿主都能跑 FCoP。
 
-**码流（CodeFlow）** 是一个 Cursor 插件，解决一个核心问题：**Cursor 里开多个 Agent，它们各干各的，互相不知道对方在干什么。**
+## 为什么要它
 
-安装插件后，Agent 自动获得：
+一句话：**AI 角色之间不能只在脑子里说话，必须落成文件。**
 
-- 角色身份（知道自己是谁）
-- 协作协议（知道怎么交接任务）
-- 自动巡检（知道去哪接任务）
+多个 Agent 在同一个项目里各干各的，彼此不知道对方在做什么，交接全靠人复述 —— 这是 Cursor 多 Agent 的常态痛点。
+FCoP 把每一次派单、每一次交接、每一次回执都**强制变成一个磁盘文件**，走 Git，可回放、可审计、可二次分配。
+装上 `fcop` MCP 的那一刻，**FCoP 协议**（`.cursor/rules/fcop-rules.mdc` 协议规则 + `.cursor/rules/fcop-protocol.mdc` 协议解释，均 `alwaysApply: true`）就注入到每一个 Agent 的系统提示里，它们从此自动遵守同一套规则。协议的目的只有一件事：**让 Agent 通过 FCoP 与团队协同工作**。
 
-## 三套预设团队
+## 三套预设团队（+ 无限自定义）
 
-| 模板 | 角色 | 适合场景 |
-|------|------|----------|
-| **dev-team** | PM + DEV + QA + OPS | 软件开发 |
-| **media-team** | PUBLISHER + COLLECTOR + WRITER + EDITOR | 自媒体内容 |
-| **mvp-team** | MARKETER + RESEARCHER + DESIGNER + BUILDER | 创业 MVP |
+| 模板 | leader | 其他角色 | 适合场景 |
+|------|--------|----------|----------|
+| **dev-team**   | PM        | DEV + QA + OPS                        | 软件开发 |
+| **media-team** | PUBLISHER | COLLECTOR + WRITER + EDITOR           | 自媒体内容 |
+| **mvp-team**   | MARKETER  | RESEARCHER + DESIGNER + BUILDER       | 创业 MVP |
+| **solo**       | 你自己起名 | （单角色）                            | 一个人也要走文件自审 |
+| **custom**     | 你指定    | 你指定（`create_custom_team` 工具）   | 任意工种组合 |
 
-## 安装 MCP
+按 FCoP Rule 4（角色链路），`ADMIN ↔ leader` 是唯一对外接口；其他角色只从 leader 接收任务、只向 leader 回执。
 
-PyPI 包名：**`fcop`**（0.2.1+）。
+## 安装
 
-### 🤖 方式 0：让 Cursor Agent 自己装（最省事，推荐）
+### 方式 A · `uvx`（推荐，零占用）
 
-**总共 3 步，大概 3 分钟。**
-
-#### 第 1 步：先装 `uv`（先决条件，必须有）
-
-`uv` 是 Python 包管理器，`fcop` 依赖它来懒加载运行。**没装 `uv`，后面一切免谈。**
-
-在系统命令行跑对应那条（不是 Cursor 里，是 Windows 的 PowerShell 或 macOS 的 Terminal）：
+前置：装 [`uv`](https://docs.astral.sh/uv/)
 
 - **Windows**
   ```powershell
   winget install -e --id astral-sh.uv --accept-package-agreements --accept-source-agreements
   ```
-  （`winget` 是 Win10 1809+ / Win11 自带。没有的话去微软商店搜"应用安装程序"装上。）
-
 - **macOS / Linux**
   ```bash
   curl -LsSf https://astral.sh/uv/install.sh | sh
   ```
 
-验证（**关掉当前终端窗口，再开一个新的**，让 PATH 生效）：
-
-```
-uvx --version
-```
-
-看到 `uvx 0.x.x` 说明成功。
-
-#### 第 2 步：把下面这段**整段**发给 Cursor Agent
-
-打开 Cursor → 任意项目 → 开一个 Agent 聊天 → 粘贴：
-
-> 帮我装 `fcop` MCP。在系统命令行执行下面对应的一条命令，跑完告诉我结果，然后提醒我重启 Cursor：
->
-> **Windows（PowerShell）：**
-> ```
-> irm https://raw.githubusercontent.com/joinwell52-AI/codeflow-pwa/main/codeflow-plugin/scripts/install-fcop.ps1 | iex
-> ```
->
-> **macOS / Linux（bash）：**
-> ```
-> curl -fsSL https://raw.githubusercontent.com/joinwell52-AI/codeflow-pwa/main/codeflow-plugin/scripts/install-fcop.sh | bash
-> ```
-
-Agent 用自己的 shell 工具跑这条命令，脚本做三件事：
-
-1. 检查 `uv` 是否已装（第 1 步已装好 → 跳过；没装 → 再尝试一次）
-2. 把 `fcop` 条目**合并**进 `~/.cursor/mcp.json` —— **你原有的其他 MCP 一个不丢**
-3. 输出 "All done. Restart Cursor"
-
-#### 第 3 步：彻底重启 Cursor
-
-**不是关窗口**，是：
-- Windows：右下角系统托盘找 Cursor 图标 → 右键 → **Quit / 退出**
-- macOS：菜单栏 Cursor → **Quit Cursor**（Cmd+Q）
-
-再重开 Cursor。完事。
-
-> 💡 为什么 Cursor Agent 能自己装？Cursor 内置了 shell 执行工具，没配任何 MCP 也能跑命令。所以哪怕是全新的 Cursor，你第一次聊天就可以让它帮你装各种 MCP。
-
-### 方式 A：`uvx` 一键（手动，零配置）
-
-前置：装 [`uv`](https://docs.astral.sh/uv/)（Windows：`winget install --id=astral-sh.uv`）。
-
-在 Cursor 的 `mcp.json` 里加这一段（Windows 路径：`%USERPROFILE%\.cursor\mcp.json`）：
+在 `~/.cursor/mcp.json`（Windows：`%USERPROFILE%\.cursor\mcp.json`）里加：
 
 ```json
 {
@@ -102,23 +54,35 @@ Agent 用自己的 shell 工具跑这条命令，脚本做三件事：
 }
 ```
 
-重启 Cursor，第一次调用时 `uvx` 会自动从 PyPI 下载 `fcop` 并跑起来，之后走缓存，不用手动升级。
+重启 Cursor，第一次调用时 `uvx` 会自动从 PyPI 拉 `fcop` 并缓存。
 
-### 方式 B：Cursor Deeplink 一键安装
-
-点下面按钮，Cursor 弹窗确认即可把配置自动写进 `mcp.json`：
+### 方式 B · Cursor Deeplink 一键安装
 
 [![Install in Cursor](https://cursor.com/deeplink/mcp-install-light.svg)](cursor://anysphere.cursor-deeplink/mcp/install?name=fcop&config=eyJjb21tYW5kIjoidXZ4IiwiYXJncyI6WyJmY29wIl19)
 
-（等价于方式 A，只是省去手动编辑 `mcp.json`。）
+### 方式 C · 让 Cursor Agent 自己装（最省事）
 
-### 方式 C：`pip install`（不想装 uv）
+打开 Cursor → 任意项目 → 开 Agent 聊天 → 粘贴：
+
+> 帮我装 `fcop` MCP。请在系统命令行执行下面对应平台的一条命令，跑完告诉我结果，然后提醒我重启 Cursor：
+>
+> **Windows（PowerShell）**
+> ```
+> irm https://raw.githubusercontent.com/joinwell52-AI/codeflow-pwa/main/codeflow-plugin/scripts/install-fcop.ps1 | iex
+> ```
+>
+> **macOS / Linux（bash）**
+> ```
+> curl -fsSL https://raw.githubusercontent.com/joinwell52-AI/codeflow-pwa/main/codeflow-plugin/scripts/install-fcop.sh | bash
+> ```
+
+脚本会：装 `uv`（若缺）→ 把 `fcop` 合并进 `~/.cursor/mcp.json`（保留原有条目）→ 提示重启 Cursor。
+
+### 方式 D · `pip install`
 
 ```bash
 pip install fcop
 ```
-
-然后 `mcp.json`：
 
 ```json
 {
@@ -130,23 +94,26 @@ pip install fcop
 }
 ```
 
-若 `fcop` 不在 PATH，把 `command` 换成 `python`，`args` 换成 `["-m", "codeflow_mcp"]`。
+若 `fcop` 不在 PATH，用 `python -m fcop`。
 
 ### 升级
 
-- `uvx`：`uv tool upgrade fcop`（或删除 `~/.cache/uv/tools/fcop` 让它自动重拉）
+- `uvx`：`uv tool upgrade fcop`
 - `pip`：`pip install -U fcop`
 
-### 本地开发（改源码）
+### 本地开发
 
-指向仓库内 shim，代码改了立即生效：
+```bash
+pip install -e codeflow-plugin
+```
 
+`~/.cursor/mcp.json`：
 ```json
 {
   "mcpServers": {
     "fcop": {
       "command": "python",
-      "args": ["D:\\Bridgeflow\\codeflow-plugin\\scripts\\mcp_server.py"]
+      "args": ["-m", "fcop"]
     }
   }
 }
@@ -154,61 +121,68 @@ pip install fcop
 
 ## 快速开始
 
-1. 安装插件  
-2. 打开项目，在 Agent 中说：`初始化码流开发团队`（或按 MCP 工具说明调用 `init_project`）  
-3. 插件自动创建 `docs/agents/` 目录和角色配置  
-4. 开多个 Agent 窗口，每个分配一个角色  
-5. 对主控角色说「开始工作」  
+1. 装好 `fcop` MCP 并重启 Cursor
+2. 打开项目目录，开一个 Agent 聊天
+3. 说："给这个项目初始化一个软件开发团队"（Agent 会调 `init_project(team="dev-team")`）
+4. `fcop` 自动生成：
+   - `docs/agents/{tasks,reports,issues,shared,log}/` 五个目录
+   - `docs/agents/fcop.json` —— 项目身份配置（团队模板、角色表、leader、语言）
+   - `.cursor/rules/fcop-rules.mdc` —— **FCoP 协议规则**（9 条，Rule 0–8，`alwaysApply`，每次对话注入）
+   - `.cursor/rules/fcop-protocol.mdc` —— **FCoP 协议解释**（规则在具体场景怎么落：文件命名、YAML、目录、巡检触发，同 `alwaysApply`）
+   - 一条欢迎任务给 leader（比如 PM）
+5. 新开 Cursor Agent 窗口，第一句话告诉它：**"你是 {ROLE}，在 {team}"**（例如"你是 PM，在 dev-team"）—— Rule 1 禁止它自己认角色
+6. 对 leader 说"开始工作"，流程跑起来
 
-## MCP Tools
+## MCP 工具清单
 
 | 工具 | 功能 |
 |------|------|
-| `init_project` | 初始化项目协作空间 |
-| `get_team_status` | 查看团队状态 |
-| `list_tasks` | 列出任务 |
-| `read_task` | 读取任务详情 |
-| `write_task` | 创建新任务 |
-| `list_reports` | 列出报告 |
-| `read_report` | 读取报告详情 |
-| `list_issues` | 列出问题 |
+| `unbound_report` | **新会话必调的第一个工具**（FCoP Rule 1）—— 输出项目客观状态，等待 ADMIN 指派身份 |
+| `init_project` | 初始化项目协作空间（含协议规则与协议解释的部署） |
+| `create_custom_team` | 自定义角色的团队 |
+| `get_available_teams` | 查看预设团队模板 |
+| `get_team_status` | 当前任务/报告/问题计数 + 最近活动 |
+| `list_tasks` / `read_task` / `write_task` | 任务流 |
+| `inspect_task` | 校验任务文件的 schema 与文件名↔frontmatter 一致性 |
+| `list_reports` / `read_report` | 报告流 |
+| `list_issues` | 问题流 |
 | `archive_task` | 归档已完成任务 |
-| `get_available_teams` | 查看可用团队模板 |
+| `drop_suggestion` | 对协议不满时的泄压阀 —— 落一份到 `.fcop/proposals/`，**不要自己改规则文件** |
 
-## 文件协议
+## MCP 资源（URI）
 
-Agent 之间通过 Markdown 文件通信：
+| URI | 内容 |
+|-----|------|
+| `fcop://status` | 当前团队状态 |
+| `fcop://config` | `docs/agents/fcop.json` 原文 |
+| `fcop://rules` | `.cursor/rules/fcop-rules.mdc` 原文（协议规则） |
+| `fcop://protocol` | `.cursor/rules/fcop-protocol.mdc` 原文（协议解释） |
+
+## 环境变量
+
+| 变量 | 作用 | 默认值 |
+|------|------|--------|
+| `FCOP_PROJECT_DIR`  | 项目根目录（含 `docs/agents/`） | `.`（当前工作目录） |
+| `FCOP_ROOM_KEY`     | 非空即启用后台线程连接中继（仅桥接模式用） | 空（本地模式） |
+| `FCOP_RELAY_WS_URL` | 中继 WebSocket URL | `ws://127.0.0.1:5252` |
+| `FCOP_DEVICE_ID`    | 本机 MCP 设备 ID | `fcop-mcp` |
+
+## 文件协议速览
+
+Agent 之间通过 Markdown 文件通信，`docs/agents/` 目录下：
 
 ```
 docs/agents/
-├── tasks/     ← 任务单
-├── reports/   ← 完成报告
-├── issues/    ← 问题记录
-└── log/       ← 历史归档
+├── fcop.json          ← 项目身份配置（唯一权威源）
+├── tasks/             ← 任务单（TASK-YYYYMMDD-NNN-{sender}-to-{recipient}.md）
+├── reports/           ← 完成报告（同名，不同目录）
+├── issues/            ← 问题记录（ISSUE-YYYYMMDD-NNN-summary.md）
+├── shared/            ← 团队共享知识（DASHBOARD / SPRINT / GLOSSARY ...，允许原地更新）
+└── log/               ← 历史归档
 ```
 
-团队配置优先写入 **`docs/agents/codeflow.json`**（兼容旧版 **`CodeFlow.json`**）。
-
-## 中继桥接（Phase 2）
-
-未设置 `CODEFLOW_ROOM_KEY`（或旧名 `CODEFLOW_ROOM_KEY`）时，MCP 仅操作本地 `docs/agents/`，不连中继。
-
-要与手机端 PWA 同步，请在 MCP 配置的 `env` 中设置：
-
-| 变量 | 说明 |
-|------|------|
-| `CODEFLOW_PROJECT_DIR` 或 `CODEFLOW_PROJECT_DIR` | 项目根目录（含 `docs/agents/`） |
-| `CODEFLOW_ROOM_KEY` 或 `CODEFLOW_ROOM_KEY` | 非空即启用后台线程连接中继 |
-| `CODEFLOW_RELAY_WS_URL` 或 `CODEFLOW_RELAY_WS_URL` | 中继 WebSocket，默认 `ws://127.0.0.1:5252` |
-| `CODEFLOW_DEVICE_ID` 或 `CODEFLOW_DEVICE_ID` | 本机 MCP 设备 ID，默认 `codeflow-mcp` |
-
-依赖：`pip install -r codeflow-plugin/requirements.txt`（含 `websockets`）。
-
-## 打开本机控制面板（`http://127.0.0.1:18765/`）
-
-想在 Cursor 内嵌一个面板视图，请使用仓库内 **`codeflow-desktop/cursor-extension/`** 下的 VSIX 扩展 `codeflow-panel-launcher`（命令：`CodeFlow: 打开控制面板` / `codeflow.openPanel`）。它走 VS Code 扩展 API，无需 Python、不模拟键盘、不抢焦点。
-
-前置：已运行 **CodeFlow-Desktop.exe**，`127.0.0.1:18765` 可访问。
+文件首部必须有 YAML frontmatter，至少 `protocol: fcop`、`version: 1`、`sender`、`recipient`。
+详细语法见部署后的 `.cursor/rules/fcop-protocol.mdc`（协议解释），规则本身见 `.cursor/rules/fcop-rules.mdc`（协议规则）。
 
 ## License
 

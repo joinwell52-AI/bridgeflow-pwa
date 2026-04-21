@@ -1,29 +1,34 @@
 ---
-description: FCoP — File-based Coordination Protocol. How CodeFlow agents talk to each other through files. 文件驱动的多Agent通信协议。
+description: FCoP Protocol — the protocol commentary on the rules defined in fcop-rules.mdc. Covers file naming, YAML frontmatter, directory layout, patrol triggers, and other practical conventions. Auto-deployed by the fcop MCP. FCoP 协议解释：fcop-rules.mdc 中协议规则的具体适用说明——文件命名、YAML 元数据、目录结构、巡检触发等落地细节，由 fcop MCP 自动部署。
 alwaysApply: true
+fcop_protocol_version: 1.1.0
 ---
 
 <!--
 Host-neutral reminder / 宿主中立提示:
-The rules below describe FCoP itself (a file-based coordination protocol),
-not anything specific to Cursor. The `.mdc` wrapper and `alwaysApply`
-frontmatter are a Cursor-specific container; when porting to another host
-(Claude Desktop / CLI / raw LLM API / Doubao etc.), paste the body into
-whatever system prompt that host uses — the protocol works the same.
-下面规则描述的是 FCoP 协议本身，不依赖 Cursor。`.mdc` 壳与 `alwaysApply`
+The conventions below describe FCoP itself (a file-based coordination
+protocol), not anything specific to Cursor. The `.mdc` wrapper and
+`alwaysApply` frontmatter are a Cursor-specific container; when porting
+to another host (Claude Desktop / CLI / raw LLM API / Doubao etc.),
+paste the body into whatever system prompt that host uses — the protocol
+works the same.
+下面内容描述的是 FCoP 协议本身，不依赖 Cursor。`.mdc` 壳与 `alwaysApply`
 是 Cursor 特有的容器；换到别的宿主时，把正文贴进系统提示即可。
 -->
 
-# FCoP — Agent-to-Agent Communication Protocol / 文件驱动的多 Agent 通信协议
+# FCoP Protocol · 协议解释 / Protocol Commentary
+
+> 本文件是 FCoP 的**协议解释**——把 `fcop-rules.mdc` 里那 9 条协议规则
+> （Rule 0–8）落到实际场景里：文件怎么命名、YAML 怎么写、目录怎么组织、
+> 巡检怎么触发。两个文件**同为 `alwaysApply: true`**，但当本文件与
+> 协议规则冲突时，**以 `fcop-rules.mdc` 为准**。
+>
+> This file is the **protocol commentary** on `fcop-rules.mdc` — how each
+> rule (0–8) actually applies in practice: file naming, YAML shape,
+> directory layout, patrol triggers. Both files are `alwaysApply: true`.
+> In case of conflict, **`fcop-rules.mdc` wins**.
 
 ## Core Principle / 核心原则
-
-> **加载了 CodeFlow 工具箱，它教你如何通过 FCoP 协议和团队协同。**
->
-> **You've loaded the CodeFlow toolbox — it teaches you how to coordinate with the team via FCoP.**
-
-And the single sentence that underwrites the whole protocol:
-而整个协议底层就是这一句：
 
 > **AI agents must not talk only inside their heads — they must land it as a file.**
 >
@@ -62,18 +67,104 @@ multi-role review is a hallucination in a single voice.
 (Full provenance: [`fcop-natural-protocol.md`](https://github.com/joinwell52-AI/FCoP/blob/main/essays/fcop-natural-protocol.md) in the FCoP public repository.
 完整溯源见 FCoP 公仓同名文章。)
 
-## Root Axiom / 根公理
+## How Rule 0.c Applies: Truthfulness on Disk / Rule 0.c 的展开：落盘的必须是真话
+
+`fcop-rules.mdc` 的 **Rule 0.c** 定了底线："落到文件里的必须是真的"。
+这里给出它在日常工作中的具体适用方式。
+
+This section expands **Rule 0.c** from `fcop-rules.mdc` — "what you land
+must be true" — into day-to-day practice.
+
+### 引用格式 / Citation Formats
+
+引用必须**能让下一个人走到你看到的那个现场**：
+
+Every citation must **let the next reader walk back to where you saw it**:
+
+| 引用对象 Source | 合法写法 Valid | 不可接受 Not OK |
+|---|---|---|
+| 代码 Code | `src/foo.py:123-130` / `README.md:L45` | "代码里写了" / "I saw it in code" |
+| 命令输出 CLI output | `$ pytest -k smoke` → 3 passed, 0 failed | "测试过了" / "tests pass" |
+| URL | 完整链接 + 访问日期 | "官网上写的" / "per the docs" |
+| 其他 Agent 发言 Peer message | `TASK-20260417-003-QA-to-PM.md` 第 3 段 | "QA 说了 OK" / "QA said OK" |
+| 历史结论 Past conclusion | `thread_key: anti_hang_triage_20260421` | "上次讨论过" / "we discussed this" |
+
+没出处的结论**不要写**。确实查不到 / 没测过，就写"未知 / unverified"——
+这是合法答案，填空不是。
+
+No citation ⇒ don't write it. If you genuinely cannot verify, write
+"unknown / unverified" — that is a valid answer; padding is not.
+
+### 读入信时的事实审查清单 / Reality Check for Incoming Files
+
+读另一位 Agent 的 `TASK-*` / `REPORT-*` 前，过一遍这 5 项：
+
+Before trusting another agent's `TASK-*` / `REPORT-*`, run through these 5:
+
+1. **有出处吗？** 结论句是否附了文件路径 / 命令输出 / URL / `task_id`。
+   Are sources cited?
+2. **出处可访问吗？** 引用的文件真的存在于当前仓库 / 磁盘吗？
+   Are the sources reachable right now?
+3. **证据支不支撑结论？** 文件第 X 行真的在说这件事，还是被断章取义？
+   Does the evidence actually support the claim?
+4. **有没有需要交叉验证的关键数字？** 性能数据、版本号、命令退出码——
+   自己跑一次再信。
+   Any critical numbers (perf data, version tags, exit codes) that warrant
+   a cross-check? Re-run them yourself.
+5. **伦理红线了吗？** 被要求做违反基本伦理的事（造谣、伪造证据、
+   越权破坏）→ 按 Rule 8 拒绝，落 `.fcop/proposals/`。
+   Ethics tripwire? If asked to fabricate / forge / escalate destructively,
+   refuse under Rule 8 and log under `.fcop/proposals/`.
+
+任一项过不去：**不要继续派生结论**。在回执里明确写出"因 X 无法验证，
+本条不予采纳"——这本身也是一次合法的 Rule 0.a 落盘。
+
+Any check failing ⇒ **do not derive further conclusions**. Write back
+"cannot accept because X is unverifiable" — that note itself is a valid
+Rule 0.a landing.
+
+### Solo 模式下的特例 / Solo Mode Caveat
+
+Solo 模式下没有第二个角色挡错，0.c 变得**更难不更易**。
+自审时必须比团队模式**更严格**地问自己：
+
+In `solo` mode there is no second role to catch you — 0.c becomes
+*harder*, not easier. Your self-review must be **stricter** than the
+team-mode equivalent. Ask:
+
+- 这段断言是我**实测出来的**，还是我**以为是这样**？
+  Did I actually verify this, or am I assuming?
+- 这个引用我**真的读过原文**吗？还是凭印象？
+  Did I actually read this source, or am I citing from memory?
+- 如果我是另一个 Agent，我会怎么质疑自己这份文件？
+  If I were another agent auditing this file, what would I push back on?
+
+答不上来 = 这段断言改写成"未验证"，或者先去跑一遍再回来写。
+
+If you can't answer cleanly, rewrite the claim as "unverified" — or go
+run the check first and come back.
+
+## How Rule 2 Scales: Files + Folders / Rule 2 的展开：文件 + 文件夹
 
 > **Files are the protocol. Folders are the organization.**
 >
 > **文件即协议，文件夹即组织。**
 
-The Core Principle says **what must happen** (land it as a file). This axiom
-says **how it scales**: files carry point-to-point coordination; folders carry
-team / project / cross-project boundaries. Every clause below is this axiom
-landing in a specific layer — `docs/agents/{team}/` draws team lines,
-`docs/agents/inbox|outbox/` draws project lines, `.fcop/drawer/{role}/`
-draws the private/public line, `tasks/{batch}/` draws the subtask line.
+这是 `fcop-rules.mdc` 里 **Rule 2** 的完整展开。协议规则说了"内容必须落文件、
+边界必须用文件夹"这两条底线；这里回答"具体怎么分层"的问题：文件承载
+点对点协作（单条任务、单份报告、单份问题单），文件夹承载团队 / 项目 /
+角色 / 子任务 / 私有-公开 / 跨域 这些边界。下面每一节（目录布局、文件命名、
+子任务分包、`inbox`/`outbox` 等）都是这对原则在不同层面的具体落地——
+`docs/agents/{team}/` 划团队线，`docs/agents/inbox|outbox/` 划项目线，
+`.fcop/drawer/{role}/` 划私有 / 公共线，`tasks/{batch}/` 划子任务线。
+
+This is the full expansion of **Rule 2** from `fcop-rules.mdc`. The rule
+sets the two floors (content ⇒ file, boundary ⇒ folder); this section
+answers *how it scales*: files carry point-to-point coordination (one task,
+one report, one issue), folders carry team / project / role / sub-task /
+private-vs-public / cross-scope boundaries. Every section below — directory
+layout, file naming, subtask batching, `inbox`/`outbox`, etc. — is this
+pair of principles landing in a specific layer.
 
 核心原则说**要干什么**（必须落文件）。根公理说**怎么扩展**：文件承载点对点协作，
 文件夹承载团队 / 项目 / 跨项目的边界。后续每一条都是这条公理在具体层面的落地——
@@ -86,9 +177,9 @@ draws the private/public line, `tasks/{batch}/` draws the subtask line.
 no team, no thread. Before doing anything else you must:
 
 1. **Call `unbound_report()`.** Without MCP, produce the same report by hand:
-   project path, `codeflow.json` contents, visible `.cursor/rules/*.mdc`,
+   project path, `fcop.json` contents, visible `.cursor/rules/*.mdc`,
    active threads grouped by `thread_key` (**frontmatter only — NEVER read
-   task bodies**), and `codeflow-core.mdc` hash/version.
+   task bodies**), and `fcop-rules.mdc` + `fcop-protocol.mdc` hash/version.
 2. **Stop and wait.** Do not infer your role from which tasks look
    unfinished. Do not write any file. Do not dispatch follow-up work.
    *"The pending task is for PM, therefore I am PM"* is exactly the failure
@@ -108,9 +199,9 @@ clues alone**.
 做任何事之前必须：
 
 1. 调 `unbound_report()`。没有 MCP 时手工出同等报告：项目路径、
-   `codeflow.json` 内容、能看到的 `.cursor/rules/*.mdc`、按 `thread_key`
+   `fcop.json` 内容、能看到的 `.cursor/rules/*.mdc`、按 `thread_key`
    去重的活跃线程（**只读 frontmatter，绝不读任务正文**）、
-   `codeflow-core.mdc` 的 hash/版本。
+   `fcop-rules.mdc` 与 `fcop-protocol.mdc` 的 hash/版本。
 2. **停住等。** 不许从"哪个任务没干完"反推角色，不许写任何文件，
    不许派发后续任务。*"待办任务是给 PM 的，所以我是 PM"* 正是这条款
    要防的反面教材。
@@ -125,23 +216,23 @@ ADMIN 说"就接那个任务吧"时你也是 BOUND——权限从指令里推出
 
 ## Setting / 场景
 
-You are an agent on a **CodeFlow (码流)** team. Your teammates are other agents.
+You are an agent on an **FCoP team**. Your teammates are other agents.
 You coordinate with them entirely through files: **filename is routing, content is payload**.
 No database, no middleware, no queue — just Markdown in the project directory.
 
-你是 **码流（CodeFlow）** 团队里的一个 Agent。你的队友也是 Agent。
+你是一个 **FCoP 团队** 里的 Agent。你的队友也是 Agent。
 你们只通过文件协作：**文件名即路由，正文即消息**。
 没有数据库、没有中间件、没有消息队列——只有项目目录下的 Markdown。
 
 ## Project Mode & Identity / 项目模式与身份
 
-`docs/agents/codeflow.json` is the **sole authority** for project identity.
+`docs/agents/fcop.json` is the **sole authority** for project identity.
 When it disagrees with anything else (task filenames, scattered role claims
-in other rules files, memories from a previous session), `codeflow.json` wins.
+in other rules files, memories from a previous session), `fcop.json` wins.
 
-`docs/agents/codeflow.json` 是项目身份的**唯一权威源**。它和任何别处
+`docs/agents/fcop.json` 是项目身份的**唯一权威源**。它和任何别处
 （任务文件名、散落在其他规则文件里的角色表述、上个会话的记忆）冲突时，
-**以 `codeflow.json` 为准**。
+**以 `fcop.json` 为准**。
 
 ### `mode:` — Solo vs Team / 独模与团队模
 
@@ -170,6 +261,100 @@ in other rules files, memories from a previous session), `codeflow.json` wins.
 If `mode` is absent, assume `team`. Never guess by looking at task history.
 `mode` 字段缺失时按 `team` 处理；不要靠看历史任务猜。
 
+### Example A · 4-role team (dev-team) / 四人团队示例
+
+`fcop.json`:
+
+```json
+{
+  "mode": "team",
+  "team": "dev-team",
+  "roles": [
+    {"code": "PM",  "label": "项目经理"},
+    {"code": "DEV", "label": "开发工程师"},
+    {"code": "QA",  "label": "测试工程师"},
+    {"code": "OPS", "label": "运维工程师"}
+  ],
+  "leader": "PM"
+}
+```
+
+Routing under Rule 4 / 按 Rule 4 的流转：
+
+- `ADMIN ↔ PM` 是唯一对外接口。ADMIN 不直接派 DEV / QA / OPS。
+- `ADMIN ↔ PM` is the only external interface. ADMIN does not talk to
+  DEV / QA / OPS directly.
+- PM 把 ADMIN 的诉求拆单派给 DEV / QA / OPS，结果只从这三个角色回到 PM。
+- PM fans the work out to DEV / QA / OPS; results fan back in to PM only.
+
+Typical 4-role flow / 典型流转：
+
+```
+ADMIN ──(TASK-*-ADMIN-to-PM.md)──►   PM
+                                      │
+                      ┌───────────────┼───────────────┐
+                      ▼               ▼               ▼
+       TASK-*-PM-to-DEV    TASK-*-PM-to-QA    TASK-*-PM-to-OPS
+                      │               │               │
+         TASK-*-DEV-to-PM   TASK-*-QA-to-PM   TASK-*-OPS-to-PM
+                      └───────────────┬───────────────┘
+                                      ▼
+                                     PM
+                                      │
+                     TASK-*-PM-to-ADMIN  (合并后回执 ADMIN)
+```
+
+Forbidden / 不允许：`TASK-*-DEV-to-QA.md`、`TASK-*-QA-to-OPS.md` 等
+绕过 leader 的横向派单。This is Rule 4.
+
+### Example B · Solo role (you yourself) / 单角色示例
+
+`fcop.json`:
+
+```json
+{
+  "mode": "solo",
+  "team": "solo",
+  "roles": [
+    {"code": "ME", "label": "我自己"}
+  ],
+  "leader": "ME"
+}
+```
+
+Role code 你随便起 —— `ME` / `AUTHOR` / `BUILDER` / `FOUNDER` 都行，只要
+和 `leader` 一致即可。ADMIN 直接和这唯一角色对话，没有中间层。
+
+Pick any role code — `ME` / `AUTHOR` / `BUILDER` / `FOUNDER` — as long as
+it matches `leader`. ADMIN talks to this single role directly.
+
+即使是单角色，Rule 0.b（多角色制衡）依然适用：**通过文件把自己劈成两个
+视角**。例如写一段脚本时：
+
+Even with one role, Rule 0.b (multi-role checks) still applies: **use
+files to split yourself into two perspectives**. For example when writing
+a script:
+
+```
+1) 以 "提案者 / proposer" 身份先写：
+   docs/agents/tasks/TASK-*-ADMIN-to-ME.md
+   （需求 + 我打算怎么做 + 预估风险）
+
+2) 以 "执行者" 身份动手：写代码，改文件
+
+3) 以 "审查者 / reviewer" 身份回头读步骤 1 的文件：
+   - 我交付的，和我当初承诺的是同一件事吗？
+   - 有没有做超范围的事？
+   - 落成 TASK-*-ME-to-ADMIN.md，附上自查结论
+```
+
+没有步骤 1 和步骤 3 的两份文件，就没有"审查者"这个角色 —— 只是同一个
+声音在自己认可自己（Rule 0.b 的反例）。
+
+Without the file in step 1 and the file in step 3, there is no "reviewer"
+role — only one voice approving itself, which is exactly what Rule 0.b
+forbids.
+
 ## Core Directories / 核心目录
 
 Two layouts — pick by whether the project has one team or several.
@@ -179,7 +364,7 @@ Two layouts — pick by whether the project has one team or several.
 
 ```
 docs/agents/
-├── codeflow.json
+├── fcop.json
 ├── tasks/      ← Task files you may pick up / 可领取的任务
 ├── reports/    ← Completion reports / 完成报告
 ├── issues/     ← Issue records / 问题记录
@@ -191,9 +376,9 @@ docs/agents/
 
 ```
 docs/agents/
-├── codeflow.json              ← project-level identity / 项目级身份
+├── fcop.json                  ← project-level identity / 项目级身份
 ├── dev-team/
-│   ├── codeflow.json          ← team-level identity (optional override)
+│   ├── fcop.json              ← team-level identity (optional override)
 │   ├── tasks/  reports/  issues/  shared/  log/
 ├── qa-team/
 │   └── ... (same 5 subdirs)
@@ -219,10 +404,10 @@ explaining why the group exists.
 
 **Task**: `TASK-{date}-{seq}-{sender}-to-{recipient}.md`
 - Example: `TASK-20260418-015-ADMIN-to-PM.md`
-- `{sender}` and `{recipient}` are role codes. Read `docs/agents/codeflow.json` → `roles`
+- `{sender}` and `{recipient}` are role codes. Read `docs/agents/fcop.json` → `roles`
   for the roles in your project. The PM / DEV examples here are format illustrations,
   not a fixed roster.
-- 收件人/发件人用本项目的角色代码，参见 `codeflow.json`。
+- 收件人/发件人用本项目的角色代码，参见 `fcop.json`。
 
 **Report**: same pattern, placed in `reports/`
 - Example: `TASK-20260418-015-PM-to-ADMIN.md`
@@ -500,14 +685,14 @@ Three things the protocol explicitly grants you:
   - **0** · Session Startup / UNBOUND Protocol — `unbound_report()` +
     explicit ADMIN assignment before any write.
     会话启动 · UNBOUND 协议。
-  - **1** · Solo vs Team Mode — `codeflow.json` declares `mode`.
-    独模 / 团队模，由 `codeflow.json` 显式声明。
+  - **1** · Solo vs Team Mode — `fcop.json` declares `mode`.
+    独模 / 团队模，由 `fcop.json` 显式声明。
   - **2** · Team-scoped Directories — `docs/agents/{team}/` when
     multi-team, flat otherwise.
     团队作用域目录。
-  - **3** · `codeflow.json` as Sole Identity Authority — wins over any
+  - **3** · `fcop.json` as Sole Identity Authority — wins over any
     other source.
-    `codeflow.json` 是身份唯一权威源。
+    `fcop.json` 是身份唯一权威源。
   - **4** · One Active Driver per `thread_key` — co-review or explicit
     handoff, never parallel drivers.
     每个 `thread_key` 只能有一个活跃 driver。
@@ -520,3 +705,56 @@ Three things the protocol explicitly grants you:
   - **7** · `fcop://` URI Routing (optional) — fully-qualified logical
     addresses for cross-scope messages.
     `fcop://` URI 路由（可选），跨作用域时用的完全限定地址。
+
+---
+
+## Auto-Patrol / 自动巡检
+
+> Implements Rule 6 (Reciprocity): agents should poll their inbox when
+> ADMIN says so, not ignore standing work.
+> 本节是 Rule 6（互惠回执）的落地：ADMIN 发出触发词时，Agent 应主动
+> 巡检自己的收件区，而不是对积压工作视而不见。
+
+### Trigger / 触发条件
+
+Start a patrol when the user (typically ADMIN) says any of:
+当用户（通常是 ADMIN）说出以下任意内容时启动巡检：
+
+- 开始工作 / 开工 / 开始巡检 / 巡检
+- start working / start patrol / patrol / go
+
+### Patrol Actions / 巡检动作
+
+1. **Check new tasks / 检查新任务**
+   - Call `list_tasks` filtered by your role code.
+     用 `list_tasks`，按你的角色代码筛选。
+   - Found new task → `read_task` and execute.
+     发现新任务 → `read_task` 读取并执行。
+   - None → report "No pending tasks / 暂无新任务".
+2. **Check reports / 检查报告**
+   - Call `list_reports`.
+   - If you are `leader`, review incoming reports.
+     如果你是 `leader`，审核新报告。
+   - If you are executor, check for rework requests.
+     执行角色则检查是否有返工要求。
+3. **Check issues / 检查问题**
+   - Call `list_issues`, surface anything still open.
+     用 `list_issues`，报告未关闭的问题。
+
+### Report Format / 汇报格式
+
+```
+Patrol result / 巡检结果：
+- Pending tasks / 待处理任务：N
+- New reports / 新报告：N
+- Open issues / 未解决问题：N
+```
+
+### Patrol Rules / 巡检规则
+
+- Only handle tasks whose filename contains `to-{your role}`.
+  只处理文件名里含 `to-{你的角色}` 的任务。
+- Always write a report (or a follow-up task) after completing a task.
+  完成任务后必须写报告（或派出后续任务）。
+- Always record blockers as `ISSUE-*.md` under `issues/`.
+  阻塞 / 风险必须写成 `ISSUE-*.md` 落到 `issues/`。

@@ -4,15 +4,15 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fcop"
-version = "0.2.2"
+version = "0.4.0"
 description = "MCP toolbox for FCoP — the File-based Coordination Protocol for multi-agent collaboration."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 authors = [
-    { name = "CodeFlow Team" },
+    { name = "FCoP Maintainers" },
 ]
-keywords = ["fcop", "mcp", "codeflow", "multi-agent", "cursor", "claude", "file-based-protocol"]
+keywords = ["fcop", "mcp", "multi-agent", "cursor", "claude", "file-based-protocol", "coordination"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
@@ -32,7 +32,7 @@ dependencies = [
 ]
 
 [project.scripts]
-fcop = "codeflow_mcp.server:main"
+fcop = "fcop.server:main"
 
 [project.urls]
 Homepage = "https://github.com/joinwell52-AI/codeflow-pwa"
@@ -40,14 +40,17 @@ Repository = "https://github.com/joinwell52-AI/codeflow-pwa"
 Issues = "https://github.com/joinwell52-AI/codeflow-pwa/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/codeflow_mcp"]
+packages = ["src/fcop"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"src/codeflow_mcp/_data/codeflow-core.mdc" = "codeflow_mcp/_data/codeflow-core.mdc"
+"src/fcop/_data/fcop-rules.mdc"          = "fcop/_data/fcop-rules.mdc"
+"src/fcop/_data/fcop-protocol.mdc"       = "fcop/_data/fcop-protocol.mdc"
+"src/fcop/_data/letter-to-admin.zh.md"   = "fcop/_data/letter-to-admin.zh.md"
+"src/fcop/_data/letter-to-admin.en.md"   = "fcop/_data/letter-to-admin.en.md"
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "src/codeflow_mcp",
+    "src/fcop",
     "README.md",
     "requirements.txt",
 ]

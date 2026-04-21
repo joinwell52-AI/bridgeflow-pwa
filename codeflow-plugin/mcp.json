@@ -1,10 +1,10 @@
 ﻿{
   "mcpServers": {
-    "codeflow": {
-      "command": "C:\\Users\\Administrator\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
-      "args": ["D:\\\\CodeFlow\\\\codeflow-plugin\\scripts\\mcp_server.py"],
+    "fcop": {
+      "command": "uvx",
+      "args": ["fcop"],
       "env": {
-        "CODEFLOW_PROJECT_DIR": "${workspaceFolder}",
+        "FCOP_PROJECT_DIR": "${workspaceFolder}",
         "PYTHONIOENCODING": "utf-8"
       }
     }
