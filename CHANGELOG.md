@@ -6,6 +6,83 @@
 
 ## [Unreleased]
 
+### fcop 0.4.7（MCP 包）- 2026-04-22
+
+#### 新特性：`workspace/<slug>/` 约定——产物笼子
+
+ADMIN 真实反馈："Solo 模式下 Agent 把 `app.py`、`pyproject.toml`、
+`*.bat` 全扔项目根；第二天做小游戏，文件直接打架。"
+
+0.4.6 及之前，FCoP 只管**协作元数据**（`docs/agents/tasks/reports/
+issues/shared/log/`），没有给**产物**留一个家。用户手动摸索出"子目录
+隔离"的土办法后，这个约定反向写进 FCoP。
+
+**心智模型**：
+
+| 目录 | 装什么 | 生命周期 |
+|---|---|---|
+| `docs/agents/` | 协作元数据（谁做了什么） | 项目全程 |
+| `workspace/<slug>/` | 产物（代码、脚本、数据、依赖） | 一个 slug 一个目的 |
+
+**三件事**：
+
+1. **3 个 init 工具自动建 `workspace/`**：`init_solo` / `init_project`
+   / `create_custom_team` 落盘时创建 `workspace/` + 一份双语 README，
+   讲清约定。
+2. **新增 MCP 工具 `new_workspace(slug, title, description)`**：
+   创建 `workspace/<slug>/`，落 `.workspace.json` 元数据 + 每个笼子
+   自己的 README。幂等——同一个 slug 再调一次只更新 title，不碰里面
+   的文件。
+3. **新增 MCP 工具 `list_workspaces()`**：列出当前项目所有 slug 目录
+   （包括手动 `mkdir` 创建的），显示 title / created_at。
+   `get_team_status` 也顺带展示工作区数量。
+
+**Slug 语法**：`^[a-z][a-z0-9-]*$`，≤40 字符，保留字
+`archive / shared / tmp / trash`。和角色代码语法**反过来**
+（小写+连字符 vs 大写+下划线）——因为 slug 是文件系统路径，
+`csdn-search` 比 `CSDN_SEARCH` 更符合 npm / PyPI / URL 的文件夹命名
+习惯。
+
+**主动校验复用 0.4.6 的"错误即说明书"模式**：
+- `CSDN-Search` → 建议 `csdn-search`（大小写修正）
+- `mini_game` → 建议 `mini-game`（下划线转连字符）
+- `My Game` → 建议 `my-game`
+- `2026-report` → 建议 `w2026-report`（数字开头加 `w` 前缀）
+- `周报` / `tmp`：直接拒绝并解释
+
+**向后兼容**：
+- 老项目（0.4.6 及更早）没有 `workspace/` 的，照常工作——
+  `list_workspaces` 会提示"还没有 workspace/"，`new_workspace` 会自动
+  bootstrap 目录。
+- `new_workspace` **不静默小写化**错误输入（曾经考虑过）——那会掩盖
+  真正的 typo，并剥夺 ADMIN 从错误中学习规则的机会。
+
+**规则更新**：
+- `fcop-rules.mdc` 新增 `Rule 7.5 · Workspace Convention`（soft
+  convention，不硬拦但明确禁止 Agent 往项目根写业务代码）。
+- `fcop_rules_version`：`1.2.0` → `1.3.0`。
+
+**工具总数**：17 → **19**（新增 `new_workspace` + `list_workspaces`）。
+资源数保持 6 个。
+
+**信件更新**：`LETTER-TO-ADMIN.md`（中英双语）新增"产物放哪：
+workspace/<slug>/ 约定"一节，完整覆盖目录结构图、slug 命名规则、
+创建方式、硬规矩。
+
+**文件影响**：
+- `src/fcop/server.py`：新增 `WORKSPACE_DIR` 模块常量及 `_rebind_paths`
+  集成；新增 `_SLUG_RE` / `_RESERVED_SLUGS` / `_suggest_slug` /
+  `_validate_slug` / `_WORKSPACE_README_{ZH,EN}` / `_ensure_workspace` /
+  `_list_workspace_slugs`；新增 2 个 MCP 工具；更新 3 个 init 工具和
+  `get_team_status`。
+- `src/fcop/_data/letter-to-admin.{zh,en}.md`：新章节 + 19/6 计数同步。
+- `src/fcop/_data/fcop-rules.mdc`：Rule 7.5 + 版本 1.3.0。
+
+**回归**：46 项烟测全绿（`_smoke_047.py`），包括 7 个 suggest_slug
+测试、7 个 validate_slug 测试、3 个 init 工具的 workspace 落盘、13
+个 new_workspace 用例、6 个 list_workspaces 用例、2 个 team_status
+集成用例、3 个老项目向后兼容用例、2 个规则文件部署用例。
+
 ### fcop 0.4.6（MCP 包）- 2026-04-22
 
 #### 改进：错误消息本身就是说明书（"errors ARE the docs"）

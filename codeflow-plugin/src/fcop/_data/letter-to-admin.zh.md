@@ -158,7 +158,7 @@ validate_team_config(roles="MANAGER,CODER,TESTER,ARTIST", leader="MANAGER")
 
 ```
 项目根/
-├── docs/agents/
+├── docs/agents/             ← 协作元数据（谁在做什么）
 │   ├── fcop.json            ← 项目身份（mode / roles / leader）
 │   ├── tasks/               ← 派发中的任务
 │   ├── reports/             ← 回执
@@ -166,6 +166,8 @@ validate_team_config(roles="MANAGER,CODER,TESTER,ARTIST", leader="MANAGER")
 │   ├── shared/              ← 共享文档（看板、术语表…）
 │   ├── log/                 ← 归档
 │   └── LETTER-TO-ADMIN.md   ← 这封信本身，留个底
+├── workspace/               ← ★ 产物家（代码、脚本、数据）★
+│   └── README.md            ← 约定说明
 └── .cursor/rules/
     ├── fcop-rules.mdc       ← 协议规则（Cursor 下每个 Agent 自动读）
     └── fcop-protocol.mdc    ← 协议解释
@@ -182,9 +184,82 @@ TASK-20260417-001-MANAGER-to-ADMIN.md    ← MANAGER 的回执
 
 ---
 
+## 产物放哪：`workspace/<slug>/` 约定
+
+这是一个很多人第一天不会意识到、第二天就翻车的问题——
+
+**你让 Agent 做 CSDN 搜索工具，它把 `app.py`、`pyproject.toml`、
+`*.bat` 全扔到项目根。第二天你让它做小游戏，`pyproject.toml` 打架，
+`app.py` 被覆盖，`*.bat` 混在一起分不清是哪个的。**
+
+FCoP 0.4.7 把答案内建到了初始化流程里：**项目根只放协作元数据，
+具体产物全部进 `workspace/<slug>/`。一个"要做的事"一个 slug，互不打扰。**
+
+```
+codeflow-3/
+├── .cursor/ docs/ fcop.json LETTER-TO-ADMIN.md   ← 协作骨架，永不混
+└── workspace/
+    ├── csdn-search/         ← 今天：CSDN 文章搜索
+    │   ├── app.py
+    │   ├── templates/
+    │   ├── *.bat
+    │   └── pyproject.toml
+    └── mini-game/           ← 明天：小游戏（独立笼子，和 csdn-search 完全隔离）
+        ├── game.py
+        └── assets/
+```
+
+### 怎么开一个新笼子
+
+两种方式，都合法：
+
+1. **让 Agent 调工具**（推荐）：
+
+    ```
+    new_workspace(slug="csdn-search", title="CSDN 文章搜索工具")
+    ```
+
+    FCoP 自动建目录、写一份最小 README、落一个 `.workspace.json` 元
+    数据文件。
+
+2. **你自己 `mkdir`**：直接在 `workspace/` 下新建文件夹，Agent 一样
+    认账，`list_workspaces()` 也能看见。
+
+### slug 命名规则（FCoP 自动校验）
+
+| ✅ 合法 | ❌ 不合法 | 为什么 |
+|---|---|---|
+| `csdn-search` | `CSDN-Search` | 必须小写 |
+| `mini-game` | `mini_game` | 只能用 `-` 做分隔符（和角色代码反过来） |
+| `weekly-report-2026w17` | `周报` | 不允许中文 |
+| `api-v2` | `my game` | 不允许空格 |
+| `search` | `tmp` / `shared` / `archive` | 保留字 |
+
+和角色代码一样，输错了会拿到"建议改为 `xxx`"的友好修复提示，最长 40 个字符。
+
+### 一键查看
+
+想知道项目里有几个笼子、分别是啥，让 Agent 调：
+
+```
+list_workspaces()
+```
+
+输出每个 slug 的 title 和创建时间。`get_team_status()` 也会顺便
+告诉你工作区数量。
+
+### 硬规矩
+
+- ❌ Agent **不得往项目根写业务代码**（`app.py` / `pyproject.toml` 这类）
+- ❌ 不同 slug 之间不共享文件
+- ✅ 需要在多个笼子之间共享的东西，自己开 `workspace/shared/`
+  （FCoP 给这个 slug 留了保留字）
+
+---
+
 ## MCP 功能一览（ADMIN 必看）
 
-装上 `fcop` MCP 后，你的 Agent 能调用 **17 个工具** 和 **6 个资源**。
+装上 `fcop` MCP 后，你的 Agent 能调用 **19 个工具** 和 **6 个资源**。
 下表按"必须 / 可选 / 救场"三档列全，你不用全记，知道有就行。
 
 ### 🔴 必经流程（每个项目第一天都会用上）
@@ -213,9 +288,11 @@ TASK-20260417-001-MANAGER-to-ADMIN.md    ← MANAGER 的回执
 
 | 工具 | 作用 |
 |---|---|
-| `get_team_status()` | 任务/回执/问题数量 + 近期活跃 |
+| `get_team_status()` | 任务/回执/问题数量 + 近期活跃 + 工作区列表 |
 | `get_available_teams()` | 列出所有预设团队（Solo / dev-team / media-team / mvp-team） |
 | `validate_team_config(roles, leader)` | **自建团队前**预检角色代码合不合法，不落盘 |
+| `new_workspace(slug, title, description)` | 开一个产物笼子 `workspace/<slug>/`（见"产物放哪"一节） |
+| `list_workspaces()` | 列当前项目里所有 `workspace/<slug>/` 笼子及元数据 |
 
 **协议反馈**（对协议本身有意见用）：
 
@@ -235,7 +312,7 @@ TASK-20260417-001-MANAGER-to-ADMIN.md    ← MANAGER 的回执
 
 ### ⚠️ Cursor 面板上的"点灰"开关
 
-打开 Cursor 的 MCP 设置，能看到这 17 个工具每个旁边都有个按钮，
+打开 Cursor 的 MCP 设置，能看到这 19 个工具每个旁边都有个按钮，
 **点一下会变灰 = 禁用**，再点一下变白 = 启用。这是 Cursor 的工具级
 开关，不是 FCoP 的功能。
 

@@ -281,12 +281,20 @@ REPORTS_DIR: Path = AGENTS_DIR / "reports"
 ISSUES_DIR: Path = AGENTS_DIR / "issues"
 SHARED_DIR: Path = AGENTS_DIR / "shared"
 LOG_DIR: Path = AGENTS_DIR / "log"
+# 0.4.7: `workspace/<slug>/` is FCoP's soft convention for work artifacts.
+# `docs/agents/` holds the COORDINATION metadata (tasks, reports, issues);
+# `workspace/<slug>/` holds the actual WORK PRODUCTS (code, scripts, data)
+# with one slug per "thing you are doing". Before 0.4.7 there was no
+# named home for artifacts, so Solo users would dump `app.py` /
+# `pyproject.toml` / `*.bat` straight into the project root — and the
+# next day's project would collide with the previous day's.
+WORKSPACE_DIR: Path = PROJECT_DIR / "workspace"
 
 
 def _rebind_paths(project_dir: Path, source: str) -> None:
     """Point every path constant at ``project_dir`` and record ``source``."""
     global PROJECT_DIR, AGENTS_DIR, TASKS_DIR, REPORTS_DIR, ISSUES_DIR
-    global SHARED_DIR, LOG_DIR
+    global SHARED_DIR, LOG_DIR, WORKSPACE_DIR
     PROJECT_DIR = project_dir
     AGENTS_DIR = project_dir / "docs" / "agents"
     TASKS_DIR = AGENTS_DIR / "tasks"
@@ -294,6 +302,7 @@ def _rebind_paths(project_dir: Path, source: str) -> None:
     ISSUES_DIR = AGENTS_DIR / "issues"
     SHARED_DIR = AGENTS_DIR / "shared"
     LOG_DIR = AGENTS_DIR / "log"
+    WORKSPACE_DIR = project_dir / "workspace"
     _STATE["project_dir"] = project_dir
     _STATE["source"] = source
 
@@ -832,6 +841,292 @@ def _validate_team_config(
     return None
 
 
+# ─── Workspace helpers (0.4.7) ────────────────────────────────────
+#
+# `workspace/<slug>/` is FCoP's soft convention for WHERE work artifacts
+# live. The coordination metadata (`docs/agents/tasks/`, `reports/`,
+# `issues/`) is about WHO did/is doing WHAT, using files as the bus —
+# that's FCoP proper. But before 0.4.7 there was no named home for the
+# actual code / scripts / data being produced, so Solo users would dump
+# `app.py` and `pyproject.toml` into the project root, then collide with
+# tomorrow's "small game" task.
+#
+# Design:
+#   - Soft convention. `_ensure_workspace()` creates `workspace/` (and a
+#     tiny README) on every init_*. Tools DO NOT hard-reject projects
+#     without it — old 0.4.6 projects keep working.
+#   - Slug grammar: lowercase-hyphen (`^[a-z][a-z0-9-]*$`), the
+#     directory-name convention (npm, PyPI, URL paths). This is
+#     DELIBERATELY the inverse of role-code grammar (UPPERCASE with
+#     underscore), because slugs are filesystem paths while role codes
+#     are field values inside structured filenames.
+#   - Optional `.workspace.json` marker inside each slug dir with
+#     minimal metadata (slug, title, created_at). ADMIN can `mkdir
+#     workspace/foo` by hand and it still counts as a workspace — the
+#     marker only helps list_workspaces show a nice title.
+
+_SLUG_RE = re.compile(r"^[a-z][a-z0-9-]*$")
+_RESERVED_SLUGS = {
+    "archive",  # reserved for future "archived slugs" sub-layout
+    "shared",   # reserved for cross-slug shared assets (if we add it)
+    "tmp",      # obvious footgun
+    "trash",    # obvious footgun
+}
+
+
+def _suggest_slug(bad: str) -> str:
+    """Best-effort auto-repair for a malformed slug.
+
+    Follows the same "never silently replace, only suggest" principle as
+    ``_suggest_role_code``. Returns empty string if salvage is hopeless.
+    """
+    if not bad:
+        return ""
+    cleaned: list[str] = []
+    for ch in bad:
+        low = ch.lower()
+        if ch.isascii() and (low.isalnum() or low == "-"):
+            cleaned.append(low)
+        elif ch in "_. \t/\\":
+            cleaned.append("-")
+        # else: drop (non-ASCII, punctuation)
+    out = "".join(cleaned)
+    while "--" in out:
+        out = out.replace("--", "-")
+    out = out.strip("-")
+    if not out:
+        return ""
+    # Slug must start with a lowercase letter. Prefix `w` (for workspace)
+    # if the first char is a digit — obviously flagged as a fix.
+    if out[0].isdigit():
+        out = "w" + out
+    return out if _SLUG_RE.match(out) else ""
+
+
+def _validate_slug(slug: str) -> str | None:
+    """Return None if the slug is legal, else a plain-language error.
+
+    Same "errors ARE the docs" philosophy as ``_validate_role_code``.
+    """
+    if not slug:
+        return (
+            "workspace slug 不能为空。示例：`csdn-search` `mini-game` "
+            "`weekly-report`。\n"
+            "Workspace slug cannot be empty. Examples: `csdn-search`, "
+            "`mini-game`, `weekly-report`.\n\n"
+            f"{_LETTER_HINT_ZH}\n{_LETTER_HINT_EN}"
+        )
+    if len(slug) > 40:
+        return (
+            f"workspace slug `{slug}` 太长（最多 40 个字符，当前 {len(slug)}）。"
+            f"目录名别写成标题——用短名 + 里面的 README 写描述。\n"
+            f"Workspace slug `{slug}` is too long (max 40, got "
+            f"{len(slug)}). Don't put the full title in the directory "
+            f"name — use a short slug and write the description in the "
+            f"folder's README.\n\n"
+            f"{_LETTER_HINT_ZH}\n{_LETTER_HINT_EN}"
+        )
+    if not _SLUG_RE.match(slug):
+        suggestion = _suggest_slug(slug)
+        if suggestion:
+            repair_zh = f"建议改为 `{suggestion}`（已自动修正大小写/分隔符）。"
+            repair_en = (
+                f"Suggested fix: `{suggestion}` "
+                f"(casing / separators auto-repaired)."
+            )
+        else:
+            repair_zh = (
+                "无法自动修正：请用小写英文/数字/连字符，"
+                "例如 `csdn-search` / `mini-game`。"
+            )
+            repair_en = (
+                "Cannot auto-repair: use lowercase ASCII / digits / "
+                "hyphens, e.g. `csdn-search` / `mini-game`."
+            )
+        return (
+            f"workspace slug `{slug}` 非法：必须小写字母开头，只能用 "
+            f"`a-z` / `0-9` / `-`（不允许中文、空格、下划线、`.`、大写）。\n"
+            f"{repair_zh}\n\n"
+            f"Workspace slug `{slug}` is invalid: must start with a "
+            f"lowercase letter and use only `a-z` / `0-9` / `-` (no "
+            f"non-ASCII, spaces, underscores, `.`, uppercase).\n"
+            f"{repair_en}\n\n"
+            f"{_LETTER_HINT_ZH}\n{_LETTER_HINT_EN}"
+        )
+    if slug in _RESERVED_SLUGS:
+        return (
+            f"slug `{slug}` 是 FCoP 保留字，不能作为工作目录名。"
+            f"换一个具体描述你要做什么的短名，例如 `csdn-search`。\n"
+            f"Slug `{slug}` is FCoP-reserved. Use a concrete short name "
+            f"that describes what you're working on, e.g. `csdn-search`.\n\n"
+            f"{_LETTER_HINT_ZH}\n{_LETTER_HINT_EN}"
+        )
+    return None
+
+
+_WORKSPACE_README_ZH = """# workspace/ — 产物笼子 / Work artifact cages
+
+**这里放你实际要做的东西**：代码、脚本、数据、依赖清单，一切具体产出。
+
+与 `docs/agents/` 的区别：
+- `docs/agents/` 管「谁在做什么、什么时候交付」——协作元数据
+- `workspace/` 管「做出来的东西」——产物本身
+
+## 一个目的一个子目录
+
+每个"你要做的事"开一个独立子目录，叫 `workspace/<slug>/`：
+
+```
+workspace/
+├── csdn-search/      ← 今天做的 CSDN 文章搜索
+│   ├── app.py
+│   ├── templates/
+│   └── *.bat
+└── mini-game/        ← 明天做的小游戏
+    └── game.py
+```
+
+### slug 命名规则（FCoP 会校验）
+- ✅ 小写字母开头，允许 `a-z` / `0-9` / `-`
+- ❌ 禁止大写、中文、空格、下划线、点号
+- 示例：`csdn-search` / `mini-game` / `weekly-report-2026w17`
+
+## 怎么创建
+
+两种都行：
+
+1. **让 Agent 调工具**：
+   ```
+   new_workspace(slug="csdn-search", title="CSDN 文章搜索工具")
+   ```
+   FCoP 会帮你建目录 + 一份最小 README + `.workspace.json` 元数据文件。
+
+2. **自己手动 `mkdir`**：直接 `mkdir workspace/csdn-search`，也算数。
+   `list_workspaces` 照样能看到。
+
+## 不要把业务代码写在项目根
+
+项目根（`codeflow-3/`）该放的只有：`.cursor/`、`docs/agents/`、
+`fcop.json`、`LETTER-TO-ADMIN.md`、`.gitignore`、`README.md`。
+其他具体产物——代码、数据、脚本——**一律进 `workspace/<slug>/`**。
+
+否则明天换一个任务，就会和今天的文件打架。
+"""
+
+_WORKSPACE_README_EN = """# workspace/ — Work artifact cages
+
+**This is where the actual work products live**: code, scripts, data,
+dependency files — anything your real project produces.
+
+Difference from `docs/agents/`:
+- `docs/agents/` tracks WHO is doing WHAT and WHEN — coordination
+  metadata.
+- `workspace/` holds the PRODUCED ARTIFACTS themselves.
+
+## One purpose, one subdirectory
+
+Every "thing you're working on" gets its own subdirectory as
+`workspace/<slug>/`:
+
+```
+workspace/
+├── csdn-search/      ← today's CSDN article search tool
+│   ├── app.py
+│   ├── templates/
+│   └── *.bat
+└── mini-game/        ← tomorrow's small game
+    └── game.py
+```
+
+### Slug naming rules (FCoP validates these)
+- ✅ Lowercase-letter start, only `a-z` / `0-9` / `-`
+- ❌ No uppercase, non-ASCII, spaces, underscores, dots
+- Examples: `csdn-search` / `mini-game` / `weekly-report-2026w17`
+
+## How to create
+
+Either works:
+
+1. **Ask the agent** to call:
+   ```
+   new_workspace(slug="csdn-search", title="CSDN Article Search Tool")
+   ```
+   FCoP will create the directory, a minimal README, and a
+   `.workspace.json` metadata file.
+
+2. **Just `mkdir` it yourself**: `mkdir workspace/csdn-search` is fine.
+   `list_workspaces` will still see it.
+
+## Don't put business code in the project root
+
+The project root (e.g. `codeflow-3/`) should only contain: `.cursor/`,
+`docs/agents/`, `fcop.json`, `LETTER-TO-ADMIN.md`, `.gitignore`,
+`README.md`. Everything else — code, data, scripts — **goes under
+`workspace/<slug>/`**.
+
+Otherwise tomorrow's task will collide with today's files.
+"""
+
+
+def _ensure_workspace(lang: str) -> str:
+    """Create `workspace/` + `workspace/README.md` if missing.
+
+    Idempotent. Returns a short status string for the init_* tools to
+    include in their notes, or empty string if nothing changed.
+    """
+    created = False
+    if not WORKSPACE_DIR.exists():
+        WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
+        created = True
+    readme = WORKSPACE_DIR / "README.md"
+    if not readme.exists():
+        text = (
+            _WORKSPACE_README_EN
+            if lang and lang.lower().startswith("en")
+            else _WORKSPACE_README_ZH
+        )
+        readme.write_text(text, encoding="utf-8")
+        created = True
+    if not created:
+        return ""
+    try:
+        rel = WORKSPACE_DIR.relative_to(PROJECT_DIR).as_posix()
+    except ValueError:
+        rel = str(WORKSPACE_DIR)
+    return f"Deployed: {rel}/ (artifact home — put code here, not in project root)"
+
+
+def _list_workspace_slugs() -> list[dict]:
+    """Scan `workspace/*/` and return minimal metadata per slug.
+
+    - Uses `.workspace.json` if present for `title` / `created_at`
+    - Falls back to plain directory listing otherwise (ADMIN can
+      `mkdir` a workspace by hand and it still counts)
+    - Skips hidden dirs and the `workspace/README.md` file
+    """
+    out: list[dict] = []
+    if not WORKSPACE_DIR.exists():
+        return out
+    for child in sorted(WORKSPACE_DIR.iterdir()):
+        if not child.is_dir():
+            continue
+        if child.name.startswith("."):
+            continue
+        meta: dict = {"slug": child.name, "title": "", "created_at": ""}
+        marker = child / ".workspace.json"
+        if marker.exists():
+            try:
+                data = json.loads(marker.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    meta["title"] = str(data.get("title", "") or "")
+                    meta["created_at"] = str(data.get("created_at", "") or "")
+                    meta["description"] = str(data.get("description", "") or "")
+            except Exception:
+                pass
+        out.append(meta)
+    return out
+
+
 # ─── MCP Tools ────────────────────────────────────────────
 
 
@@ -1240,10 +1535,13 @@ def init_project(team: str = "dev-team", lang: str = "zh") -> str:
     letter_note = _deploy_letter_to_project(lang)
     if letter_note:
         notes.append(letter_note)
+    ws_note = _ensure_workspace(lang)
+    if ws_note:
+        notes.append(ws_note)
 
     return (
         f"Project initialized: {name}\n"
-        f"Directories: tasks/, reports/, issues/, shared/, log/\n"
+        f"Directories: tasks/, reports/, issues/, shared/, log/, workspace/\n"
         f"{t('roles', lang)}:\n{_role_table(tmpl, lang)}\n"
         f"{t('leader', lang)}: {leader}\n"
         + ("\n".join(notes) + "\n" if notes else "")
@@ -1492,6 +1790,9 @@ def create_custom_team(
     letter_note = _deploy_letter_to_project(lang)
     if letter_note:
         notes.append(letter_note)
+    ws_note = _ensure_workspace(lang)
+    if ws_note:
+        notes.append(ws_note)
 
     return (
         f"{t('custom_created', lang)}: {team_name}\n"
@@ -1572,6 +1873,9 @@ def init_solo(
     letter_note = _deploy_letter_to_project(lang)
     if letter_note:
         notes.append(letter_note)
+    ws_note = _ensure_workspace(lang)
+    if ws_note:
+        notes.append(ws_note)
 
     header = (
         "已初始化 Solo 模式项目（一个 AI 角色，直接对 ADMIN）。"
@@ -1617,6 +1921,170 @@ def validate_team_config(roles: str, leader: str) -> str:
 
 
 @mcp.tool
+def new_workspace(
+    slug: str,
+    title: str = "",
+    description: str = "",
+) -> str:
+    """Create a new workspace subdirectory under ``workspace/<slug>/``.
+
+    This is the recommended "cage" for a self-contained piece of work —
+    one slug per "thing you are doing". Keeps tomorrow's small-game code
+    from colliding with today's CSDN search code in the project root.
+
+    Idempotent: calling twice with the same slug updates the title /
+    description but never wipes files you already put in the folder.
+
+    Args:
+        slug: Short lowercase-hyphen name. Must match ``^[a-z][a-z0-9-]*$``
+            and be ≤40 chars. Examples: ``csdn-search`` / ``mini-game`` /
+            ``weekly-report-2026w17``. FCoP validates and suggests fixes
+            when you mistype.
+        title: Optional human-readable title (any language). Shown by
+            ``list_workspaces``.
+        description: Optional one-paragraph description. Saved into the
+            per-slug README + ``.workspace.json``.
+
+    Returns a short success report including the absolute path. Writes
+    nothing in the project root.
+    """
+    # Do NOT silently lowercase — that would rob ADMIN of the teachable
+    # moment ("Suggested fix: csdn-search") and mask real typos.
+    slug_norm = (slug or "").strip()
+    err = _validate_slug(slug_norm)
+    if err:
+        return err
+
+    # Ensure the workspace/ parent + README exist even if this is the
+    # first call on an old 0.4.6 project that doesn't have them yet.
+    _ensure_workspace(lang="zh")
+
+    target = WORKSPACE_DIR / slug_norm
+    is_new = not target.exists()
+    target.mkdir(parents=True, exist_ok=True)
+
+    marker = target / ".workspace.json"
+    now = _now()
+    created_at = now
+    if marker.exists():
+        try:
+            prev = json.loads(marker.read_text(encoding="utf-8"))
+            if isinstance(prev, dict) and prev.get("created_at"):
+                created_at = str(prev["created_at"])
+        except Exception:
+            pass
+    meta = {
+        "slug": slug_norm,
+        "title": title.strip(),
+        "description": description.strip(),
+        "created_at": created_at,
+        "updated_at": now,
+    }
+    marker.write_text(
+        json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+    readme = target / "README.md"
+    if not readme.exists():
+        body_lines = [
+            f"# {title.strip() or slug_norm}",
+            "",
+            f"Slug: `{slug_norm}`",
+            f"Created: {created_at}",
+        ]
+        if description.strip():
+            body_lines.extend(["", description.strip()])
+        body_lines.extend(
+            [
+                "",
+                "---",
+                "",
+                "这里放这个任务/模块的实际产物（代码、脚本、数据）。",
+                "不要把业务代码写到项目根目录。",
+                "",
+                "Place actual work artifacts (code, scripts, data) here.",
+                "Do not write business code into the project root.",
+            ]
+        )
+        readme.write_text("\n".join(body_lines) + "\n", encoding="utf-8")
+
+    try:
+        rel = target.relative_to(PROJECT_DIR).as_posix()
+    except ValueError:
+        rel = str(target)
+
+    verb_zh = "已创建" if is_new else "已更新"
+    verb_en = "Created" if is_new else "Updated"
+    return (
+        f"{verb_zh} workspace: `{rel}/`\n"
+        f"  slug: {slug_norm}\n"
+        f"  title: {title.strip() or '(none)'}\n"
+        f"  created_at: {created_at}\n"
+        f"\n{verb_en} workspace at `{rel}/`. Put code / scripts / data "
+        f"here; do not write to the project root."
+    )
+
+
+@mcp.tool
+def list_workspaces(lang: str = "") -> str:
+    """List all ``workspace/<slug>/`` subdirectories with their metadata.
+
+    Picks up BOTH workspaces created by ``new_workspace`` (they have a
+    ``.workspace.json`` marker with title/description) AND directories
+    created by hand (shown with just the slug). Use this to get an
+    at-a-glance "what's inside this project" view.
+
+    Args:
+        lang: Output language (``zh``/``en``). Empty = auto-detect from
+            project config.
+    """
+    cfg = _load_project_config()
+    if not lang:
+        lang = cfg.get("lang", "zh") if cfg else "zh"
+    is_en = lang.lower().startswith("en")
+
+    if not WORKSPACE_DIR.exists():
+        if is_en:
+            return (
+                "No `workspace/` directory yet.\n"
+                "Call `new_workspace(slug=\"<your-slug>\")` to create "
+                "the first one, or run `init_solo` / `init_project` / "
+                "`create_custom_team` to scaffold the whole project "
+                "layout including `workspace/`."
+            )
+        return (
+            "项目里还没有 `workspace/` 目录。\n"
+            "调 `new_workspace(slug=\"<你的-slug>\")` 开第一个，或者先用 "
+            "`init_solo` / `init_project` / `create_custom_team` 把整个"
+            "项目骨架初始化出来（会一并创建 `workspace/`）。"
+        )
+
+    items = _list_workspace_slugs()
+    if not items:
+        if is_en:
+            return (
+                "`workspace/` exists but has no slug subdirectories yet.\n"
+                "Call `new_workspace(slug=\"<your-slug>\", "
+                "title=\"<what it is>\")` to start one."
+            )
+        return (
+            "`workspace/` 存在但还没有任何子目录。\n"
+            "调 `new_workspace(slug=\"<你的-slug>\", "
+            "title=\"<做啥的>\")` 开一个。"
+        )
+
+    header_zh = f"workspace/ 下有 {len(items)} 个笼子：\n"
+    header_en = f"`workspace/` has {len(items)} slug(s):\n"
+    lines = [header_en if is_en else header_zh]
+    for it in items:
+        slug = it.get("slug", "?")
+        title = it.get("title", "") or ("(no title)" if is_en else "(无标题)")
+        created = it.get("created_at", "") or "?"
+        lines.append(f"  - `{slug}/`  — {title}  (created: {created})")
+    return "\n".join(lines)
+
+
+@mcp.tool
 def get_team_status(lang: str = "") -> str:
     """Get current team status — task/report/issue counts and recent activity.
 
@@ -1630,6 +2098,7 @@ def get_team_status(lang: str = "") -> str:
     tasks = _scan_dir(TASKS_DIR)
     reports = _scan_dir(REPORTS_DIR)
     issues = _scan_dir(ISSUES_DIR)
+    workspaces = _list_workspace_slugs()
 
     if cfg:
         team_name = cfg.get("team_name", cfg.get("team", "?"))
@@ -1641,11 +2110,20 @@ def get_team_status(lang: str = "") -> str:
     recent_tasks = [x["filename"] for x in tasks[-5:]]
     recent_reports = [x["filename"] for x in reports[-5:]]
 
+    is_en = lang.lower().startswith("en")
+    ws_label = "workspaces" if is_en else "工作区"
+    ws_unit = "" if is_en else t("unit", lang)
+    ws_lines = ""
+    if workspaces:
+        ws_names = ", ".join(f"`{w['slug']}`" for w in workspaces)
+        ws_lines = f"  ({ws_names})"
+
     return (
         f"{t('team', lang)}: {team_info}\n"
         f"{t('tasks', lang)}: {len(tasks)} {t('unit', lang)}\n"
         f"{t('reports', lang)}: {len(reports)} {t('unit', lang)}\n"
-        f"{t('issues', lang)}: {len(issues)} {t('unit', lang)}\n\n"
+        f"{t('issues', lang)}: {len(issues)} {t('unit', lang)}\n"
+        f"{ws_label}: {len(workspaces)} {ws_unit}{ws_lines}\n\n"
         f"{t('recent_tasks', lang)}:\n"
         + "\n".join(f"  - {x}" for x in recent_tasks) + "\n\n"
         f"{t('recent_reports', lang)}:\n"

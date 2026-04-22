@@ -170,7 +170,7 @@ concrete reason.
 
 ```
 project root/
-├── docs/agents/
+├── docs/agents/             ← Coordination metadata (who does what)
 │   ├── fcop.json            ← Project identity (mode / roles / leader)
 │   ├── tasks/               ← Tasks in flight
 │   ├── reports/             ← Completion reports
@@ -178,6 +178,8 @@ project root/
 │   ├── shared/              ← Standing docs (dashboards, glossaries …)
 │   ├── log/                 ← Archives
 │   └── LETTER-TO-ADMIN.md   ← This letter, kept for reference
+├── workspace/               ← ★ Artifact home (code, scripts, data) ★
+│   └── README.md            ← Convention reference
 └── .cursor/rules/
     ├── fcop-rules.mdc       ← Protocol rules (auto-injected per agent)
     └── fcop-protocol.mdc    ← Protocol commentary
@@ -194,9 +196,91 @@ TASK-20260417-001-MANAGER-to-ADMIN.md    ← MANAGER's report
 
 ---
 
+## Where artifacts go: the `workspace/<slug>/` convention
+
+This is the question nobody sees coming on day one and everybody
+regrets on day two:
+
+**You ask the agent to build a CSDN search tool; it dumps `app.py`,
+`pyproject.toml`, and `*.bat` straight into the project root. Day two
+you ask for a small game, `pyproject.toml` collides, `app.py` gets
+overwritten, and the `*.bat` files are mixed together with no way to
+tell which is which.**
+
+FCoP 0.4.7 bakes the answer into init: **the project root only holds
+coordination metadata; actual work products go under
+`workspace/<slug>/`. One slug per "thing you're doing", fully
+isolated.**
+
+```
+codeflow-3/
+├── .cursor/ docs/ fcop.json LETTER-TO-ADMIN.md   ← coordination skeleton, never mixed
+└── workspace/
+    ├── csdn-search/         ← today: CSDN article search
+    │   ├── app.py
+    │   ├── templates/
+    │   ├── *.bat
+    │   └── pyproject.toml
+    └── mini-game/           ← tomorrow: small game (own cage, fully isolated)
+        ├── game.py
+        └── assets/
+```
+
+### How to open a new cage
+
+Both are fine:
+
+1. **Ask the agent to call** (recommended):
+
+    ```
+    new_workspace(slug="csdn-search", title="CSDN Article Search Tool")
+    ```
+
+    FCoP creates the directory, writes a minimal README, and drops a
+    `.workspace.json` metadata file.
+
+2. **Just `mkdir` it yourself**: make a folder under `workspace/`
+    by hand. The agent still recognizes it, and `list_workspaces()`
+    still lists it.
+
+### Slug naming rules (FCoP validates automatically)
+
+| ✅ Legal | ❌ Illegal | Why |
+|---|---|---|
+| `csdn-search` | `CSDN-Search` | lowercase required |
+| `mini-game` | `mini_game` | only `-` as separator (inverse of role codes) |
+| `weekly-report-2026w17` | `周报` | no non-ASCII |
+| `api-v2` | `my game` | no spaces |
+| `search` | `tmp` / `shared` / `archive` | reserved |
+
+Same as role codes: mistypes get a friendly "Suggested fix: `xxx`"
+reply. Max 40 characters.
+
+### One-shot overview
+
+To see how many cages the project has and what they're for, have the
+agent call:
+
+```
+list_workspaces()
+```
+
+Output shows each slug's title and creation time.
+`get_team_status()` also includes the workspace count.
+
+### Hard rules
+
+- ❌ The agent **must not write business code into the project root**
+  (`app.py` / `pyproject.toml` etc.)
+- ❌ Files are not shared across slugs
+- ✅ If you need something shared across cages, open
+  `workspace/shared/` — FCoP reserves that slug for exactly this
+
+---
+
 ## MCP capabilities at a glance (read this)
 
-Once `fcop` MCP is installed, your agent can call **17 tools** and read
+Once `fcop` MCP is installed, your agent can call **19 tools** and read
 **6 resources**. The table below sorts them into three tiers —
 required / optional / rescue. You don't have to memorize them; just know
 what's there.
@@ -227,9 +311,11 @@ what's there.
 
 | Tool | Purpose |
 |---|---|
-| `get_team_status()` | Task / report / issue counts + recent activity |
+| `get_team_status()` | Task / report / issue counts + recent activity + workspace list |
 | `get_available_teams()` | All preset templates (Solo / dev / media / mvp) |
 | `validate_team_config(roles, leader)` | **Dry-run** role-code validation before `create_custom_team` |
+| `new_workspace(slug, title, description)` | Open an artifact cage `workspace/<slug>/` (see the "Where artifacts go" section) |
+| `list_workspaces()` | List every `workspace/<slug>/` in this project with its metadata |
 
 **Protocol feedback** (only when you disagree with FCoP itself):
 
@@ -249,9 +335,9 @@ what's there.
 
 ### ⚠️ The "click-to-grey-out" switches in Cursor's MCP panel
 
-Cursor's MCP settings panel shows every tool as a clickable button.
-**Click → greyed = disabled; click again → white = enabled.** This is a
-Cursor feature, not an FCoP feature.
+Cursor's MCP settings panel shows every tool (19 of them) as a
+clickable button. **Click → greyed = disabled; click again → white =
+enabled.** This is a Cursor feature, not an FCoP feature.
 
 - ✅ Safe to grey out: optional tools you don't need (e.g. a chat-only
   project can grey out `archive_task` / `list_issues` to reduce noise)
