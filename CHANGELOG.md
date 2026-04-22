@@ -6,6 +6,45 @@
 
 ## [Unreleased]
 
+### fcop 0.4.2（MCP 包）- 2026-04-22
+
+#### 修复：0.4.1 auto-detect 在 Cursor 家目录下的假阳性
+
+0.4.1 把 `.cursor/` 当成"Cursor workspace"标记加到了 auto-detect 里。
+问题：**每个 Cursor 用户的家目录下都有 `%USERPROFILE%\.cursor\`**（存着
+全局 `mcp.json`、日志、配置）。当 Cursor 起 MCP 子进程时 cwd = 家目录，
+auto-detect 从 cwd 往上找第一个 marker，第一眼就命中 `C:\Users\你\.cursor`，
+于是**又绑回家目录**——0.4.1 本来要修的 bug 被自己绕回来了。
+
+0.4.2 两道防线都加上：
+
+1. **移除裸 `.cursor` 标记**。保留更具体的 `.cursor/rules/fcop-rules.mdc`
+   （只有 FCoP 初始化过的项目才会有），并保留 `.git` / `pyproject.toml` /
+   `package.json` 这些真正的"项目根"信号
+2. **家目录黑名单**。`%USERPROFILE%` / `$HOME` / `Path.home()` /（Windows
+   上还包括其父目录 `C:\Users`）无论命中什么 marker 一律跳过，继续向上
+   回溯。cwd 兜底时如果也落在家目录，`source` 里会显式写
+   `cwd fallback (home dir — unsafe; call set_project_dir(...) or set FCOP_PROJECT_DIR)`，
+   让 ADMIN 一眼看出"这路径不对"
+
+#### 兼容性
+
+- 与 0.4.1 完全兼容：工具签名、`fcop.json` 格式、规则文档全部不变
+- 只改了内部 `_resolve_project_dir` 的 marker 列表和黑名单逻辑
+- 用户显式设过 `FCOP_PROJECT_DIR` 的，路径解析路径不受影响
+
+#### 升级建议
+
+**强烈建议升级。** 0.4.1 在 Cursor 下基本等于"必须用 `set_project_dir`
+救场"，0.4.2 把"从空项目目录打开 Cursor → MCP 自动锁定到项目根"这条
+零配置路径真正修通了（只要项目目录下有 `.git` / `pyproject.toml` /
+`package.json` 任一常见信号）。
+
+```bash
+uv tool upgrade fcop           # 或
+pipx upgrade fcop
+```
+
 ### fcop 0.4.1（MCP 包，已发布到 PyPI）- 2026-04-22
 
 #### 修复：Cursor 下"项目路径被绑到家目录"的沉默 UX 陷阱

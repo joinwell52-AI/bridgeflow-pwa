@@ -172,10 +172,17 @@ def _env(*names: str, default: str = "") -> str:
 # 70-ish AGENTS_DIR / TASKS_DIR references pick up the new value with no
 # refactor.
 
+# Auto-detect markers. Order matters: first hit on each candidate dir wins.
+#
+# We deliberately avoid bare ".cursor" / ".vscode" here — those directories
+# exist under every user's home (e.g. %USERPROFILE%\.cursor holds the
+# global mcp.json and logs), which made 0.4.1's auto-detect silently bind
+# to the home dir when Cursor spawned MCP with cwd = %USERPROFILE%. 0.4.2
+# uses only strong signals: something INSIDE .cursor/rules counts, .cursor
+# on its own does not.
 _AUTO_MARKERS: tuple[tuple[str, str], ...] = (
     ("docs/agents/fcop.json", "initialized FCoP project"),
     (".cursor/rules/fcop-rules.mdc", "Cursor + FCoP rules"),
-    (".cursor", "Cursor workspace"),
     (".git", "git repo root"),
     ("pyproject.toml", "Python project root"),
     ("package.json", "Node project root"),
@@ -184,12 +191,38 @@ _AUTO_MARKERS: tuple[tuple[str, str], ...] = (
 _LEGACY_WARNED = False
 
 
+def _home_dirs() -> set[Path]:
+    """Return resolved paths that should never be treated as a project root.
+
+    Covers Windows (``%USERPROFILE%``), POSIX (``$HOME``), and Windows'
+    shared profile root (``C:\\Users``) in case ``Path.home()`` returns
+    something odd. Anything here, even if a marker matches, means we keep
+    walking up (or fall through to cwd fallback with a warning).
+    """
+    out: set[Path] = set()
+    for v in (os.environ.get("USERPROFILE"), os.environ.get("HOME")):
+        if v:
+            try:
+                out.add(Path(v).resolve())
+            except Exception:
+                pass
+    try:
+        out.add(Path.home().resolve())
+    except Exception:
+        pass
+    if os.name == "nt":
+        # Parent of USERPROFILE is typically C:\Users — also unsafe.
+        for p in list(out):
+            out.add(p.parent)
+    return out
+
+
 def _resolve_project_dir() -> tuple[Path, str]:
-    """Return `(project_dir, source)` using the 0.4.1 cascade.
+    """Return `(project_dir, source)` using the 0.4.2 cascade.
 
     `source` is a short human-readable tag used by `unbound_report` so the
     ADMIN can see *why* the project root is what it is (env var name /
-    auto-detected marker / cwd fallback).
+    auto-detected marker / cwd fallback / unsafe-home warning).
     """
     global _LEGACY_WARNED
 
@@ -212,11 +245,24 @@ def _resolve_project_dir() -> tuple[Path, str]:
     except Exception:
         cwd = Path(".").resolve()
 
+    unsafe = _home_dirs()
+
     for cand in (cwd, *cwd.parents):
+        if cand in unsafe:
+            # Home / Users — never auto-bind here even if a marker matches.
+            # Example: %USERPROFILE%\.cursor exists for every Cursor user
+            # and used to trip up 0.4.1's bare ".cursor" marker.
+            continue
         for marker, _label in _AUTO_MARKERS:
             if (cand / marker).exists():
                 return cand, f"auto:{marker}"
 
+    if cwd in unsafe:
+        return (
+            cwd,
+            "cwd fallback (home dir — unsafe; call "
+            "set_project_dir(\"<your project>\") or set FCOP_PROJECT_DIR)",
+        )
     return cwd, "cwd fallback (no markers; consider setting FCOP_PROJECT_DIR)"
 
 

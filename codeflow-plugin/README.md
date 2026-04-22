@@ -196,7 +196,7 @@ pip install -e codeflow-plugin
 
 | 变量 | 作用 | 默认值 |
 |------|------|--------|
-| `FCOP_PROJECT_DIR`  | 项目根目录（含 `docs/agents/`）。0.4.1 起**可选**——未设时会自动向上回溯找 `.cursor/` / `.git/` / `fcop.json` 等标记 | （自动发现，失败回退到 cwd） |
+| `FCOP_PROJECT_DIR`  | 项目根目录（含 `docs/agents/`）。0.4.1 起**可选**——未设时自动向上回溯找 `docs/agents/fcop.json` / `.cursor/rules/fcop-rules.mdc` / `.git` / `pyproject.toml` / `package.json` 等标记（0.4.2 起跳过家目录，避免绑错） | （自动发现，失败回退到 cwd） |
 | `CODEFLOW_PROJECT_DIR` | 0.3.x 的遗留名。0.4.1 起兼容读取，会打一次弃用警告，建议改名为 `FCOP_PROJECT_DIR` | — |
 | `FCOP_ROOM_KEY`     | 非空即启用后台线程连接中继（仅桥接模式用） | 空（本地模式） |
 | `FCOP_RELAY_WS_URL` | 中继 WebSocket URL | `ws://127.0.0.1:5252` |
