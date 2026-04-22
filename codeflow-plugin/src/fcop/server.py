@@ -109,6 +109,45 @@ def _packaged_data_bytes(filename: str) -> bytes | None:
         return None
 
 
+def _packaged_team_file_bytes(team: str, filename: str) -> bytes | None:
+    """Byte-level read of a bundled team role file (zipsafe fallback).
+
+    Reads ``_data/teams/<team>/<filename>`` from the installed package.
+    Used by the 0.5.0 sample library to release role-description MDs
+    into the caller's project. Returns ``None`` on any failure (missing
+    team, missing file, zipimport edge case, etc.).
+    """
+    try:
+        base = resources.files("fcop") / "_data" / "teams" / team / filename
+        with ExitStack() as stack:
+            path = stack.enter_context(resources.as_file(base))
+            return Path(path).read_bytes()
+    except Exception:
+        return None
+
+
+def _list_packaged_teams() -> list[str]:
+    """Return sorted list of team IDs that have a bundled sample library.
+
+    Used by the ``fcop://teams/...`` resource handlers and diagnostic
+    reports. Empty list is a valid response (sdist / manual dev checkout
+    without the data directory).
+    """
+    try:
+        base = resources.files("fcop") / "_data" / "teams"
+        with ExitStack() as stack:
+            path = stack.enter_context(resources.as_file(base))
+            root = Path(path)
+            if not root.is_dir():
+                return []
+            return sorted(
+                d.name for d in root.iterdir()
+                if d.is_dir() and not d.name.startswith((".", "_"))
+            )
+    except Exception:
+        return []
+
+
 mcp = FastMCP(
     name="fcop",
     instructions=(
@@ -483,6 +522,19 @@ TEAM_TEMPLATES = {
             {"code": "BUILDER", "label_zh": "快速原型", "label_en": "Rapid Builder"},
         ],
         "leader": "MARKETER",
+    },
+    # qa-team: newly registered in 0.5.0 after 0.4.10 relaxed _ROLE_CODE_RE
+    # to allow internal hyphens (LEAD-QA, AUTO-TESTER, PERF-TESTER).
+    "qa-team": {
+        "name_zh": "专项测试团队",
+        "name_en": "QA Testing Team",
+        "roles": [
+            {"code": "LEAD-QA", "label_zh": "测试负责人", "label_en": "QA Lead"},
+            {"code": "TESTER", "label_zh": "功能测试", "label_en": "Functional Tester"},
+            {"code": "AUTO-TESTER", "label_zh": "自动化测试", "label_en": "Automation Tester"},
+            {"code": "PERF-TESTER", "label_zh": "性能测试", "label_en": "Performance Tester"},
+        ],
+        "leader": "LEAD-QA",
     },
 }
 
@@ -1498,11 +1550,16 @@ def unbound_report(lang: str = "zh") -> str:
 def init_project(team: str = "dev-team", lang: str = "zh") -> str:
     """Initialize an FCoP project structure with a team template.
 
-    Creates docs/agents/ directories (tasks, reports, issues, shared, log) and a welcome task.
+    Creates docs/agents/ directories (tasks, reports, issues, shared,
+    log) and a welcome task. As of 0.5.0 also drops the bundled
+    role-description MDs for the chosen template into
+    ``docs/agents/shared/roles/`` so assigned agents can read their own
+    job description inline.
 
     Args:
-        team: Team template ID. Options: dev-team, media-team, mvp-team
-        lang: Output language. Options: zh (Chinese), en (English)
+        team: Team template ID. One of ``dev-team``, ``media-team``,
+            ``mvp-team``, ``qa-team``. Default: ``dev-team``.
+        lang: Output language. Options: ``zh`` (Chinese), ``en`` (English).
     """
     if team not in TEAM_TEMPLATES:
         return f"Unknown team: {team}. Options: {', '.join(TEAM_TEMPLATES.keys())}"
@@ -1590,6 +1647,10 @@ def init_project(team: str = "dev-team", lang: str = "zh") -> str:
     ws_note = _ensure_workspace(lang)
     if ws_note:
         notes.append(ws_note)
+    # Sample-library drop-off (new in 0.5.0): bundled role-description
+    # MDs go into docs/agents/shared/roles/ so assigned agents can read
+    # their own job description inside the repo.
+    notes.extend(_deploy_role_docs(team, lang))
 
     return (
         f"Project initialized: {name}\n"
@@ -1631,6 +1692,98 @@ def _deploy_one_rule(filename: str, source_subdir: str = "rules") -> str:
         return f"Deployed: {rel}"
     except Exception as exc:  # pragma: no cover - filesystem surprises
         return f"({filename} 未释放：{exc.__class__.__name__})"
+
+
+def _deploy_role_docs(team: str, lang: str) -> list[str]:
+    """Drop packaged role-description MDs into ``docs/agents/shared/roles/``.
+
+    Motivation (0.5.0 sample library): every bundled team template ships
+    with per-role responsibility documents and a team-level README — these
+    are the ones we wrote by hand in ``codeflow-desktop/templates/agents/``
+    and now moved into the ``fcop`` package at
+    ``src/fcop/_data/teams/<team>/``. On init, we release them into
+    ``docs/agents/shared/roles/`` so agents assigned a role can read
+    their own job description without leaving the repo, and so
+    ``create_custom_team`` callers have ready references to imitate.
+
+    Naming rules:
+
+    - Source Chinese file: ``<ROLE>.md`` → target: same name.
+    - Source English file: ``<ROLE>.en.md`` → target: same name.
+    - We ALWAYS drop both languages (bilingual projects are common);
+      ``lang`` only controls which one is referenced in the welcome
+      task, not which files are released.
+    - Team-level ``README.md`` → target: ``README.md`` inside
+      ``shared/roles/``, to give agents a 30-second team overview.
+
+    Never overwrites existing files — if ADMIN edited a role description
+    locally, we respect that on re-run. Returns human-readable status
+    lines suitable for appending to the ``init_project`` response.
+    """
+    notes: list[str] = []
+    if team not in TEAM_TEMPLATES:
+        return notes
+    target_dir = SHARED_DIR / "roles"
+    try:
+        target_dir.mkdir(parents=True, exist_ok=True)
+    except Exception as exc:  # pragma: no cover - filesystem surprises
+        return [f"(shared/roles/ 未创建：{exc.__class__.__name__})"]
+
+    tmpl = TEAM_TEMPLATES[team]
+    released: list[str] = []
+    skipped: list[str] = []
+    missing: list[str] = []
+
+    # Release one source file to shared/roles/ with never-overwrite.
+    def _release(filename: str) -> None:
+        data = _packaged_team_file_bytes(team, filename)
+        if data is None:
+            # Dev fallback: read from repo source tree when running from
+            # a checkout without an installed wheel.
+            src = (
+                Path(__file__).resolve().parent / "_data" / "teams"
+                / team / filename
+            )
+            if src.exists():
+                try:
+                    data = src.read_bytes()
+                except Exception:
+                    data = None
+        if data is None:
+            missing.append(filename)
+            return
+        target = target_dir / filename
+        if target.exists():
+            skipped.append(filename)
+            return
+        try:
+            target.write_bytes(data)
+            released.append(filename)
+        except Exception as exc:  # pragma: no cover
+            missing.append(f"{filename} ({exc.__class__.__name__})")
+
+    for r in tmpl["roles"]:
+        code = r["code"]
+        _release(f"{code}.md")
+        _release(f"{code}.en.md")
+
+    _release("README.md")
+
+    if released:
+        notes.append(
+            "Deployed role docs to shared/roles/: "
+            + ", ".join(released)
+            + f" (lang-preferred: {lang})"
+        )
+    if skipped:
+        notes.append(
+            "shared/roles/ 已存在，未覆盖：" + ", ".join(skipped)
+        )
+    if missing:
+        notes.append(
+            "(shared/roles/ 缺少模板：" + ", ".join(missing) + ")"
+        )
+    return notes
 
 
 def _deploy_rules_to_project() -> list[str]:
@@ -1845,6 +1998,25 @@ def create_custom_team(
     ws_note = _ensure_workspace(lang)
     if ws_note:
         notes.append(ws_note)
+    # Custom teams have no bundled role docs (by definition), but point
+    # at the sample library so the Agent and ADMIN can study reference
+    # role splits (dev-team / media-team / mvp-team / qa-team) before
+    # writing their own responsibility documents under shared/.
+    sample_teams = _list_packaged_teams()
+    if sample_teams:
+        if lang.lower().startswith("en"):
+            notes.append(
+                "Reference role samples: "
+                + ", ".join(f"`fcop://teams/{t}`" for t in sample_teams)
+                + " — read these before authoring TEAM-ROLES.md / "
+                "TEAM-OPERATING-RULES.md under shared/."
+            )
+        else:
+            notes.append(
+                "可参考的角色样本库："
+                + "、".join(f"`fcop://teams/{t}`" for t in sample_teams)
+                + " —— 在 shared/ 下写 TEAM-ROLES.md / TEAM-OPERATING-RULES.md 前先读一下。"
+            )
 
     return (
         f"{t('custom_created', lang)}: {team_name}\n"
@@ -2615,6 +2787,99 @@ def resource_letter_zh() -> str:
 def resource_letter_en() -> str:
     """A Letter from FCoP to ADMIN — English manual (custom / Solo / preset)."""
     return _read_packaged_letter("en")
+
+
+# ─── Sample library resources (0.5.0) ─────────────────────
+#
+# These expose the bundled team role descriptions without requiring the
+# caller to have run `init_project` yet. Useful for:
+#   - custom-team agents who want to imitate a preset's chain-of-command
+#   - ADMINs comparing teams before picking one
+#   - any Agent researching role design while staying offline
+
+
+@mcp.resource("fcop://teams")
+def resource_teams_index() -> str:
+    """Index of bundled team templates and their roles.
+
+    Lists every team shipped with this `fcop` package, its registered
+    roles, and which role is the leader. Lets Agents discover what
+    samples exist before fetching any single role description.
+    """
+    lines = ["# FCoP bundled team templates\n"]
+    for team in _list_packaged_teams():
+        tmpl = TEAM_TEMPLATES.get(team)
+        if tmpl is None:
+            lines.append(f"\n## {team}\n  (not registered in TEAM_TEMPLATES)")
+            continue
+        name_zh = tmpl.get("name_zh", team)
+        name_en = tmpl.get("name_en", team)
+        leader = tmpl.get("leader", "?")
+        lines.append(f"\n## {team} — {name_zh} / {name_en}")
+        lines.append(f"- leader: `{leader}`")
+        lines.append("- roles:")
+        for r in tmpl.get("roles", []):
+            code = r.get("code", "?")
+            zh = r.get("label_zh", "")
+            en = r.get("label_en", "")
+            lines.append(f"  - `{code}` — {zh} / {en}")
+        lines.append(f"- resource: `fcop://teams/{team}` (README)")
+        for r in tmpl.get("roles", []):
+            code = r.get("code", "?")
+            lines.append(f"  - `fcop://teams/{team}/{code}` (role description, zh)")
+            lines.append(f"  - `fcop://teams/{team}/{code}/en` (role description, en)")
+    return "\n".join(lines) + "\n"
+
+
+@mcp.resource("fcop://teams/{team}")
+def resource_team_readme(team: str) -> str:
+    """Bilingual README for a bundled team template (overview + flow)."""
+    data = _packaged_team_file_bytes(team, "README.md")
+    if data is None:
+        return (
+            f"(No README found for team `{team}`. Known teams: "
+            + ", ".join(_list_packaged_teams())
+            + ")"
+        )
+    try:
+        return data.decode("utf-8")
+    except Exception:
+        return f"(README for `{team}` is not valid UTF-8)"
+
+
+@mcp.resource("fcop://teams/{team}/{role}")
+def resource_team_role_zh(team: str, role: str) -> str:
+    """Chinese role-description doc for `<role>` in `<team>`.
+
+    `role` is the uppercase code (e.g. `LEAD-QA`, `PM`, `PUBLISHER`).
+    """
+    filename = f"{role}.md"
+    data = _packaged_team_file_bytes(team, filename)
+    if data is None:
+        return (
+            f"(No role doc found at `fcop://teams/{team}/{role}`. "
+            f"Check `fcop://teams` for the list of available roles.)"
+        )
+    try:
+        return data.decode("utf-8")
+    except Exception:
+        return f"(Role doc {filename} is not valid UTF-8)"
+
+
+@mcp.resource("fcop://teams/{team}/{role}/en")
+def resource_team_role_en(team: str, role: str) -> str:
+    """English role-description doc for `<role>` in `<team>`."""
+    filename = f"{role}.en.md"
+    data = _packaged_team_file_bytes(team, filename)
+    if data is None:
+        return (
+            f"(No English role doc found at `fcop://teams/{team}/{role}/en`. "
+            f"Check `fcop://teams` for the list of available roles.)"
+        )
+    try:
+        return data.decode("utf-8")
+    except Exception:
+        return f"(Role doc {filename} is not valid UTF-8)"
 
 
 # ─── Entry Point ──────────────────────────────────────────

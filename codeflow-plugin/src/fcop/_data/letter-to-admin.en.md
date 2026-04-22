@@ -63,8 +63,15 @@ proposal as a reviewer, using files to split "proposer" from "reviewer".
 | `dev-team` | Software dev | `PM` · `DEV` · `QA` · `OPS` | `PM` |
 | `media-team` | Content | `PUBLISHER` · `COLLECTOR` · `WRITER` · `EDITOR` | `PUBLISHER` |
 | `mvp-team` | Startup MVP | `MARKETER` · `RESEARCHER` · `DESIGNER` · `BUILDER` | `MARKETER` |
+| `qa-team` | QA testing | `LEAD-QA` · `TESTER` · `AUTO-TESTER` · `PERF-TESTER` | `LEAD-QA` |
 
 Tool call: `init_project(team="dev-team", lang="en")`
+
+**Presets come with role responsibility docs** (new in 0.5.0): each
+preset ships a bilingual `.md` file per role. Init drops them into
+`docs/agents/shared/roles/` so an agent who's just been assigned a
+role can read its own job description inside the repo instead of
+waiting for you to spell it out.
 
 ### C. Build your own team
 
@@ -84,6 +91,15 @@ create_custom_team(
 )
 ```
 
+**Custom teams don't ship role docs — but samples are one click away**:
+after creating a custom team, FCoP tells your agent
+*"See `fcop://teams/<team>` for reference samples"*
+(dev-team / media-team / mvp-team / qa-team each bundles a full
+bilingual role split). The agent naturally studies those before
+drafting your own `shared/TEAM-ROLES.md` and
+`shared/TEAM-OPERATING-RULES.md`. You can seed it with one sentence:
+**"Mirror media-team's chain of command."**
+
 ---
 
 ## Hard rules for custom roles
@@ -94,7 +110,7 @@ filename grammar:
 
 | Item | Rule | OK ✅ | Not OK ❌ |
 |---|---|---|---|
-| Role code | Starts with uppercase letter, only `A-Z` `0-9` `_` | `MANAGER` `QA1` `CODER_A` | `程序员` `DEV-TEAM` `QA.1` `my boss` |
+| Role code | Starts with uppercase letter; `A-Z` `0-9` `_` `-`; `-` not at start / end / consecutive | `MANAGER` `QA1` `CODER_A` `LEAD-QA` `AUTO-TESTER` | `程序员` `-QA` `PM--QA` `QA.1` `my boss` |
 | Role count | ≥ 2 (single role ⇒ use Solo instead) | `MANAGER,CODER` | Only `MANAGER` |
 | Leader | Must be in the role list | leader=`MANAGER` | leader=`CEO` (not in list) |
 | Reserved | `ADMIN` and `SYSTEM` cannot be used as role codes | `MANAGER` | `ADMIN` `SYSTEM` |

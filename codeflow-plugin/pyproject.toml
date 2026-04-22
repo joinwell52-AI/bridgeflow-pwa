@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "fcop"
-version = "0.4.10"
+version = "0.5.0"
 description = "MCP toolbox for FCoP — the File-based Coordination Protocol for multi-agent collaboration."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -42,9 +42,17 @@ Issues = "https://github.com/joinwell52-AI/codeflow-pwa/issues"
 [tool.hatch.build.targets.wheel]
 packages = ["src/fcop"]
 
+# Force-include for non-.md data files (hatchling auto-includes .md files
+# under `packages = ["src/fcop"]`, but .mdc has a non-standard extension
+# and requires an explicit mapping).
 [tool.hatch.build.targets.wheel.force-include]
 "src/fcop/_data/fcop-rules.mdc"          = "fcop/_data/fcop-rules.mdc"
 "src/fcop/_data/fcop-protocol.mdc"       = "fcop/_data/fcop-protocol.mdc"
+# The .md files below are already auto-included, but we keep the explicit
+# mappings so that a future change to hatchling defaults doesn't silently
+# drop the letter. (Same goes for _data/teams/**/*.md — auto-include
+# covers them; adding an explicit entry here caused duplicate-name
+# warnings and is therefore omitted.)
 "src/fcop/_data/letter-to-admin.zh.md"   = "fcop/_data/letter-to-admin.zh.md"
 "src/fcop/_data/letter-to-admin.en.md"   = "fcop/_data/letter-to-admin.en.md"
 

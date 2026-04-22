@@ -6,6 +6,86 @@
 
 ## [Unreleased]
 
+### fcop 0.5.0（MCP 包）- 2026-04-22
+
+#### 新增：样本库（Sample Library）—— 4 套团队双语角色说明书打进包
+
+**背景**：此前每个预设团队只在 `TEAM_TEMPLATES` 里留了一张"代码 + 标签"
+的表，没有职责说明书。Agent 被指派后只知道自己叫 `LEAD-QA`，不知道
+具体该干嘛；ADMIN 起自定义团队时，也只能从零拍脑袋规划分工，没有
+现成样本可抄。
+
+**0.5.0 把 4 套 bilingual 职责书直接打进 `fcop` 包**：
+
+- **4 套样本**：`dev-team`（5 角色）/ `media-team`（4）/ `mvp-team`（4）/ `qa-team`（4）
+- **每套文件数**：每个角色一对 `<ROLE>.md` + `<ROLE>.en.md`（共 17 个角色 × 2 = 34 个角色说明书）+ 每队一个 bilingual `README.md`（团队概览+协作链路）= **38 个 MD 文件**
+- **来源**：原在 `codeflow-desktop/templates/agents/` 的手写稿，现在搬家到 `src/fcop/_data/teams/` 作为 package data
+- **打包**：`pyproject.toml` 的 `[tool.hatch.build.targets.wheel]` 依赖 hatchling 对 `.md` 的默认 auto-include；`.mdc` 走 `force-include`。wheel 里每个 MD 只出现一次，无 duplicates
+
+**qa-team 首次注册到 `TEAM_TEMPLATES`**：`LEAD-QA` / `TESTER` /
+`AUTO-TESTER` / `PERF-TESTER`，leader = `LEAD-QA`。依赖 0.4.10 放宽的
+`_ROLE_CODE_RE`——没有 0.4.10，qa-team 的角色代码会被验证器挡掉。
+
+**两个新助手函数**：
+
+- `_packaged_team_file_bytes(team, filename)`：zipsafe 地读一个团队下
+  的单个文件（对应 `_packaged_data_bytes` 但下沉一层到 teams/）
+- `_list_packaged_teams()`：列出包内有哪些 team 目录（供资源索引和
+  诊断使用）
+
+**`_deploy_role_docs(team, lang)`**：`init_project` 的新环节。落盘到
+`docs/agents/shared/roles/`：
+
+- 每个角色落两份（`.md` + `.en.md`）——bilingual 项目常态，留全套最省事
+- 团队 `README.md` 也落一份（shared/roles/README.md），给 Agent 30 秒
+  读完的团队概览
+- **永不覆盖**：ADMIN 本地编辑的职责书 rerun 时会被保留，日志里显式
+  报告 "已存在未覆盖"
+- Dev fallback：从 `src/fcop/_data/teams/` 直接读（zipimport 失效时的
+  兜底，方便仓库内 checkout 开发）
+
+**`create_custom_team` 的引导升级**：自定义团队没有对应样本（定义上
+就没有），但返回里现在会列出所有可参考的样本库资源名
+（`fcop://teams/dev-team`、`fcop://teams/media-team` 等），引导 Agent
+先读样本再起草 `shared/TEAM-ROLES.md` 和 `shared/TEAM-OPERATING-RULES.md`。
+
+**4 个新 MCP 资源**：
+
+| URI | 内容 |
+|---|---|
+| `fcop://teams` | 样本库索引：团队列表、角色清单、leader、每个角色的资源 URI |
+| `fcop://teams/{team}` | 单个团队的 bilingual README |
+| `fcop://teams/{team}/{role}` | 单个角色的中文职责书 |
+| `fcop://teams/{team}/{role}/en` | 单个角色的英文职责书 |
+
+Agent 不必等 `init_project` 跑完就能用 MCP resource 读样本——ADMIN
+还在对比 4 套预设该选哪套时，Agent 可以直接去 `fcop://teams` 拉索引
+给 ADMIN 看。
+
+**LETTER-TO-ADMIN 双语更新**：
+
+- 预设表加上 `qa-team` 那行
+- 预设小节补充"预设会带上职责说明书"一段，点明 0.5.0 起 init 会落
+  `shared/roles/`
+- 自定义小节补充"自建队不自带职责书，但可以抄样本"一段，点明
+  `fcop://teams/<team>` 资源可抄
+- 角色代码规则表同步 0.4.10——`LEAD-QA` / `AUTO-TESTER` 进"对" 列，
+  `DEV-TEAM` 从"错"列删掉，新增 `-QA`（开头连字符）、`PM--QA`
+  （连续连字符）作为新反例
+
+**回归冒烟**：39 项全绿，覆盖：
+- qa-team 注册（3 项）
+- 样本库可读（9 项，包含 4 个 README + LEAD-QA 双语）
+- `_deploy_role_docs` 首次部署（7 项）
+- 幂等：重跑不覆盖本地编辑（2 项）
+- `init_project("qa-team", "zh")` 端到端（11 项）
+- `create_custom_team` 引导样本库（3 项）
+- 4 个 MCP 资源 URI（7 项，含非法 role 友好降级）
+
+**意义**：Agent 现在第一次有了"成文的角色职责样本"，可以在不联网的
+情况下学习 4 套常见团队分工。自定义团队也不用从零起草
+——samples are one click away。
+
 ### fcop 0.4.10（MCP 包）- 2026-04-22
 
 #### 修复：角色代码验证器与协议文档不一致，允许连字符
