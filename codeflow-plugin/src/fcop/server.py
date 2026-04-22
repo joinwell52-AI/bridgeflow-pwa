@@ -677,7 +677,7 @@ def _rule_file_hash(filename: str) -> str:
 
 # ─── Validation helpers ───────────────────────────────────
 
-_ROLE_CODE_RE = re.compile(r"^[A-Z][A-Z0-9_]*$")
+_ROLE_CODE_RE = re.compile(r"^[A-Z][A-Z0-9_]*(-[A-Z0-9_]+)*$")
 _RESERVED_ROLE_CODES = {"ADMIN", "SYSTEM"}
 
 # "Authority words" that pass the regex but the letter recommends against —
@@ -705,30 +705,38 @@ _LETTER_HINT_EN = (
 def _suggest_role_code(bad: str) -> str:
     """Best-effort auto-repair for a malformed role code.
 
-    Walks the most common mistakes (dashes / dots / spaces / lowercase /
-    leading digit / empty-after-strip) and produces a legal-looking
-    candidate. Returns empty string if the input is hopeless (e.g. all
-    non-ASCII with no salvageable letters).
+    Walks the most common mistakes (dots / spaces / lowercase /
+    leading digit / empty-after-strip / stray non-ASCII) and produces a
+    legal-looking candidate. Returns empty string if the input is
+    hopeless (e.g. all non-ASCII with no salvageable letters).
+
+    **Hyphens are preserved** — as of FCoP protocol 1.2, role codes
+    may contain internal hyphens (e.g. ``LEAD-QA``, ``AUTO-TESTER``).
+    Only stray leading / trailing / consecutive hyphens are cleaned.
 
     The suggestion is a hint shown in the error message — it is NEVER
     used silently as a replacement. ADMIN always chooses the final name.
     """
     if not bad:
         return ""
-    # Replace separators / whitespace with `_`, drop everything non-ASCII
-    # alphanumeric-or-underscore.
+    # Preserve hyphens (now legal as internal segment separators); treat
+    # dots / spaces / tabs as underscore candidates; drop everything
+    # else non-ASCII-alphanumeric.
     cleaned = []
     for ch in bad:
-        if ch.isascii() and (ch.isalnum() or ch == "_"):
+        if ch.isascii() and (ch.isalnum() or ch == "_" or ch == "-"):
             cleaned.append(ch)
-        elif ch in "-. \t":
+        elif ch in ". \t":
             cleaned.append("_")
         # else: drop (non-ASCII, punctuation)
     out = "".join(cleaned).upper()
-    # Collapse consecutive underscores
+    # Collapse consecutive underscores and consecutive hyphens
     while "__" in out:
         out = out.replace("__", "_")
-    out = out.strip("_")
+    while "--" in out:
+        out = out.replace("--", "-")
+    # Strip stray leading / trailing hyphens AND underscores
+    out = out.strip("_-")
     if not out:
         return ""
     # If it starts with a digit, prefix with `R` (for "role") — legal
@@ -744,8 +752,10 @@ def _validate_role_code(code: str) -> str | None:
     Rules derived from the task filename grammar
     (``_TASK_FILENAME_RE``): role codes become path segments, so they
     must be ASCII-only, start with an uppercase letter, and contain only
-    ``A-Z`` / ``0-9`` / ``_``. Dashes and dots would collide with the
-    filename's own field separators.
+    ``A-Z`` / ``0-9`` / ``_`` / ``-``. Internal hyphens ARE allowed
+    (``LEAD-QA``, ``AUTO-TESTER``) — the filename parser is hyphen-aware
+    via the required ``-to-`` marker. Dots would still collide with the
+    slot separator.
 
     Error messages follow the "errors ARE the docs" principle: state what
     is wrong, offer a concrete repair (auto-derived where possible), and
@@ -778,11 +788,15 @@ def _validate_role_code(code: str) -> str | None:
             )
         return (
             f"角色代码 `{code}` 非法：必须大写英文字母开头，只能用 "
-            f"`A-Z` / `0-9` / `_`（不允许中文、空格、`-`、`.`）。\n"
+            f"`A-Z` / `0-9` / `_` / `-`，且 `-` 不能出现在开头/结尾或连续两个"
+            f"（不允许中文、空格、`.`）。`LEAD-QA`、`AUTO-TESTER` 这样的"
+            f"内部连字符合法。\n"
             f"{repair_zh}\n\n"
             f"Role code `{code}` is invalid: must start with an uppercase "
-            f"letter and use only `A-Z` / `0-9` / `_` (no non-ASCII, "
-            f"spaces, `-`, `.`).\n"
+            f"letter and use only `A-Z` / `0-9` / `_` / `-`, with no "
+            f"leading / trailing / consecutive `-` (no non-ASCII, spaces, "
+            f"`.`). Internal hyphens like `LEAD-QA` or `AUTO-TESTER` "
+            f"are legal.\n"
             f"{repair_en}\n\n"
             f"{_LETTER_HINT_ZH}\n{_LETTER_HINT_EN}"
         )

@@ -6,6 +6,56 @@
 
 ## [Unreleased]
 
+### fcop 0.4.10（MCP 包）- 2026-04-22
+
+#### 修复：角色代码验证器与协议文档不一致，允许连字符
+
+FCoP 协议文档（`fcop-protocol.mdc` 第 558-563 行）明确说：
+
+> 槽位分隔符只用点号 `.`，不要用连字符。**角色名本身可以包含连字符
+> （如 `AUTO-TESTER`、`LEAD-QA`）**。
+
+文件名路由实现（`_TASK_FILENAME_RE` + `_task_file_matches_recipient`）
+也确实支持连字符。但验证器 `_ROLE_CODE_RE = ^[A-Z][A-Z0-9_]*$`
+硬拦连字符——让协议允许的合法角色代码被 `init_project` /
+`create_custom_team` / `validate_team_config` 挡下来，造成：
+
+- qa-team 模板（`LEAD-QA` / `AUTO-TESTER` / `PERF-TESTER`）无法通过
+  `TEAM_TEMPLATES` 注册
+- ADMIN 说"团队角色叫 `LEAD-QA`" 被提示非法，但协议本身说这是合法的
+- 协议文档和代码说两套话
+
+**0.4.10 是"让代码服从协议"的一致性修复**，不是新增功能：
+
+- `_ROLE_CODE_RE`：`^[A-Z][A-Z0-9_]*$` → `^[A-Z][A-Z0-9_]*(-[A-Z0-9_]+)*$`
+  - 仍必须大写字母开头
+  - 内部可含 `-`、`_`、数字
+  - 禁止开头 `-`、结尾 `-`、连续 `--`（避免文件名路由歧义）
+- `_suggest_role_code`：旧逻辑把 `-` 当成"错误分隔符"转成 `_`；新逻辑
+  保留 `-`，只清理开头/结尾/连续连字符；`lead-qa` 现在建议 `LEAD-QA`
+  而不是 `LEAD_QA`
+- `_validate_role_code` 错误文案：从"不允许 `-`"改成"`-` 不能开头/结尾/
+  连续"，并附上 `LEAD-QA` / `AUTO-TESTER` 两个合法示例
+
+**为什么不动文件名解析器**：验证以外的路径本来就支持连字符：
+- `_TASK_FILENAME_RE = r"^TASK-\d{8}-\d{3}-([A-Za-z][A-Za-z0-9_-]*)-to-([A-Za-z][A-Za-z0-9_.-]*)\.md$"` —— 贪婪+回溯，`TASK-...-LEAD-QA-to-AUTO-TESTER.md` 能正确拆成 `sender=LEAD-QA` / `recipient=AUTO-TESTER`
+- `_task_file_matches_recipient` —— 用 `re.escape(recipient)` 构造模式，逐字匹配
+
+**为什么不撞 `-to-`**：`to` 是小写，而 `_ROLE_CODE_RE` 保留 `[A-Z]` 开头
+限制，小写 `to` 永远不会出现在合法角色代码内——分隔符唯一性保住了。
+
+**回归冒烟**：61 项全绿，覆盖：
+- 合法集合：24 项（含 `LEAD-QA` / `A-B-C` / `X_Y-Z_W` 等）
+- 非法集合：12 项（含 `PM-` / `-PM` / `PM--QA` / `PM.QA`）
+- `_validate_role_code` 10 项（含错误文案包含 "LEAD-QA" 示例）
+- `_suggest_role_code` 9 项（保留连字符的自动修复）
+- `_validate_team_config` 1 项（qa-team 整套角色直接通过）
+- 文件名路由 5 项（`LEAD-QA→AUTO-TESTER` 拆分正确、广播正确、
+  向后兼容 `PM→DEV` 不受影响）
+
+**意义**：这是 0.5.0 样本库的前置依赖。qa-team 的角色代码现在能合法
+注册到 `TEAM_TEMPLATES`，样本库落盘时也不会被验证器挡下来。
+
 ### fcop 0.4.9（MCP 包）- 2026-04-22
 
 #### 改进：Solo → Team 迁移沉淀成协议推荐做法（只改协议解释文件，不加工具）
