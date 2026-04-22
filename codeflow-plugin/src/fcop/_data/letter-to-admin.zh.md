@@ -106,13 +106,51 @@ create_custom_team(
   —— 真正的"老板"是你（ADMIN），AI 不该戴这顶帽子。
 - ❌ **禁止中文**：文件名规则硬性要求 ASCII。
 
-**不确定合不合法？** 让 Agent 先调：
+## 主动校验：你随口说，FCoP 自动拦
+
+**你不用读上面的规矩**。以下三种情况 FCoP 都会**在落盘前拦住**并
+给出中英双语的具体原因——不是"失败/成功"，是**哪个字段哪个字符坏了、怎么改**。
+
+| 你随口说 | Agent 会试着调 | FCoP 拦截，原因 |
+|---|---|---|
+| "组一个 4 人团队：`BOSS` `程序员` `测试` `设计师`" | `create_custom_team(roles="BOSS,程序员,...")` | ❌ 角色代码 `'程序员'` 非法：不允许中文 |
+| "角色叫 `DEV-TEAM` 和 `QA-1`" | `create_custom_team(roles="DEV-TEAM,QA-1,...")` | ❌ 角色代码 `'DEV-TEAM'` 非法：不允许 `-`（会把文件名分隔符搞乱） |
+| "角色叫 `my boss`" | `create_custom_team(roles="my boss,...")` | ❌ 角色代码 `'my boss'` 非法：不允许空格，必须大写开头 |
+| "角色叫 `QA.1`" | `create_custom_team(roles="QA.1,...")` | ❌ 角色代码 `'QA.1'` 非法：不允许 `.` |
+| "把 `ADMIN` 也加进团队" | `create_custom_team(roles="ADMIN,CODER,...")` | ❌ `'ADMIN'` 是 FCoP 保留字，真人用，不能给 AI 戴 |
+| "就一个角色 `MANAGER`" | `create_custom_team(roles="MANAGER", ...)` | ❌ 至少需要 2 个角色；想单人请用 `init_solo(...)` |
+| "leader 是 `CEO`，角色是 `MANAGER, CODER`" | `create_custom_team(roles="MANAGER,CODER", leader="CEO")` | ❌ `leader 'CEO'` 必须在角色列表里（当前：`MANAGER, CODER`） |
+| "`CODER`, `CODER`, `QA`" | `create_custom_team(roles="CODER,CODER,QA", ...)` | ❌ 角色代码 `'CODER'` 重复 |
+
+> **0.4.6 起错误消息会"手把手教你改"**：比如你说 `DEV-TEAM`，FCoP 会
+> 直接回：`建议改为 DEV_TEAM（已自动修正大小写/分隔符）`。你说
+> `my boss` → `建议改为 MY_BOSS`。你把 `leader` 大小写搞错 →
+> `看起来你可能想选 'MANAGER'？`（did-you-mean）。建议**只是提示**，
+> 最终名字永远是你定。
+
+**一共 9 条校验项**（都跑在 `create_custom_team` / `init_solo` 里，你调了就自动过）：
+
+1. 角色代码非空
+2. 必须匹配 `^[A-Z][A-Z0-9_]*$`（大写字母开头，只能用 `A-Z` / `0-9` / `_`）
+3. 禁止中文、`-`、`.`、空格
+4. 不能是 `ADMIN`（真人保留）
+5. 不能是 `SYSTEM`（FCoP 内部保留）
+6. 非 Solo 模式下至少 2 个角色（只想单人 → 让 Agent 改用 `init_solo`）
+7. 角色列表不允许重复
+8. `leader` 必须是角色列表里的一员
+9. 每个错误都返回**可读错误信息**（中英双语），不是布尔值
+
+**想在动手前先验一下？** 让 Agent 调：
 
 ```
 validate_team_config(roles="MANAGER,CODER,TESTER,ARTIST", leader="MANAGER")
 ```
 
-合法返回"OK"，不合法直接告诉你哪个字段怎么坏的。
+不写任何文件，合法返回 `OK`，不合法直接告诉你坏在哪。适合你口述
+一堆角色但不确定有没有非法字符时，让 Agent 先跑一遍。
+
+**重点：你不用记规则。** 直接跟 Agent 自然语言说你想要啥团队，它调
+`create_custom_team` 就自动过这 9 条校验，过不了会**拿着具体原因回来问你**。
 
 ---
 

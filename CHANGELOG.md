@@ -6,6 +6,96 @@
 
 ## [Unreleased]
 
+### fcop 0.4.6（MCP 包）- 2026-04-22
+
+#### 改进：错误消息本身就是说明书（"errors ARE the docs"）
+
+ADMIN 复盘："客户往往错了，才去看说明书。"
+
+0.4.5 的 `LETTER-TO-ADMIN.md` 已经把校验规则和典型错例讲清楚了，
+但那只在**用户愿意回头翻信**时起作用。0.4.6 把"帮凶级体贴"前移到
+校验器本身——让**错误消息本身 = 说明书的那一节**。
+
+三要素升级：
+
+1. **具体修复建议（auto-repair suggestion）**：新 `_suggest_role_code()`
+   自动把常见错改成合法候选：
+   - `DEV-TEAM` → 建议 `DEV_TEAM`（分隔符 `-` → `_`）
+   - `my boss` → 建议 `MY_BOSS`（加下划线 + 全大写）
+   - `QA.1` → 建议 `QA_1`
+   - `1CODER` → 建议 `R1CODER`（首字不能是数字，补 `R` 前缀）
+   - `coder` → 建议 `CODER`（小写转大写）
+   - 纯中文 `程序员`：无法自动修，转而提示用英文职能词或拼音。
+
+   **所有建议只作为提示，不自动替换**——ADMIN 永远有最终决定权。
+
+2. **针对性解释**：保留字错误分开讲：
+   - `ADMIN` → "是真人专用，不能给 AI 戴"
+   - `SYSTEM` → "是 FCoP 内部消息发送方保留字"
+   - 单角色非 Solo → 直接给出 `init_solo(role_code="XXX")` 的完整调用
+   - leader 拼错大小写 → "看起来你可能想选 `MANAGER`？"（did-you-mean）
+   - 重复角色 → 显示去重后的列表 `CODER,QA`
+   - 空列表 → 给出 `roles="MANAGER,CODER", leader="MANAGER"` 示例
+
+3. **letter pointer**：每条错误末尾附一行：
+
+   > 完整的 9 条校验规则+典型错例见 `docs/agents/LETTER-TO-ADMIN.md`
+   > → 「主动校验：你随口说，FCoP 自动拦」节。
+
+   客户犯错那一刻正是最愿意读文档的时候——错误消息**直接把他推到
+   对应章节**，而不是让他自己去翻。
+
+**回归**：烟测 22 项全绿（`_smoke_045.py`），legal 路径不受影响，
+`create_custom_team` 在错误时**不会**落 `fcop.json`（transactional）。
+
+**文件影响**：
+- `src/fcop/server.py`：新增 `_suggest_role_code()`、`_AUTHORITY_WORDS`、
+  `_LETTER_HINT_{ZH,EN}`；重写 `_validate_role_code()` +
+  `_validate_team_config()` 的所有错误消息。
+
+### fcop 0.4.5（MCP 包）- 2026-04-22
+
+#### 改进：致 ADMIN 的信把"主动校验"讲清楚
+
+ADMIN 反馈："客户不看文档直接开干，所以 FCoP 的主动检查很重要——
+信里讲得太少。"
+
+0.4.4 及之前，信里的"硬规则"节只用一个小表格罗列合法字符，后面
+附一行 `validate_team_config(...)` 示例。问题：这是被动的"你去查
+表"式文档，对典型用户（不看文档直接口述需求）无效。
+
+0.4.5 把"主动校验"提升为独立一节，讲清楚三件事：
+
+1. **典型错法 8 行对照表**——"你随口说 → Agent 会试着调 →
+   FCoP 拦截+具体原因"。覆盖：中文、`-`、`.`、空格、`ADMIN`、单角色
+   团队、leader 不在列表、重复角色。每条都是真实场景，ADMIN 一眼
+   能看懂自己说什么话会被拦。
+2. **完整 9 条校验项列表**（从 `_validate_role_code` +
+   `_validate_team_config` 代码里逐条提取），明确校验跑在
+   `create_custom_team` / `init_solo` 内，ADMIN 不用手动调。
+3. **dry-run 入口**：`validate_team_config(roles, leader)` 作为
+   "落盘前先验"的可选预检工具，适合口述一堆角色不确定合不合法时。
+
+信件的中英两版（zh / en）都做了同样的扩展。
+
+#### 不变的东西
+
+- 所有校验逻辑本身未改动——早在 0.4.0 就存在且稳定。本版本只改文档。
+- 任务文件解析器仍然按 Postel 原则宽容（允许历史文件带 `-`），
+  创建器仍然严格（角色代码禁 `-`）。
+- 工具签名、`fcop.json` 格式、规则文件均不变
+- `fcop_rules_version` 仍是 1.2.0
+
+#### 升级
+
+```bash
+uv tool upgrade fcop
+```
+
+老项目升级后，新建项目会看到扩充过的信；已存在的 `LETTER-TO-ADMIN.md`
+**不会覆盖**（尊重本地编辑）。想看新版：删掉旧文件，下次调任一
+`init_*` 工具会自动部署。
+
 ### fcop 0.4.4（MCP 包）- 2026-04-22
 
 #### 改进：初始化后把说明书直接内联到响应里，零跳转

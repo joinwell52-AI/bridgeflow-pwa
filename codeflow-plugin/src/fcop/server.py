@@ -633,6 +633,63 @@ def _rule_file_hash(filename: str) -> str:
 _ROLE_CODE_RE = re.compile(r"^[A-Z][A-Z0-9_]*$")
 _RESERVED_ROLE_CODES = {"ADMIN", "SYSTEM"}
 
+# "Authority words" that pass the regex but the letter recommends against —
+# ADMIN (the human) is the real boss; AI roles should be function-named.
+# These are soft warnings baked into the error message when we suggest fixes,
+# not hard rejections.
+_AUTHORITY_WORDS = {
+    "BOSS", "CHIEF", "MASTER", "OWNER", "CEO", "KING", "GOD",
+    "COMMANDER", "DICTATOR", "LORD",
+}
+
+# Kind, manual-style pointer that every validator error closes with so the
+# customer — who typically reads the manual only AFTER they hit an error —
+# gets directed straight to the right section.
+_LETTER_HINT_ZH = (
+    "完整的 9 条校验规则+典型错例见 `docs/agents/LETTER-TO-ADMIN.md` → "
+    "「主动校验：你随口说，FCoP 自动拦」节。"
+)
+_LETTER_HINT_EN = (
+    "Full 9-check list + typical pitfalls: see "
+    "`docs/agents/LETTER-TO-ADMIN.md` → 'Proactive validation' section."
+)
+
+
+def _suggest_role_code(bad: str) -> str:
+    """Best-effort auto-repair for a malformed role code.
+
+    Walks the most common mistakes (dashes / dots / spaces / lowercase /
+    leading digit / empty-after-strip) and produces a legal-looking
+    candidate. Returns empty string if the input is hopeless (e.g. all
+    non-ASCII with no salvageable letters).
+
+    The suggestion is a hint shown in the error message — it is NEVER
+    used silently as a replacement. ADMIN always chooses the final name.
+    """
+    if not bad:
+        return ""
+    # Replace separators / whitespace with `_`, drop everything non-ASCII
+    # alphanumeric-or-underscore.
+    cleaned = []
+    for ch in bad:
+        if ch.isascii() and (ch.isalnum() or ch == "_"):
+            cleaned.append(ch)
+        elif ch in "-. \t":
+            cleaned.append("_")
+        # else: drop (non-ASCII, punctuation)
+    out = "".join(cleaned).upper()
+    # Collapse consecutive underscores
+    while "__" in out:
+        out = out.replace("__", "_")
+    out = out.strip("_")
+    if not out:
+        return ""
+    # If it starts with a digit, prefix with `R` (for "role") — legal
+    # `^[A-Z]...` and clearly marked as a fix.
+    if out[0].isdigit():
+        out = "R" + out
+    return out if _ROLE_CODE_RE.match(out) else ""
+
 
 def _validate_role_code(code: str) -> str | None:
     """Return None if the role code is legal, else a plain-language error.
@@ -642,24 +699,65 @@ def _validate_role_code(code: str) -> str | None:
     must be ASCII-only, start with an uppercase letter, and contain only
     ``A-Z`` / ``0-9`` / ``_``. Dashes and dots would collide with the
     filename's own field separators.
+
+    Error messages follow the "errors ARE the docs" principle: state what
+    is wrong, offer a concrete repair (auto-derived where possible), and
+    point at the letter section that covers the full rule set — because
+    customers read the manual only AFTER they hit a mistake.
     """
     if not code:
-        return "角色代码不能为空 / role code cannot be empty"
-    if not _ROLE_CODE_RE.match(code):
         return (
-            f"角色代码 '{code}' 非法：必须大写英文字母开头，只能用 A-Z / 0-9 / _"
-            f"（不允许中文、空格、-、. ）。建议用英文职能词（MANAGER / CODER）"
-            f"或全大写拼音（JINGLI / CHENGXU）。\n"
-            f"Role code '{code}' is invalid: must start with an uppercase "
-            f"letter and use only A-Z / 0-9 / _ (no Chinese, spaces, '-', '.'). "
-            f"Prefer English job-function words (MANAGER / CODER) or "
-            f"uppercase Pinyin (JINGLI / CHENGXU)."
+            "角色代码不能为空。示例：`MANAGER` `CODER` `QA`。\n"
+            "Role code cannot be empty. Examples: `MANAGER`, `CODER`, `QA`.\n\n"
+            f"{_LETTER_HINT_ZH}\n{_LETTER_HINT_EN}"
+        )
+    if not _ROLE_CODE_RE.match(code):
+        suggestion = _suggest_role_code(code)
+        if suggestion:
+            repair_zh = f"建议改为 `{suggestion}`（已自动修正大小写/分隔符）。"
+            repair_en = (
+                f"Suggested fix: `{suggestion}` "
+                f"(casing / separators auto-repaired)."
+            )
+        else:
+            repair_zh = (
+                "无法自动修正：请改用英文职能词（`MANAGER` / `CODER` / "
+                "`WRITER`）或全大写拼音（`JINGLI` / `CHENGXU`）。"
+            )
+            repair_en = (
+                "Cannot auto-repair: use an English job-function word "
+                "(`MANAGER` / `CODER` / `WRITER`) or uppercase Pinyin "
+                "(`JINGLI` / `CHENGXU`)."
+            )
+        return (
+            f"角色代码 `{code}` 非法：必须大写英文字母开头，只能用 "
+            f"`A-Z` / `0-9` / `_`（不允许中文、空格、`-`、`.`）。\n"
+            f"{repair_zh}\n\n"
+            f"Role code `{code}` is invalid: must start with an uppercase "
+            f"letter and use only `A-Z` / `0-9` / `_` (no non-ASCII, "
+            f"spaces, `-`, `.`).\n"
+            f"{repair_en}\n\n"
+            f"{_LETTER_HINT_ZH}\n{_LETTER_HINT_EN}"
         )
     if code in _RESERVED_ROLE_CODES:
+        extra_zh = (
+            "`ADMIN` 是真人专用，不能给 AI 戴。"
+            if code == "ADMIN"
+            else "`SYSTEM` 是 FCoP 内部消息发送方保留字。"
+        )
+        extra_en = (
+            "`ADMIN` is reserved for the human operator; it cannot be "
+            "assigned to an AI."
+            if code == "ADMIN"
+            else "`SYSTEM` is reserved for FCoP internal messages."
+        )
         return (
-            f"角色代码 '{code}' 是 FCoP 保留字（ADMIN / SYSTEM），不能作为团队角色。\n"
-            f"Role code '{code}' is reserved by FCoP (ADMIN / SYSTEM) and "
-            f"cannot be used as a team role."
+            f"角色代码 `{code}` 是 FCoP 保留字。{extra_zh}\n"
+            f"改用具体职能名，例如 `MANAGER` / `LEADER` / `COORDINATOR`。\n\n"
+            f"Role code `{code}` is reserved by FCoP. {extra_en}\n"
+            f"Use a concrete function name instead, e.g. `MANAGER` / "
+            f"`LEADER` / `COORDINATOR`.\n\n"
+            f"{_LETTER_HINT_ZH}\n{_LETTER_HINT_EN}"
         )
     return None
 
@@ -669,29 +767,67 @@ def _validate_team_config(
 ) -> str | None:
     """Validate the roles list + leader for ``create_custom_team`` / ``init_solo``.
 
-    Returns None if the config is legal, else a plain-language error string.
+    Returns None if the config is legal, else a plain-language error
+    string. Same "errors ARE the docs" philosophy as
+    ``_validate_role_code``: concrete fix + letter pointer in every
+    failure path.
     """
     if not roles:
-        return "角色列表不能为空 / roles list cannot be empty"
+        return (
+            "角色列表不能为空。至少给 2 个角色，例如："
+            "`roles=\"MANAGER,CODER\"`, `leader=\"MANAGER\"`。\n"
+            "Roles list cannot be empty. Provide at least 2, e.g. "
+            "`roles=\"MANAGER,CODER\"`, `leader=\"MANAGER\"`.\n\n"
+            f"{_LETTER_HINT_ZH}\n{_LETTER_HINT_EN}"
+        )
     if not allow_single and len(roles) < 2:
         return (
-            "至少需要 2 个角色；如果只想一个人做，请用 init_solo(...) 启动 Solo 模式。\n"
-            "At least 2 roles required; for a single-role setup, use init_solo(...) "
-            "to enter Solo mode instead."
+            f"只有 1 个角色（`{roles[0]}`）不构成团队；想单人做事，请改用：\n"
+            f"  `init_solo(role_code=\"{roles[0]}\")`\n"
+            f"想组团队，至少再加 1 个角色。\n\n"
+            f"Only 1 role (`{roles[0]}`) — that's not a team. For a "
+            f"single-role setup, call:\n"
+            f"  `init_solo(role_code=\"{roles[0]}\")`\n"
+            f"For a team, add at least 1 more role.\n\n"
+            f"{_LETTER_HINT_ZH}\n{_LETTER_HINT_EN}"
         )
-    seen = set()
+    seen: set[str] = set()
     for r in roles:
         err = _validate_role_code(r)
         if err:
             return err
         if r in seen:
-            return f"角色代码 '{r}' 重复 / role code '{r}' appears more than once"
+            dedup = [x for i, x in enumerate(roles) if x not in roles[:i]]
+            return (
+                f"角色代码 `{r}` 重复出现。去重后的列表：`{','.join(dedup)}`。\n"
+                f"Role code `{r}` is duplicated. Deduplicated list: "
+                f"`{','.join(dedup)}`.\n\n"
+                f"{_LETTER_HINT_ZH}\n{_LETTER_HINT_EN}"
+            )
         seen.add(r)
     if leader not in roles:
+        # Suggest the closest match if there's an obvious typo.
+        leader_up = leader.upper()
+        candidate = next(
+            (r for r in roles if r.upper() == leader_up or r.startswith(leader_up)),
+            None,
+        )
+        hint_zh = (
+            f"看起来你可能想选 `{candidate}`？"
+            if candidate
+            else f"请从这些里选一个做 leader：`{', '.join(roles)}`。"
+        )
+        hint_en = (
+            f"Did you mean `{candidate}`?"
+            if candidate
+            else f"Pick one of: `{', '.join(roles)}`."
+        )
         return (
-            f"leader '{leader}' 必须在角色列表里（当前列表：{', '.join(roles)}）。\n"
-            f"leader '{leader}' must be one of the declared roles "
-            f"(current: {', '.join(roles)})."
+            f"`leader=\"{leader}\"` 不在角色列表里（当前："
+            f"`{', '.join(roles)}`）。{hint_zh}\n"
+            f"`leader=\"{leader}\"` is not one of the declared roles "
+            f"(current: `{', '.join(roles)}`). {hint_en}\n\n"
+            f"{_LETTER_HINT_ZH}\n{_LETTER_HINT_EN}"
         )
     return None
 

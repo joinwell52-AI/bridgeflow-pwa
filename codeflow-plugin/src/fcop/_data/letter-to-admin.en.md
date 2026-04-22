@@ -112,14 +112,57 @@ filename grammar:
   shouldn't wear that hat.
 - ❌ **No non-ASCII**: the filename grammar is strictly ASCII.
 
-**Not sure if your config is legal?** Have the agent call:
+## Proactive validation: you talk casually, FCoP stops the bad ones
+
+**You don't need to memorize the rules above.** Every case below is
+**stopped before anything hits disk**, with a bilingual concrete
+explanation — not "success/failure", but **which field, which character,
+and how to fix it**.
+
+| You casually say | Agent tries | FCoP blocks, reason |
+|---|---|---|
+| "4-role team: `BOSS` `程序员` `测试` `设计师`" | `create_custom_team(roles="BOSS,程序员,...")` | ❌ Role code `'程序员'` illegal: non-ASCII not allowed |
+| "Call them `DEV-TEAM` and `QA-1`" | `create_custom_team(roles="DEV-TEAM,QA-1,...")` | ❌ Role code `'DEV-TEAM'` illegal: `-` not allowed (collides with filename separators) |
+| "Call it `my boss`" | `create_custom_team(roles="my boss,...")` | ❌ Role code `'my boss'` illegal: no spaces, must start uppercase |
+| "Call it `QA.1`" | `create_custom_team(roles="QA.1,...")` | ❌ Role code `'QA.1'` illegal: `.` not allowed |
+| "Add `ADMIN` to the team" | `create_custom_team(roles="ADMIN,CODER,...")` | ❌ `'ADMIN'` is FCoP-reserved (the human's identity); cannot be given to an AI |
+| "Single role: `MANAGER`" | `create_custom_team(roles="MANAGER", ...)` | ❌ At least 2 roles required; for a single-role setup use `init_solo(...)` |
+| "Leader is `CEO`, roles are `MANAGER, CODER`" | `create_custom_team(roles="MANAGER,CODER", leader="CEO")` | ❌ `leader 'CEO'` must be one of the declared roles (current: `MANAGER, CODER`) |
+| "`CODER`, `CODER`, `QA`" | `create_custom_team(roles="CODER,CODER,QA", ...)` | ❌ Role code `'CODER'` duplicated |
+
+> **Since 0.4.6, errors walk you through the fix**: say `DEV-TEAM` and
+> FCoP replies `Suggested fix: DEV_TEAM (casing / separators
+> auto-repaired)`. Say `my boss` → `Suggested fix: MY_BOSS`. Typo the
+> leader's casing → `Did you mean 'MANAGER'?` (did-you-mean).
+> Suggestions are **hints only** — you always pick the final name.
+
+**9 validation checks total**, all baked into `create_custom_team` /
+`init_solo` — you don't call them, they just run:
+
+1. Role code non-empty
+2. Must match `^[A-Z][A-Z0-9_]*$` (uppercase start, only `A-Z` / `0-9` / `_`)
+3. No non-ASCII, `-`, `.`, or spaces
+4. Cannot be `ADMIN` (reserved for the human)
+5. Cannot be `SYSTEM` (reserved for FCoP internals)
+6. Non-solo teams: at least 2 roles (single-role → use `init_solo`)
+7. No duplicates in the roles list
+8. `leader` must be in the roles list
+9. Every failure returns a **human-readable bilingual error**, not a boolean
+
+**Want a dry-run before committing?** Have the agent call:
 
 ```
 validate_team_config(roles="MANAGER,CODER,TESTER,ARTIST", leader="MANAGER")
 ```
 
-Returns "OK" if valid, or a plain-English message telling you exactly
-which field is broken and how.
+Writes nothing; returns `OK` if valid, otherwise tells you exactly
+what's wrong. Useful when you dictate a pile of role names and aren't
+sure whether any of them contain illegal characters.
+
+**Bottom line: you don't memorize rules.** Just tell the agent in plain
+language what team you want. `create_custom_team` runs these 9 checks
+automatically; if it fails, the agent will come back to you with the
+concrete reason.
 
 ---
 
