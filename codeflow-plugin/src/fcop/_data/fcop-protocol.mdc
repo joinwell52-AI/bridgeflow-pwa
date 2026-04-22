@@ -1,7 +1,7 @@
 ---
 description: FCoP Protocol — the protocol commentary on the rules defined in fcop-rules.mdc. Covers file naming, YAML frontmatter, directory layout, patrol triggers, and other practical conventions. Auto-deployed by the fcop MCP. FCoP 协议解释：fcop-rules.mdc 中协议规则的具体适用说明——文件命名、YAML 元数据、目录结构、巡检触发等落地细节，由 fcop MCP 自动部署。
 alwaysApply: true
-fcop_protocol_version: 1.1.0
+fcop_protocol_version: 1.2.0
 ---
 
 <!--
@@ -355,6 +355,137 @@ Without the file in step 1 and the file in step 3, there is no "reviewer"
 role — only one voice approving itself, which is exactly what Rule 0.b
 forbids.
 
+### Solo → Team 迁移推荐做法 / Migrating Solo to Team (recommended recipe)
+
+当项目从 `mode: solo` 切到 `mode: team`（或自定义团队）时，`fcop.json`
+只记录了"谁在"（角色和 leader），**没有记录"谁干啥"**。推荐做法如下
+——这不是硬规则，是对 Rule 0.a（落文件）在"团队分工"场景的自然应用。
+
+When a project switches from `mode: solo` to `mode: team` (or a custom
+team), `fcop.json` only records **who is on the team** (roles and
+leader) — it does **not** record **who does what**. The recipe below
+is a recommended (not mandatory) practice; it is a natural application
+of Rule 0.a (land it as a file) to the "team job split" scenario.
+
+#### 1. 在 `shared/` 落两份团队宪法 / Land a two-file "team constitution" under `shared/`
+
+切到团队模式的 Agent（通常是 leader 或主控角色）应当**主动**在
+`docs/agents/shared/` 下落两份文件：
+
+The agent responsible for the handoff (typically the leader / main
+role) should **proactively** create two files under
+`docs/agents/shared/`:
+
+| 文件名 / File | 回答的问题 / Answers |
+|---|---|
+| `TEAM-ROLES.md` | 每个角色的边界：`AGENT1` 和 `BGENT2` 各自负责什么？ / What is each role responsible for? |
+| `TEAM-OPERATING-RULES.md` | 团队的运行规则：什么时候 leader 直接做，什么时候派给副手，副手怎么回执，什么时候升级给 ADMIN？ / When does the leader act directly, when does it delegate, how do sub-roles reply, when to escalate to ADMIN? |
+
+两份分工：`TEAM-ROLES.md` 规定"谁负责什么"，`TEAM-OPERATING-RULES.md`
+规定"什么时候派、怎么回、什么时候升级"。文件必须符合 FCoP frontmatter
+（`protocol / version / sender / recipient`）要求，`sender` 是 leader
+角色、`recipient` 是 `ADMIN`。
+
+The two files are complementary: `TEAM-ROLES.md` defines **who owns
+what**, `TEAM-OPERATING-RULES.md` defines **when to dispatch, how to
+reply, when to escalate**. Both files must follow the FCoP frontmatter
+(`protocol / version / sender / recipient`), with `sender` being the
+leader role and `recipient` being `ADMIN`.
+
+**为什么不做成工具？** 不同项目的职责细节不同，模板会限制 Agent 的
+判断力。LLM 在 Solo→Team 切换这个节点上已经能自发产出合格的分工
+文档——协议把"推荐结构"说清楚就够了，内容交给 Agent 针对具体项目写。
+
+**Why not a tool?** Job-split details vary by project, and a template
+would constrain agent judgment. LLMs can already produce reasonable
+job-split docs at the Solo→Team transition — the protocol only needs
+to specify **structure**, not **content**.
+
+#### 2. 归档旧 Solo 历史 / Archive the old Solo history
+
+Solo 阶段产生的 `TASK-*-to-ME.md` / `TASK-*-ME-to-*.md` 切团队后仍然
+物理上堆在 `tasks/` 里，会：
+
+- 让 `list_tasks()` 输出混杂，新 Agent 一眼看不清"当前待办"
+- 让 `AGENT1 / BGENT2` 错把 `ME` 的历史任务当成自己的待执行事项
+
+推荐做法是**物理移动**到专用归档目录，不是只在规则文件里口头声明
+"旧 ME 文件视为历史记录"：
+
+After switching to a team, Solo-era `TASK-*-to-ME.md` files still sit
+in `tasks/` alongside the new team tasks. This causes:
+
+- `list_tasks()` output becomes noisy; new agents can't see "what's
+  actually pending"
+- `AGENT1 / BGENT2` may mistake `ME`-era historical tasks as their
+  own pending work
+
+The recommended practice is to **physically move** Solo history to a
+dedicated archive directory, not merely to declare "treat old `ME`
+files as historical" in a rules file:
+
+```
+docs/agents/
+├── tasks/                         # 新团队任务（AGENT1/BGENT2）
+│   ├── TASK-20260422-008-ADMIN-to-AGENT1.md
+│   ├── TASK-20260422-009-AGENT1-to-BGENT2.md
+│   └── ...
+└── log/
+    └── solo-archive/              # 旧 Solo 阶段历史
+        ├── TASK-20260421-001-SYSTEM-to-ME.md
+        ├── TASK-20260421-002-ADMIN-to-ME.md
+        └── ...
+```
+
+**迁移触发时机 / When to archive**：在团队宪法（上面两份 `shared/`
+文件）落盘**之后**、团队开始接第一个新任务**之前**。ADMIN 可以用一
+句自然语言触发，例如：
+
+- "把 Solo 历史归档" / "archive the solo history"
+- "ME 的旧任务搬到 log/solo-archive/"
+
+Agent 收到这类指令时，用现有的 `archive_task(task_id)` 工具**逐份
+归档**——每次传一个形如 `TASK-20260421-001` 的前缀，工具会把 `tasks/`
+和 `reports/` 里匹配的文件一起搬到 `log/`（FCoP 不提供批量归档工具
+——逐份归档让每一次移动都是一次可见的记账事件，符合 Rule 0.a 的精神）。
+
+`archive_task` 当前默认目标是扁平的 `log/`（所有归档文件平铺）。如果
+想进一步物理隔离 Solo 阶段的产物，把这批文件从 `log/` 再挪到子目录
+`log/solo-archive/` 是合理的——这一步目前仍是手工 `mv`，协议不另外
+提供工具。
+
+**Who triggers it**: ADMIN, after the team constitution files are in
+place and before the team picks up its first new task. A one-liner
+like "archive the solo history" is enough. The agent then uses
+`archive_task(task_id)` **one file at a time** — passing a prefix like
+`TASK-20260421-001`; the tool moves matching files from `tasks/` and
+`reports/` into `log/` (FCoP deliberately ships no bulk-archive tool
+— per-file moves keep each move a visible accounting event,
+consistent with Rule 0.a).
+
+`archive_task` currently targets flat `log/`. If further physical
+isolation of the Solo era is wanted, moving that batch of files from
+`log/` into the subfolder `log/solo-archive/` is a reasonable extra
+step — this last step is manual `mv` today; the protocol does not
+provide a dedicated tool.
+
+**不要删除 / Do not delete**：Solo 历史是这个项目的历史记录，归档
+意味着"从视野里移走"，不是"从硬盘上抹掉"。
+
+**Do not delete**: Solo history is project history. Archiving means
+"move it out of daily view", not "erase it from disk".
+
+#### 3. `fcop.json` 不需要记"切换时间戳" / No need to timestamp the switch
+
+`fcop.json` 是**当前身份的快照**，不是事件日志。Solo→Team 的切换
+时间由 `log/solo-archive/` 里最新一份文件 + 新团队任务的最早一份
+文件自动框出来，不需要在 `fcop.json` 里额外记字段。
+
+`fcop.json` is a **snapshot of current identity**, not an event log.
+The Solo→Team transition time is implicitly bracketed by the latest
+file in `log/solo-archive/` and the earliest file among the new team
+tasks. No extra fields needed in `fcop.json`.
+
 ## Core Directories / 核心目录
 
 Two layouts — pick by whether the project has one team or several.
@@ -531,6 +662,7 @@ live in `shared/`. Use UPPERCASE prefixes:
 | `DECISION-` | Decision records (append-only) / 决策记录（只追加） |
 | `RETRO-` | Retrospectives (append-only) / 复盘记录（只追加） |
 | `SPEC-` | Specifications / 需求或规格说明 |
+| `TEAM-` | Team constitution (roles + operating rules, see "Solo → Team 迁移推荐做法") / 团队宪法（分工 + 运行规则，见"Solo → Team 迁移推荐做法"） |
 
 If you need a kind not listed above, coin a new UPPERCASE prefix and keep it memorable.
 `shared/` files MAY be updated in place (unlike tasks/reports, which are append-only).
@@ -705,6 +837,18 @@ Three things the protocol explicitly grants you:
   - **7** · `fcop://` URI Routing (optional) — fully-qualified logical
     addresses for cross-scope messages.
     `fcop://` URI 路由（可选），跨作用域时用的完全限定地址。
+
+- **v1.2** (2026-04-22) — **Solo → Team migration recipe** added under
+  "Project Mode & Identity". Documents the "team constitution" pattern
+  (`shared/TEAM-ROLES.md` + `shared/TEAM-OPERATING-RULES.md`) first
+  observed in the wild when a GPT-5.4 agent self-organized the
+  Solo→Team handoff, and formalizes per-file archival of Solo history
+  into `log/solo-archive/` using the existing `archive_task()` tool.
+  No new tools; protocol-commentary-only change.
+  新增「Solo → Team 迁移推荐做法」一节：把野外观察到的"团队宪法"做法
+  （`shared/TEAM-ROLES.md` + `shared/TEAM-OPERATING-RULES.md`）写进协议
+  解释，并明确用现有 `archive_task()` 逐份把 Solo 历史归档到
+  `log/solo-archive/`。不加新工具。
 
 ---
 

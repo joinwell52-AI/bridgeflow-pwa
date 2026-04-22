@@ -6,6 +6,56 @@
 
 ## [Unreleased]
 
+### fcop 0.4.9（MCP 包）- 2026-04-22
+
+#### 改进：Solo → Team 迁移沉淀成协议推荐做法（只改协议解释文件，不加工具）
+
+ADMIN 的一次野外观察：GPT-5.4 Medium 在 Solo→Team 切换时**自发**做了
+两件漂亮的事——
+
+1. 在 `docs/agents/shared/` 下落了 `TEAM-ROLES.md` 和
+   `TEAM-OPERATING-RULES.md` 两份"团队宪法"
+2. 在 `TEAM-OPERATING-RULES.md` 里声明"旧 ME 文件视为历史记录"
+
+第一件事证明了 LLM 在 Solo→Team 这个节点上能自发产出合格分工文档——
+值得沉淀，但不值得做成硬模板工具。第二件事暴露了 FCoP 的一个物理短
+板：Agent 虽然**规则上**说了不混淆，但旧 Solo 任务和新团队任务**物理
+上**还堆在同一个 `tasks/` 目录里，`list_tasks()` 输出会混乱。
+
+0.4.9 采用**方向 B（只改文档，不加工具）**：
+
+**fcop-protocol.mdc 改动**：
+- 协议版本 `1.1.0 → 1.2.0`
+- 在 "Project Mode & Identity" 大块末尾（`## Core Directories` 之前）
+  新增一节 **"Solo → Team 迁移推荐做法"**（双语），沉淀三条做法：
+  1. 团队切换时 leader/主控角色主动在 `shared/` 落两份宪法文件
+     （`TEAM-ROLES.md` 定"谁负责什么"，`TEAM-OPERATING-RULES.md` 定
+     "什么时候派、怎么回、什么时候升级"）
+  2. ADMIN 一句"归档 Solo 历史"触发，Agent 用现有
+     `archive_task(path)` **逐份**把 `TASK-*-to-ME.md` 移到
+     `log/solo-archive/`（不加批量工具——逐份归档让每次移动都是一次
+     可见的 Rule 0.a 事件）
+  3. `fcop.json` 不需要记"切换时间戳"——它是身份快照，切换时间由
+     `log/solo-archive/` 最新文件和新团队任务最早文件自动框出来
+- `shared/` 的 UPPERCASE 前缀表新增 `TEAM-` 前缀，让"团队宪法"成为
+  协议级一等公民
+- "Protocol Version Log" 补上 v1.2 条目，标注来源是野外观察 +
+  GPT-5.4 的自发产出
+
+**为什么不加新工具**：
+- `archive_solo_history()` 这种批量工具会掩盖每次归档移动——违背
+  Rule 0.a 的"每一次操作都应留痕"精神
+- `init_team_constitution()` 模板会约束 LLM 的判断——野外证据表明
+  不需要兜底，协议只需规定结构就够了
+- ADMIN 已经明确"工具多了 admin 不会用"——不加工具就是最好的尊重
+
+**文件影响**：
+- `src/fcop/_data/fcop-protocol.mdc`：~120 行新内容，版本号 bump
+- 无代码改动
+
+**回归**：不涉及代码路径，`archive_task` 仍按 0.4.7 行为工作；
+`log/solo-archive/` 是 ADMIN 建议路径，`archive_task` 默认仍写 `log/`。
+
 ### fcop 0.4.8（MCP 包）- 2026-04-22
 
 #### 改进：ADMIN 只说人话 / Agent 负责翻译（文档 + MCP instructions 同步）
