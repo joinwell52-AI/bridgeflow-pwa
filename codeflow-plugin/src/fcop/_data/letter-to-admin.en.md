@@ -278,75 +278,104 @@ Output shows each slug's title and creation time.
 
 ---
 
-## MCP capabilities at a glance (read this)
+## How you actually use FCoP: just talk
 
-Once `fcop` MCP is installed, your agent can call **19 tools** and read
-**6 resources**. The table below sorts them into three tiers —
-required / optional / rescue. You don't have to memorize them; just know
-what's there.
+**First, the important part**: FCoP ships 19 tools — **all of them are
+for the agent, not for you**. You talk in plain language from start to
+finish; the agent translates your intent into the right tool call.
 
-### 🔴 Mandatory flow (every project, day one)
+```
+You (ADMIN)         Agent (AI)            FCoP toolbox
+  speak     ────→   understand   ────→    call the tool
+                                              ↓
+                                       write files / make dirs / check state
+```
 
-| Tool | When to call | Required? | What it does |
-|---|---|---|---|
-| `unbound_report()` | **First action of every new session** | **Yes** | Rule 0 mandate. Uninitialized project → returns Phase 1 initialization report. Initialized but no role → returns Phase 2 UNBOUND report. |
-| `init_solo()` OR `init_project()` OR `create_custom_team()` | **First time** the project is opened | **Pick one, required** | Writes `fcop.json`, creates directories, deploys rules + this letter. Skip this and FCoP is not really active. |
-| `set_project_dir("E:\\your-project")` | When MCP is bound to the wrong dir (e.g. `unbound_report` shows `project: C:\Users\xxx`) | **Required in rescue** | Rebinds project root at runtime. No mcp.json edit, no Cursor restart. |
+You do not have to memorize any tool names. The table below is a
+"**when you say X, the agent does Y**" reference — so that *if* the
+agent forgets what to do, you can spot it and nudge it back.
 
-### 🟡 Optional daily tools
+### Project kickoff
 
-**Work tools** (only after you've assigned a role):
-
-| Tool | Purpose | Typical use |
+| You say | Agent calls | Outcome |
 |---|---|---|
-| `list_tasks()` | List unarchived tasks with frontmatter | Handover / catch-up |
-| `read_task(path)` | Read task body | First step after assignment |
-| `write_task(...)` | Write a new task (filename + frontmatter validated) | Dispatch / reply |
-| `inspect_task(path)` | Read frontmatter only (callable while UNBOUND) | Patrol / audit |
-| `list_reports()` / `read_report(path)` | List / read completion reports | Retro, handover |
-| `list_issues()` | List issue files | Triage |
-| `archive_task(path)` | Move finished task to `log/` | Periodic cleanup |
+| (first sentence of a new session) | `unbound_report()` | Agent reports project state; tells you if it's uninitialized or unassigned |
+| "initialize a Solo project" / "I'll do it myself" | `init_solo(role_code="ME")` | Writes `fcop.json`, creates directories, deploys rules + letter, creates `workspace/` |
+| "initialize a dev team" / "I want a 4-role team" | `init_project("dev-team")` or `create_custom_team(...)` | Same as above, multi-role |
+| "MCP is bound to the wrong dir" / `unbound_report` shows `C:\Users\xxx` | `set_project_dir("E:\\your-project")` | Rebinds at runtime; no config edits, no restart |
+| "you are PM" / "you are ME" | (no tool call; the agent just remembers its role) | Enters Phase 3 and starts working |
 
-**Read-only status** (callable while UNBOUND):
+### Day-to-day work
 
-| Tool | Purpose |
-|---|---|
-| `get_team_status()` | Task / report / issue counts + recent activity + workspace list |
-| `get_available_teams()` | All preset templates (Solo / dev / media / mvp) |
-| `validate_team_config(roles, leader)` | **Dry-run** role-code validation before `create_custom_team` |
-| `new_workspace(slug, title, description)` | Open an artifact cage `workspace/<slug>/` (see the "Where artifacts go" section) |
-| `list_workspaces()` | List every `workspace/<slug>/` in this project with its metadata |
-
-**Protocol feedback** (only when you disagree with FCoP itself):
-
-| Tool | Purpose |
-|---|---|
-| `drop_suggestion(title, body)` | Lands feedback under `.fcop/proposals/` without polluting `docs/agents/` |
-
-### 🟢 Resources (agent reads passively — you don't call these)
-
-| Resource URI | Content | When it matters |
+| You say | Agent calls | Outcome |
 |---|---|---|
-| `fcop://rules` | `fcop-rules.mdc` raw (the 9 protocol rules) | Agent needs a rules refresher |
-| `fcop://protocol` | `fcop-protocol.mdc` raw (commentary) | Naming / YAML / directory specifics |
-| `fcop://letter/zh` or `/en` | This letter itself | Re-read the manual |
-| `fcop://status` | Project state (same as `get_team_status`) | Low-frequency |
-| `fcop://config` | `fcop.json` raw | Low-frequency |
+| "build a CSDN search tool" / "start a new thing for X" | `new_workspace(slug="csdn-search", title="...")` | Creates `workspace/csdn-search/` cage; all artifacts land inside |
+| "assign a task to CODER" / "ask X to do Y" | `write_task(recipient="CODER", body="...")` | Drops a `TASK-*-to-CODER.md` |
+| "what's the state of the project" | `get_team_status()` | Task / report / issue / workspace counts + recent activity |
+| "how many workspaces do we have?" | `list_workspaces()` | Lists every `workspace/<slug>/` with create time |
+| "what tasks are still pending?" | `list_tasks()` | Lists unarchived `tasks/` |
+| "what does task X say?" | `read_task("TASK-...")` | Reads body |
+| "any open issues?" | `list_issues()` | Lists `issues/` |
+| "archive X, it's done" | `archive_task("TASK-...")` | Moves to `log/` |
+| "show me the completion reports" | `list_reports()` / `read_report(...)` | Reads `reports/` |
 
-### ⚠️ The "click-to-grey-out" switches in Cursor's MCP panel
+### Rescue / edge cases
 
-Cursor's MCP settings panel shows every tool (19 of them) as a
-clickable button. **Click → greyed = disabled; click again → white =
-enabled.** This is a Cursor feature, not an FCoP feature.
+| You say | Agent calls | Outcome |
+|---|---|---|
+| "I don't like this FCoP rule" | `drop_suggestion("...", "...")` | Feedback lands under `.fcop/proposals/` (you can't edit the rules files yourself) |
+| "validate this team config before creating it" | `validate_team_config("MANAGER,CODER", "MANAGER")` | Dry-run check, returns suggestions on error |
+| "what team presets exist?" | `get_available_teams()` | Lists Solo / dev-team / media-team / mvp-team |
+| "let me re-read the manual" | Reads `fcop://letter/en` or opens `docs/agents/LETTER-TO-ADMIN.md` | Re-renders this letter |
 
-- ✅ Safe to grey out: optional tools you don't need (e.g. a chat-only
-  project can grey out `archive_task` / `list_issues` to reduce noise)
-- ❌ **Never grey out these two**:
-  - `unbound_report` — greying it out breaks Rule 0; new sessions can't
-    even take their mandatory first action
-  - `set_project_dir` — greying it out leaves `mcp.json` edit + Cursor
-    restart as your only rescue path when the MCP binds to the wrong
-    directory
+### The only 2 tool names you might actually type
+
+- **`unbound_report`** — if a new session's agent doesn't auto-report,
+  just say "report first" or literally "call `unbound_report`".
+- **`set_project_dir`** — when you see the MCP bound to the wrong
+  directory (e.g. `unbound_report` shows a `C:\Users\xxx` path), say
+  "bind to `E:\your-project`" or literally "call `set_project_dir("...")`".
+
+**The other 17 are never yours to memorize**. The agent picks.
+
+### Why the agent knows what to call
+
+Because FCoP tells it in three places **at once**:
+
+1. **MCP instructions** (always read on agent startup) — includes the
+   "when ADMIN says X, call Y" map baked in.
+2. **Each tool's docstring** (visible to the agent) — describes exactly
+   when to invoke it.
+3. **`fcop-rules.mdc`** (`alwaysApply: true`) — enforces hard rules
+   like Rule 0.
+
+So your job is just plain language. If the agent misses something
+obvious (e.g. doesn't open a workspace when it should, or skips
+`unbound_report`), point it at the relevant row of this letter — the
+correction takes one line.
+
+### 6 resources (agent-only; you never touch these)
+
+| URI | Who reads it | What it is |
+|---|---|---|
+| `fcop://rules` | Agent | `fcop-rules.mdc` raw |
+| `fcop://protocol` | Agent | `fcop-protocol.mdc` raw |
+| `fcop://letter/zh` or `/en` | Agent when it wants to re-read | This letter |
+| `fcop://status` | Agent | Same as `get_team_status` |
+| `fcop://config` | Agent | `fcop.json` raw |
+
+### ⚠️ Cursor's "click-to-grey-out" switches: 2 you must never grey
+
+Cursor's MCP panel shows these 19 tools as buttons. Click → greyed =
+disabled. **Greying these two will hurt you**:
+
+- `unbound_report` — greyed out, Rule 0 breaks; agents can't take
+  their mandatory first step
+- `set_project_dir` — greyed out, your only rescue for a
+  wrong-directory binding is editing `mcp.json` + restarting Cursor
+
+The other 17 can technically be greyed out, but the agent just gets
+confused when a tool suddenly disappears — **keep them all enabled**.
 
 ---
 

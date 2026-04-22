@@ -6,6 +6,67 @@
 
 ## [Unreleased]
 
+### fcop 0.4.8（MCP 包）- 2026-04-22
+
+#### 改进：ADMIN 只说人话 / Agent 负责翻译（文档 + MCP instructions 同步）
+
+ADMIN 一针见血的反馈："这 19 个工具，ADMIN 估计不会用；AI 会用吗？"
+
+对。工具本来就是给 Agent 用的，ADMIN 只说人话。但 0.4.7 的信件和
+MCP instructions 两头都没把这一点说透，反倒把 19 个工具按
+"必须/可选/救场"列成一张参考手册——看起来像要求 ADMIN 背下来。
+
+0.4.8 两处**同时**重写：
+
+**1. 信件（`LETTER-TO-ADMIN.md` 中英双语）的 MCP 节**
+
+原来的三档参考表 → 重写成"**你说这句话 → Agent 会调什么 → 结果**"的
+三列对照表，分三段：**项目起手 / 日常干活 / 救场边缘情况**。每行都是
+一句自然语言（"做个 CSDN 搜索工具"、"派个任务给 CODER"、"MCP 目录绑
+错了"），右侧才是 Agent 背后调的工具。
+
+新增一小节 **"真正你可能直接用到的只有 2 个工具名"**，明确点出
+`unbound_report` 和 `set_project_dir`——其他 17 个 ADMIN 永远不用背。
+
+新增 **"Agent 为什么知道该调哪个？"** 小节，解释 FCoP 在三处同时告诉
+Agent 映射规则（MCP instructions / 工具 docstring / fcop-rules.mdc），
+消除 ADMIN 的疑虑："AI 真的会用吗？"
+
+**2. MCP instructions（Agent 启动必读）**
+
+server.py 里 `FastMCP(instructions=...)` 追加一节
+**【ADMIN 说人话 → 你调工具 / ADMIN speaks, you act】**，直接把意图→
+工具映射内建到协议层面：
+
+- 新会话开口第一句 → `unbound_report()`
+- "初始化 Solo" → `init_solo`
+- "初始化团队 / 我要 N 人团队" → `init_project` / `create_custom_team`
+- "做个 XXX / 新开一个做 YYY" → `new_workspace`（**不得**写项目根）
+- "派个任务给 ROLE" → `write_task`
+- "项目现状 / 有几个工作区 / 还有什么任务" → `get_team_status` /
+  `list_workspaces` / `list_tasks`
+- "归档 XXX" → `archive_task`
+- "MCP 绑错目录" → `set_project_dir`
+- "对协议有意见" → `drop_suggestion`（禁止直接编辑 rules 文件）
+- "你是 ROLE" → 不是工具调用，记下身份即可
+
+**同时把 Rule 7.5（workspace/<slug>/ 约定）在 instructions 里复述了一遍**，
+强调"ADMIN 说'做个 X'你第一反应应当是 `new_workspace`，而不是在项目根
+敲 `app.py`"——这是 Solo 模式最容易翻车的点。
+
+**为什么不动工具本身**：Agent 的识别能力已经足够——0.4.7 的工具
+docstring + Rule 7.5 已经覆盖了绝大多数场景。0.4.8 的价值在于"让
+ADMIN 看懂 FCoP 的交互模型、同时让 Agent 的映射学习更快收敛"，
+这是纯文档 + instructions 层面的事，不需要改代码行为。
+
+**文件影响**：
+- `src/fcop/_data/letter-to-admin.zh.md` + `.en.md`：重写"MCP 功能
+  一览"整节（约 300 行新内容），替换掉原来的三档参考表。
+- `src/fcop/server.py`：`FastMCP(instructions=...)` 从约 900 字节
+  扩到约 2900 字节，加入意图→工具映射 + Rule 7.5 复述。
+
+**回归**：MCP 仍然正常 import，instructions 包含所有预期关键词。
+
 ### fcop 0.4.7（MCP 包）- 2026-04-22
 
 #### 新特性：`workspace/<slug>/` 约定——产物笼子

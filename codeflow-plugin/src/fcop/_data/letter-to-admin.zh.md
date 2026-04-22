@@ -257,72 +257,97 @@ list_workspaces()
 
 ---
 
-## MCP 功能一览（ADMIN 必看）
+## 你怎么用 FCoP：只说人话
 
-装上 `fcop` MCP 后，你的 Agent 能调用 **19 个工具** 和 **6 个资源**。
-下表按"必须 / 可选 / 救场"三档列全，你不用全记，知道有就行。
+**先把最重要的说清楚**：FCoP 有 19 个工具——**全是给 Agent 用的，
+不是给你用的**。你从头到尾只说人话，Agent 负责翻译成工具调用。
 
-### 🔴 必经流程（每个项目第一天都会用上）
+```
+你（ADMIN）        Agent（AI）           FCoP 工具箱
+  说人话   ────→   听懂意图   ────→   调对应工具
+                                           ↓
+                                    落文件 / 建目录 / 查状态
+```
 
-| 工具 | 何时调 | 必须？ | 作用 |
-|---|---|---|---|
-| `unbound_report()` | **每次新会话的第一个动作** | **必须** | Rule 0 强制；没初始化→返回初始化汇报（Phase 1），已初始化但没角色→返回 UNBOUND 汇报（Phase 2） |
-| `init_solo()` 或 `init_project()` 或 `create_custom_team()` | 项目**第一次**打开时 | **必须三选一** | 写 `fcop.json`、建目录、部署规则文件和这封信。没跑过它 FCoP 就没启用 |
-| `set_project_dir("E:\\你的项目")` | MCP 绑错目录（`unbound_report` 里看到"项目路径：C:\Users\xxx"）时 | **救场时必须** | 运行时重绑项目根，不用改 `mcp.json`、不用重启 Cursor |
+你不用背任何工具名。下表是"**你说这句话，Agent 会做什么**"的常见映射
+——只是让你知道"Agent 该做什么、没做就能看出来"，不是让你去记。
 
-### 🟡 日常可用（按需，不强制）
+### 项目起手阶段
 
-**做事的**（分配角色后才允许调）：
-
-| 工具 | 作用 | 典型用法 |
+| 你说的话 | Agent 会调 | 结果 |
 |---|---|---|
-| `list_tasks()` | 列 `tasks/` 下所有未归档任务（含 frontmatter 元数据） | 接班/交接时 |
-| `read_task(path)` | 读某份任务正文 | 被指派后第一步 |
-| `write_task(...)` | 写一份新任务（自动校验文件名和 frontmatter） | 派单/回执 |
-| `inspect_task(path)` | 只读 frontmatter，不读正文（UNBOUND 期间也能调） | 巡检/审计 |
-| `list_reports()` / `read_report(path)` | 列/读完成回执 | 复盘、交接 |
-| `list_issues()` | 列问题单 | 故障排查 |
-| `archive_task(path)` | 把处理完的任务归档到 `log/` | 定期清理 |
+| （新会话开口第一句） | `unbound_report()` | Agent 先汇报项目状态，没初始化/没指派角色都会告诉你 |
+| "初始化 Solo 项目" / "一个人做" | `init_solo(role_code="ME")` | 落 `fcop.json`、建目录、部署规则和信、建 `workspace/` |
+| "初始化开发团队" / "我要个 4 人团队" | `init_project("dev-team")` 或 `create_custom_team(...)` | 同上，但是多角色 |
+| "MCP 目录绑错了" / `unbound_report` 里看到 `C:\Users\xxx` | `set_project_dir("E:\\你的项目")` | 运行时重绑，不用改配置也不用重启 |
+| "你是 PM" / "你是 ME" | （不调工具，Agent 记下身份） | 进入 Phase 3，可以开始干活 |
 
-**看状态的**（纯只读，UNBOUND 也能调）：
+### 日常干活
 
-| 工具 | 作用 |
-|---|---|
-| `get_team_status()` | 任务/回执/问题数量 + 近期活跃 + 工作区列表 |
-| `get_available_teams()` | 列出所有预设团队（Solo / dev-team / media-team / mvp-team） |
-| `validate_team_config(roles, leader)` | **自建团队前**预检角色代码合不合法，不落盘 |
-| `new_workspace(slug, title, description)` | 开一个产物笼子 `workspace/<slug>/`（见"产物放哪"一节） |
-| `list_workspaces()` | 列当前项目里所有 `workspace/<slug>/` 笼子及元数据 |
-
-**协议反馈**（对协议本身有意见用）：
-
-| 工具 | 作用 |
-|---|---|
-| `drop_suggestion(title, body)` | 反馈落到 `.fcop/proposals/`，不污染 `docs/agents/` |
-
-### 🟢 资源（Agent 被动读，你不用管）
-
-| 资源 URI | 内容 | 你会用到的场景 |
+| 你说的话 | Agent 会调 | 结果 |
 |---|---|---|
-| `fcop://rules` | `fcop-rules.mdc` 原文（协议规则 9 条） | 想让 Agent 重读规则 |
-| `fcop://protocol` | `fcop-protocol.mdc` 原文（协议解释） | 想看命名/YAML/目录的具体规定 |
-| `fcop://letter/zh` 或 `/en` | 这封信本身 | 想再读一次说明书 |
-| `fcop://status` | 项目当前状态（同 `get_team_status`） | 低频 |
-| `fcop://config` | `fcop.json` 原文 | 低频 |
+| "做个 CSDN 搜索工具" / "新开一个做 XXX" | `new_workspace(slug="csdn-search", title="...")` | 建 `workspace/csdn-search/` 笼子，产物全进去 |
+| "派个任务给 CODER" / "让 XXX 做 YYY" | `write_task(recipient="CODER", body="...")` | 落一份 `TASK-*-to-CODER.md` |
+| "看看现在项目什么状态" | `get_team_status()` | 任务/回执/问题/工作区数量 + 最近活跃 |
+| "有几个工作区？" / "做过几个东西了？" | `list_workspaces()` | 列所有 `workspace/<slug>/` 和创建时间 |
+| "还有哪些任务没做？" | `list_tasks()` | 列 `tasks/` 下未归档任务 |
+| "xxx 任务说了什么？" | `read_task("TASK-...")` | 读正文 |
+| "问题单有啥" | `list_issues()` | 列 `issues/` |
+| "xxx 任务做完了归档吧" | `archive_task("TASK-...")` | 移到 `log/` |
+| "看看完成回执" | `list_reports()` / `read_report(...)` | 查 `reports/` |
 
-### ⚠️ Cursor 面板上的"点灰"开关
+### 救场 / 特殊情况
 
-打开 Cursor 的 MCP 设置，能看到这 19 个工具每个旁边都有个按钮，
-**点一下会变灰 = 禁用**，再点一下变白 = 启用。这是 Cursor 的工具级
-开关，不是 FCoP 的功能。
+| 你说的话 | Agent 会调 | 结果 |
+|---|---|---|
+| "FCoP 这个规则我觉得不合理" | `drop_suggestion("...", "...")` | 反馈落到 `.fcop/proposals/`（协议不让你自己改规则文件） |
+| "创建团队前先验下角色名合法吗" | `validate_team_config("MANAGER,CODER", "MANAGER")` | 不落盘预检，出错给建议 |
+| "有哪些预设团队？" | `get_available_teams()` | 列 Solo / dev-team / media-team / mvp-team |
+| "再给我看一眼说明书" | 读 `fcop://letter/zh` 或打开 `docs/agents/LETTER-TO-ADMIN.md` | 重读这封信 |
 
-- ✅ 可以灰掉的：日常可选里那些你项目用不上的（比如纯对话项目可以
-  灰掉 `archive_task` `list_issues` 减少噪音）
-- ❌ **千万别灰的两个**：
-  - `unbound_report` —— 灰了它 Rule 0 直接失效，新会话 Agent 没法
-    做第一步
-  - `set_project_dir` —— 灰了它 MCP 绑错目录时你只能改 `mcp.json` +
-    重启 Cursor
+### 真正"你可能直接用到"的只有 2 个工具名
+
+- **`unbound_report`**：新会话 Agent 没自动汇报时，你说"先汇报"或直接
+  说"调 `unbound_report`"催它一下。
+- **`set_project_dir`**：发现 MCP 绑错目录（`unbound_report` 输出的项目
+  路径是 `C:\Users\xxx` 之类），你说"绑到 `E:\你的项目`"或直接说
+  "调 `set_project_dir("...")`"。
+
+**其他 17 个你从来不用背**。Agent 自己会挑。
+
+### Agent 为什么知道该调哪个？
+
+因为 FCoP 在三个地方**同时**告诉了 Agent"你说话→我调工具"的映射：
+
+1. **MCP instructions**（Agent 启动必读）：内建了"ADMIN 说 X → 调 Y"
+   的映射表
+2. **每个工具的 docstring**（Agent 看得到）：写了具体调用时机
+3. **`fcop-rules.mdc`**（`alwaysApply: true`）：规则级别规定了 Rule 0
+   等硬要求
+
+所以你只管说人话。Agent 没按预期做（比如该开 `workspace/` 却没开、
+该汇报却没汇报），把这封信翻给它看一下对应那行，立刻纠正。
+
+### 6 个资源（Agent 按需读，你完全不用管）
+
+| 资源 URI | 给谁读 | 装什么 |
+|---|---|---|
+| `fcop://rules` | Agent | `fcop-rules.mdc` 原文 |
+| `fcop://protocol` | Agent | `fcop-protocol.mdc` 原文 |
+| `fcop://letter/zh` 或 `/en` | Agent 回头查 | 这封信 |
+| `fcop://status` | Agent | 同 `get_team_status` |
+| `fcop://config` | Agent | `fcop.json` 原文 |
+
+### ⚠️ Cursor 的"点灰"开关：两个千万别灰
+
+打开 Cursor 的 MCP 面板能看到这 19 个工具每个旁边有个开关。点一下
+变灰 = 禁用。**其中这 2 个一灰你就惨了**：
+
+- `unbound_report` —— 灰了 Rule 0 失效，Agent 新会话没法做第一步
+- `set_project_dir` —— 灰了 MCP 绑错目录时你只能改 `mcp.json` + 重启
+
+剩下的 17 个你用不到的可以灰——不过 Agent 突然少了工具会一脸懵，
+**建议全开就好**。
 
 ---
 
