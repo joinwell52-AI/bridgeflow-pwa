@@ -70,6 +70,7 @@ import json
 import os
 import re
 import shutil
+import sys
 from contextlib import ExitStack
 from datetime import datetime
 from importlib import resources
@@ -146,13 +147,117 @@ def _env(*names: str, default: str = "") -> str:
     return default
 
 
-PROJECT_DIR = Path(_env("FCOP_PROJECT_DIR", default=".")).resolve()
-AGENTS_DIR = PROJECT_DIR / "docs" / "agents"
-TASKS_DIR = AGENTS_DIR / "tasks"
-REPORTS_DIR = AGENTS_DIR / "reports"
-ISSUES_DIR = AGENTS_DIR / "issues"
-SHARED_DIR = AGENTS_DIR / "shared"
-LOG_DIR = AGENTS_DIR / "log"
+# ─── Project-root resolution (0.4.1) ──────────────────────────────
+#
+# Before 0.4.1, PROJECT_DIR was hard-locked to FCOP_PROJECT_DIR at module
+# import time, with a silent `.` (= cwd) fallback. In Cursor the MCP
+# subprocess's cwd is the user home, so "no env set" meant "everything
+# lands in %USERPROFILE%". Nasty, silent, and per-project reconfig was
+# the only workaround.
+#
+# 0.4.1 does four things:
+#   1. Honour FCOP_PROJECT_DIR (primary, unchanged).
+#   2. Honour the legacy CODEFLOW_PROJECT_DIR with a one-shot stderr
+#      deprecation warning — anyone who carried a 0.3.x mcp.json across
+#      the rename would otherwise silently break.
+#   3. Auto-detect by walking up from cwd looking for FCoP / Cursor /
+#      VCS / project markers. Helps CLI callers; does NOT help Cursor
+#      (its MCP cwd is the home dir), hence step 4.
+#   4. Expose `set_project_dir(path)` as an MCP tool so an Agent inside
+#      Cursor can pin the project root in one sentence, without the user
+#      ever editing mcp.json.
+#
+# Module-level PROJECT_DIR et al. are exposed via __getattr__ so every
+# access is fresh — callers of `set_project_dir` flip the state and all
+# 70-ish AGENTS_DIR / TASKS_DIR references pick up the new value with no
+# refactor.
+
+_AUTO_MARKERS: tuple[tuple[str, str], ...] = (
+    ("docs/agents/fcop.json", "initialized FCoP project"),
+    (".cursor/rules/fcop-rules.mdc", "Cursor + FCoP rules"),
+    (".cursor", "Cursor workspace"),
+    (".git", "git repo root"),
+    ("pyproject.toml", "Python project root"),
+    ("package.json", "Node project root"),
+)
+
+_LEGACY_WARNED = False
+
+
+def _resolve_project_dir() -> tuple[Path, str]:
+    """Return `(project_dir, source)` using the 0.4.1 cascade.
+
+    `source` is a short human-readable tag used by `unbound_report` so the
+    ADMIN can see *why* the project root is what it is (env var name /
+    auto-detected marker / cwd fallback).
+    """
+    global _LEGACY_WARNED
+
+    explicit = os.environ.get("FCOP_PROJECT_DIR")
+    if explicit:
+        return Path(explicit).resolve(), "env:FCOP_PROJECT_DIR"
+
+    legacy = os.environ.get("CODEFLOW_PROJECT_DIR")
+    if legacy:
+        if not _LEGACY_WARNED:
+            sys.stderr.write(
+                "[fcop] WARNING: CODEFLOW_PROJECT_DIR is deprecated; "
+                "rename it to FCOP_PROJECT_DIR in your mcp.json.\n"
+            )
+            _LEGACY_WARNED = True
+        return Path(legacy).resolve(), "env:CODEFLOW_PROJECT_DIR (deprecated)"
+
+    try:
+        cwd = Path.cwd().resolve()
+    except Exception:
+        cwd = Path(".").resolve()
+
+    for cand in (cwd, *cwd.parents):
+        for marker, _label in _AUTO_MARKERS:
+            if (cand / marker).exists():
+                return cand, f"auto:{marker}"
+
+    return cwd, "cwd fallback (no markers; consider setting FCOP_PROJECT_DIR)"
+
+
+_STATE: dict = {"project_dir": None, "source": "uninitialized"}
+
+# Module-level path constants. Kept as ordinary module globals (rather
+# than behind __getattr__) because code *inside* this file references
+# them as bare names — bare-name lookups hit `globals()` directly and
+# bypass PEP-562 module __getattr__. `_rebind_paths()` below reassigns
+# all seven atomically, so the 70-ish existing call sites keep working
+# and still see fresh values after `set_project_dir`.
+PROJECT_DIR: Path = Path(".").resolve()
+AGENTS_DIR: Path = PROJECT_DIR / "docs" / "agents"
+TASKS_DIR: Path = AGENTS_DIR / "tasks"
+REPORTS_DIR: Path = AGENTS_DIR / "reports"
+ISSUES_DIR: Path = AGENTS_DIR / "issues"
+SHARED_DIR: Path = AGENTS_DIR / "shared"
+LOG_DIR: Path = AGENTS_DIR / "log"
+
+
+def _rebind_paths(project_dir: Path, source: str) -> None:
+    """Point every path constant at ``project_dir`` and record ``source``."""
+    global PROJECT_DIR, AGENTS_DIR, TASKS_DIR, REPORTS_DIR, ISSUES_DIR
+    global SHARED_DIR, LOG_DIR
+    PROJECT_DIR = project_dir
+    AGENTS_DIR = project_dir / "docs" / "agents"
+    TASKS_DIR = AGENTS_DIR / "tasks"
+    REPORTS_DIR = AGENTS_DIR / "reports"
+    ISSUES_DIR = AGENTS_DIR / "issues"
+    SHARED_DIR = AGENTS_DIR / "shared"
+    LOG_DIR = AGENTS_DIR / "log"
+    _STATE["project_dir"] = project_dir
+    _STATE["source"] = source
+
+
+def _init_project_state() -> None:
+    p, src = _resolve_project_dir()
+    _rebind_paths(p, src)
+
+
+_init_project_state()
 
 
 def _task_file_matches_recipient(filename: str, recipient: str) -> bool:
@@ -549,6 +654,70 @@ def _validate_team_config(
 
 
 @mcp.tool
+def set_project_dir(path: str) -> str:
+    """Pin the project root for this MCP session.
+
+    Useful when the MCP process was spawned with the wrong working
+    directory — typical symptom: `unbound_report` shows a project path
+    like `C:\\Users\\<you>` instead of the workspace you actually opened
+    in Cursor. Calling this tool once re-binds every subsequent tool
+    call (list_tasks, write_task, init_*, ...) to the given directory,
+    **without** editing mcp.json or restarting Cursor.
+
+    Safe to call while UNBOUND — re-pointing at a directory is not a
+    role-claim and writes nothing. It only mutates in-process state.
+
+    Args:
+        path: absolute path to the project root (the directory that
+            should contain `docs/agents/` and `.cursor/rules/`). The
+            directory must exist; it does not need to be an already
+            initialized FCoP project (you may call this *before*
+            ``init_solo`` / ``init_project``).
+
+    Returns:
+        A short bilingual confirmation including the resolved absolute
+        path and whether `docs/agents/fcop.json` is present.
+    """
+    if not path or not isinstance(path, str):
+        return (
+            "错误：path 不能为空，需要传入绝对路径 / "
+            "error: path must be a non-empty absolute path string"
+        )
+    try:
+        resolved = Path(path).expanduser().resolve()
+    except Exception as exc:
+        return f"错误：路径无法解析 / error resolving path: {exc}"
+    if not resolved.exists():
+        return (
+            f"错误：路径不存在 / error: path does not exist: {resolved}\n"
+            "请先创建目录，或传入一个已存在的绝对路径。\n"
+            "Create the directory first, or pass an existing absolute path."
+        )
+    if not resolved.is_dir():
+        return (
+            f"错误：路径不是目录 / error: path is not a directory: {resolved}"
+        )
+
+    _rebind_paths(resolved, "tool:set_project_dir")
+
+    cfg_present = (resolved / "docs" / "agents" / "fcop.json").exists()
+    rules_present = (resolved / ".cursor" / "rules" / "fcop-rules.mdc").exists()
+
+    return (
+        f"已绑定项目根 / project root bound: `{resolved}`\n"
+        f"- docs/agents/fcop.json present: {'yes' if cfg_present else 'no'}\n"
+        f"- .cursor/rules/fcop-rules.mdc present: "
+        f"{'yes' if rules_present else 'no'}\n\n"
+        f"下一步 / next: 调用 `unbound_report()` 查看绑定后状态；"
+        f"未初始化的话再调 `init_solo` / `init_project` / "
+        f"`create_custom_team`。\n"
+        f"Call `unbound_report()` to view post-bind state; if not yet "
+        f"initialized, call `init_solo` / `init_project` / "
+        f"`create_custom_team`."
+    )
+
+
+@mcp.tool
 def unbound_report(lang: str = "zh") -> str:
     """**FCoP v1.1 Rule 0 — MUST be the FIRST tool you call in a new session.**
 
@@ -617,6 +786,8 @@ def unbound_report(lang: str = "zh") -> str:
             )
         return out
 
+    path_source = _STATE.get("source", "unknown")
+
     if is_en:
         lines = [
             "## UNBOUND report",
@@ -626,6 +797,7 @@ def unbound_report(lang: str = "zh") -> str:
             "`.cursor/rules/fcop-protocol.mdc` (both alwaysApply).",
             "",
             f"- project: `{PROJECT_DIR}`",
+            f"  - resolution source: {path_source}",
             f"- fcop.json present: {'yes' if cfg_present else 'no'}",
         ]
         if cfg_present:
@@ -663,6 +835,7 @@ def unbound_report(lang: str = "zh") -> str:
             "`.cursor/rules/fcop-protocol.mdc`（均为 alwaysApply）。",
             "",
             f"- 项目路径：`{PROJECT_DIR}`",
+            f"  - 路径来源：{path_source}",
             f"- fcop.json 是否存在：{'是' if cfg_present else '否'}",
         ]
         if cfg_present:

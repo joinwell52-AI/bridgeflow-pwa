@@ -145,13 +145,14 @@ pip install -e codeflow-plugin
 > 团队里的角色（`PM` / `ME` / `MANAGER` …）都是 AI。即便 Solo 模式下那唯一
 > 一个角色也是 AI，不是你自己。
 
-## MCP 工具清单（16 个）
+## MCP 工具清单（17 个）
 
 **起手式**
 
 | 工具 | 功能 |
 |------|------|
 | `unbound_report` | **新会话必调的第一个工具**（FCoP Rule 1）—— 输出项目客观状态，等待 ADMIN 指派身份 |
+| `set_project_dir` | 运行时把 MCP 重新绑定到指定项目根（0.4.1 新增，解决 Cursor 下 MCP 绑错家目录的问题，不用改 mcp.json 重启 Cursor） |
 
 **项目初始化（三条路）**
 
@@ -195,10 +196,23 @@ pip install -e codeflow-plugin
 
 | 变量 | 作用 | 默认值 |
 |------|------|--------|
-| `FCOP_PROJECT_DIR`  | 项目根目录（含 `docs/agents/`） | `.`（当前工作目录） |
+| `FCOP_PROJECT_DIR`  | 项目根目录（含 `docs/agents/`）。0.4.1 起**可选**——未设时会自动向上回溯找 `.cursor/` / `.git/` / `fcop.json` 等标记 | （自动发现，失败回退到 cwd） |
+| `CODEFLOW_PROJECT_DIR` | 0.3.x 的遗留名。0.4.1 起兼容读取，会打一次弃用警告，建议改名为 `FCOP_PROJECT_DIR` | — |
 | `FCOP_ROOM_KEY`     | 非空即启用后台线程连接中继（仅桥接模式用） | 空（本地模式） |
 | `FCOP_RELAY_WS_URL` | 中继 WebSocket URL | `ws://127.0.0.1:5252` |
 | `FCOP_DEVICE_ID`    | 本机 MCP 设备 ID | `fcop-mcp` |
+
+### 遇到 "MCP 绑错了目录" 怎么办？
+
+典型症状：跑 `unbound_report`，`项目路径：` 那行显示的是 `C:\Users\你` 或别的莫名其妙的目录，而不是你在 Cursor 里打开的项目。
+
+**0.4.1 及以上推荐的做法**（一步，不用改 json、不用重启 Cursor）：
+
+> ADMIN 发一句："设项目根为 `E:\myproject`"
+
+让 Agent 调 `set_project_dir("E:\\myproject")`，当场切过去。后续所有 MCP 工具立即生效。
+
+老办法（仍然可用）：在 `%USERPROFILE%\.cursor\mcp.json` 的 `fcop` 段加 `"env": {"FCOP_PROJECT_DIR": "E:\\myproject"}`，退出 Cursor 重开。
 
 ## 文件协议速览
 

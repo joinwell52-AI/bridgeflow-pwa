@@ -6,6 +6,56 @@
 
 ## [Unreleased]
 
+### fcop 0.4.1（MCP 包，已发布到 PyPI）- 2026-04-22
+
+#### 修复：Cursor 下"项目路径被绑到家目录"的沉默 UX 陷阱
+
+0.4.0 及之前，`PROJECT_DIR` 在模块导入时读 `FCOP_PROJECT_DIR`，未设就
+回退到 `.`（cwd）。Cursor 启动 MCP 子进程的 cwd 是用户家目录，结果：
+**任何没在 `mcp.json` 里显式配置 `FCOP_PROJECT_DIR` 的 Cursor 用户，
+所有 fcop 操作都默默落在 `C:\Users\<你>` 下**，看起来像"工具失灵"，
+实际是绑错了根。每切一个项目都要改全局 `mcp.json` 并重启 Cursor。
+
+0.4.1 彻底修掉这个陷阱，四层兜底：
+
+1. **`FCOP_PROJECT_DIR`** 环境变量（主通道，行为不变）
+2. **`CODEFLOW_PROJECT_DIR`** 向后兼容 —— 任何从 0.3.x 沿用 mcp.json 的
+   用户不会静默失效；读到时会往 stderr 打一次弃用警告
+3. **自动发现**：从 cwd 向上回溯找 `docs/agents/fcop.json` /
+   `.cursor/rules/fcop-rules.mdc` / `.cursor` / `.git` /
+   `pyproject.toml` / `package.json` 任一标记，命中就锁定
+4. **cwd 兜底** —— 带提示建议设置 `FCOP_PROJECT_DIR`
+
+#### 新增：`set_project_dir(path)` MCP 工具
+
+给 Cursor 用户的**运行时再绑定开关**。场景：Agent 一跑 `unbound_report`
+发现 `项目路径：C:\Users\你` 是错的，ADMIN 只要说一句"设项目根为
+`E:\myproject`"，Agent 调 `set_project_dir("E:\\myproject")` 就切过去
+了，**不用改 mcp.json、不用重启 Cursor、不用退出 Cursor**。
+
+`set_project_dir` 在 UNBOUND 态下**允许**调用（重新指向目录不是角色
+声明，不写任何文件，只改进程内状态）。路径校验：必须是绝对路径、
+目录存在、是目录。拒绝时旧绑定不变。
+
+#### 新增：`unbound_report` 显示路径来源
+
+每次 UNBOUND 汇报多出一行 `路径来源` / `resolution source`，值为
+`env:FCOP_PROJECT_DIR` / `env:CODEFLOW_PROJECT_DIR (deprecated)` /
+`auto:<marker>` / `tool:set_project_dir` / `cwd fallback (...)` 之一。
+ADMIN 一眼能看出来"Agent 看到的这个路径是从哪儿来的"，排查绑定错误从
+几轮变一轮。
+
+#### 工具总数：16 → 17（新增 `set_project_dir`）
+
+#### 兼容性
+
+- `FCOP_PROJECT_DIR` 用户：零影响
+- `CODEFLOW_PROJECT_DIR` 用户：继续工作，收到弃用 warning，建议迁移
+- 没配任何环境变量的 Cursor 用户：**从此默认就对了**（auto-detect 会
+  命中 `.git` / `.cursor`，不再砸到家目录）
+
+---
+
 ### fcop 0.4.0（MCP 包，已发布到 PyPI）- 2026-04-22
 
 #### 新增：Rule 0.c · 只落真话
