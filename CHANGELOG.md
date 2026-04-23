@@ -6,6 +6,11 @@
 
 ## [Unreleased]
 
+### fcop 0.6.1 / fcop-mcp 0.6.1 - 2026-04-23
+
+- 仓库内新增 `fcop-mcp/` 子项目（与 PyPI `fcop-mcp` 0.6.1 一致）；`codeflow-plugin` 仍以 **PyPI 包名 `fcop`** 发版。
+- 两包已发布至 PyPI：`https://pypi.org/project/fcop/0.6.1/` 、`https://pypi.org/project/fcop-mcp/0.6.1/` 。
+
 ### fcop 0.5.3（MCP 包）- 2026-04-22
 
 #### 新增：自动升级提示 + 一键升级工具
