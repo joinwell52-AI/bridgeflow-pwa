@@ -1,9 +1,9 @@
 /**
  * Runtime — high-level composition root for the CodeFlow AI Runtime.
  *
- * Sprint S3 Phase C ships this as a thin convenience wrapper that wires
- * together the 8 subsystems an end-to-end demo (or the future
- * `codeflow-shell` EXE) needs:
+ * Sprint S3 Phase C shipped the first 8 subsystems; Sprint S4 adds
+ * three more (review layer + the AgentStatusReconciler integration hook
+ * resolving REPORT-018 §五决策 B'). The full v0.1 stack is now:
  *
  *   PersistentStore (agents.json)
  *     → AgentRegistry
@@ -14,9 +14,14 @@
  *     → InboxWatcher (chokidar)
  *     → StateHistoryWriter
  *     → TaskDispatcher (glue)
+ *     → ReviewWriter (.codeflow/state/reviews/)              ★ S4
+ *     → NeedsHumanGate (v0.1 sink="cli")                     ★ S4
+ *     → ReviewEngine (subscribes to SessionManager.onEvent)  ★ S4
+ *     → AgentStatusReconciler (B' integration hook)          ★ S4
  *
  * Reference:
- *   - TASK-20260509-018 §主交付 5b (this file)
+ *   - TASK-20260509-018 §主交付 5b (this file, original Phase C version)
+ *   - TASK-20260509-022 §主交付 5a (this file, S4 update)
  *   - design doc §0.8.3 (Hello World demo) and §10.2 (sprint roadmap)
  *
  * What this file deliberately is NOT:
@@ -32,11 +37,18 @@ import { join } from "node:path";
 
 import { AgentRegistry } from "./registry/AgentRegistry.ts";
 import type { AgentSdkAdapter } from "./registry/AgentSdkAdapter.ts";
+import { AgentStatusReconciler } from "./registry/AgentStatusReconciler.ts";
 import {
   JsonFileStore,
   type PersistentStore,
 } from "./registry/PersistentStore.ts";
 import { RuntimeBootstrap } from "./registry/RuntimeBootstrap.ts";
+import {
+  NeedsHumanGate,
+  ReviewEngine,
+  ReviewWriter,
+  type ReviewPolicy,
+} from "./review/index.ts";
 import {
   InboxWatcher,
   StateHistoryWriter,
@@ -70,6 +82,16 @@ export interface RuntimeCreateOptions {
    * relative to process.cwd().
    */
   inboxDir: string;
+  /**
+   * Directory the `ReviewWriter` writes `REVIEW-*.md` files into.
+   * Default: `<persistDir>/reviews`. Sprint S4 addition.
+   */
+  reviewsDir?: string;
+  /**
+   * Override the review policy. Default: `DefaultReviewPolicy` (always
+   * review, always pick `"REVIEW"` role). Sprint S4 addition.
+   */
+  reviewPolicy?: ReviewPolicy;
   /** Optional logger override forwarded to TaskDispatcher + Bootstrap. */
   logger?: TaskDispatcherLogger;
 }
@@ -95,6 +117,10 @@ export class Runtime {
   public readonly historyWriter: StateHistoryWriter;
   public readonly watcher: InboxWatcher;
   public readonly dispatcher: TaskDispatcher;
+  public readonly reviewWriter: ReviewWriter;
+  public readonly needsHumanGate: NeedsHumanGate;
+  public readonly reviewEngine: ReviewEngine;
+  public readonly statusReconciler: AgentStatusReconciler;
 
   private constructor(parts: {
     bootstrap: RuntimeBootstrapResult;
@@ -106,6 +132,10 @@ export class Runtime {
     historyWriter: StateHistoryWriter;
     watcher: InboxWatcher;
     dispatcher: TaskDispatcher;
+    reviewWriter: ReviewWriter;
+    needsHumanGate: NeedsHumanGate;
+    reviewEngine: ReviewEngine;
+    statusReconciler: AgentStatusReconciler;
   }) {
     this.bootstrap = parts.bootstrap;
     this.store = parts.store;
@@ -116,6 +146,10 @@ export class Runtime {
     this.historyWriter = parts.historyWriter;
     this.watcher = parts.watcher;
     this.dispatcher = parts.dispatcher;
+    this.reviewWriter = parts.reviewWriter;
+    this.needsHumanGate = parts.needsHumanGate;
+    this.reviewEngine = parts.reviewEngine;
+    this.statusReconciler = parts.statusReconciler;
   }
 
   /**
@@ -131,6 +165,7 @@ export class Runtime {
     const agentsJsonPath = join(opts.persistDir, "agents.json");
     const sessionsDir = join(opts.persistDir, "sessions");
     const transcriptsDir = join(opts.persistDir, "transcripts");
+    const reviewsDir = opts.reviewsDir ?? join(opts.persistDir, "reviews");
 
     // --- registry layer ---
     const store = new JsonFileStore({ path: agentsJsonPath });
@@ -163,6 +198,30 @@ export class Runtime {
       ...(opts.logger ? { logger: opts.logger } : {}),
     });
 
+    // --- review + B' integration layer (Sprint S4) ---
+    const reviewWriter = new ReviewWriter({ reviewsDir });
+    const needsHumanGate = new NeedsHumanGate({
+      sink: "cli",
+      ...(opts.logger ? { logger: opts.logger } : {}),
+    });
+    const reviewEngine = new ReviewEngine({
+      sessionManager,
+      registry,
+      sessionStore,
+      historyWriter,
+      reviewWriter,
+      needsHumanGate,
+      inboxDir: opts.inboxDir,
+      ...(opts.reviewPolicy ? { policy: opts.reviewPolicy } : {}),
+      ...(opts.logger ? { logger: opts.logger } : {}),
+    });
+    const statusReconciler = new AgentStatusReconciler({
+      sessionManager,
+      registry,
+      store,
+      ...(opts.logger ? { logger: opts.logger } : {}),
+    });
+
     return new Runtime({
       bootstrap: { report },
       store,
@@ -173,25 +232,40 @@ export class Runtime {
       historyWriter,
       watcher,
       dispatcher,
+      reviewWriter,
+      needsHumanGate,
+      reviewEngine,
+      statusReconciler,
     });
   }
 
   /**
-   * Start the dispatcher (which starts the watcher under the hood).
-   * After this resolves, dropping a `TASK-*.md` into the inbox dir will
-   * trigger the full pipeline.
+   * Start the dispatcher (which starts the watcher under the hood) plus
+   * the review engine + status reconciler. Subscribers are wired in this
+   * order:
+   *
+   *   1. AgentStatusReconciler (so session_started promotes status BEFORE
+   *      the dispatcher's listener can pick up the next dropped task)
+   *   2. ReviewEngine          (subject session_ended → reviewer flow)
+   *   3. TaskDispatcher        (inbox → startSession)
+   *
+   * Sprint S4: order matters for correctness — the reconciler must be
+   * up first so the doorbell `reject_busy` path is reachable.
    */
   async start(): Promise<void> {
+    this.statusReconciler.start();
+    this.reviewEngine.start();
     await this.dispatcher.start();
   }
 
   /**
-   * Gracefully stop the dispatcher (releases watcher fd, unsubscribes
-   * pending session listeners). Does NOT cancel running sessions —
-   * callers wanting that should call
+   * Gracefully stop everything in reverse order. Does NOT cancel running
+   * sessions — callers wanting that should call
    * `runtime.sessionManager.cancelAllForEmergencyStop()` first.
    */
   async stop(): Promise<void> {
     await this.dispatcher.stop();
+    await this.reviewEngine.stop();
+    await this.statusReconciler.stop();
   }
 }

@@ -37,3 +37,9 @@ export {
   RuntimeBootstrap,
   type RuntimeBootstrapOptions,
 } from "./RuntimeBootstrap.ts";
+
+export {
+  AgentStatusReconciler,
+  type AgentStatusReconcilerLogger,
+  type AgentStatusReconcilerOptions,
+} from "./AgentStatusReconciler.ts";

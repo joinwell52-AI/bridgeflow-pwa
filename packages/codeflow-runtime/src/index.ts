@@ -1,5 +1,5 @@
 /**
- * @codeflow/runtime — public API surface (Sprint S3 Phase C).
+ * @codeflow/runtime — public API surface (Sprint S4 — Review Engine).
  *
  * What's exported:
  *   - AgentRegistry + RuntimeBootstrap + PersistentStore + AgentSdkAdapter
@@ -7,12 +7,13 @@
  *   - SessionManager + SessionStore + TranscriptWriter + SdkRunHandle
  *     (§2.1 subsystem 1 + decision 4 right-half; Sprint S3 Phase B — `8c49907` checkpoint)
  *   - InboxWatcher + TaskParser + StateHistoryWriter + TaskDispatcher + Runtime
- *     (§2.4 doorbell + §3.3 task lifecycle; Sprint S3 Phase C — this commit)
+ *     (§2.4 doorbell + §3.3 task lifecycle; Sprint S3 Phase C — `bd7d3d8` checkpoint)
+ *   - ReviewEngine + ReviewWriter + NeedsHumanGate + AgentStatusReconciler
+ *     (§3.4 review schema + §0.9.4 HITL + REPORT-018 §五决策 B'; Sprint S4 — this commit)
  *   - State types (runtime-private; layered on @codeflow/protocol)
  *
  * What's NOT here (and why):
  *   - Skill Runtime           → S5, `@codeflow/skill-runtime`
- *   - Review Engine           → S4, `@codeflow/review-engine`
  *   - codeflow-shell EXE      → S6 (Node SEA bundle that imports `Runtime`)
  *   - Mobile Console / relay  → v0.2 (separate effort)
  *   - Cloud agent runtime     → v0.x; binding-mode field exists, but
@@ -48,6 +49,9 @@ export {
   InvalidAgentStatusError,
   RuntimeBootstrap,
   type RuntimeBootstrapOptions,
+  AgentStatusReconciler,
+  type AgentStatusReconcilerLogger,
+  type AgentStatusReconcilerOptions,
 } from "./registry/index.ts";
 
 export {
@@ -82,6 +86,32 @@ export {
   TaskParseError,
   TaskFileNotFoundError,
 } from "./scheduler/index.ts";
+
+export {
+  ReviewEngine,
+  DefaultReviewPolicy,
+  defaultMakeReviewId,
+  parseVerdict,
+  type ReviewEngineLogger,
+  type ReviewEngineOptions,
+  type ReviewPolicy,
+  type TaskReference,
+  ReviewWriter,
+  renderReviewMarkdown,
+  type HumanApproval,
+  type ReviewDecision,
+  type ReviewSubjectType,
+  type ReviewVerdict,
+  type ReviewWriterOptions,
+  NeedsHumanGate,
+  UnsupportedHumanPushSinkError,
+  type HumanPushRequest,
+  type NeedsHumanGateLogger,
+  type NeedsHumanGateOptions,
+  ReviewWriteError,
+  ReviewerNotFoundError,
+  VerdictParseError,
+} from "./review/index.ts";
 
 export {
   Runtime,

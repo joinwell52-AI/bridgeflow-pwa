@@ -262,3 +262,98 @@ export class TaskFileNotFoundError extends Error {
     }
   }
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// Review-layer errors (Sprint S4 — TASK-022 §主交付 1/3 + 错误类清单)
+//
+// Co-located per Phase B/C decision J: same governance rationale (single
+// import surface for Mobile push / audit log dispatch). Three classes pin
+// the three failure modes the v0.1 ReviewEngine must distinguish:
+//
+//   * `ReviewWriteError`        — fs / atomic-write failed for REVIEW-*.md
+//   * `ReviewerNotFoundError`   — pickReviewer resolved a role with no agent
+//   * `VerdictParseError`       — reviewer's stdout did not match the v0.1
+//                                 "VERDICT: <decision>; RATIONALE: <text>"
+//                                 contract (NeedsHumanGate fallback fires)
+// ───────────────────────────────────────────────────────────────────────────
+
+/**
+ * Thrown when `ReviewWriter.write` cannot persist a `REVIEW-*.md` file.
+ *
+ * Mirrors `RegistryWriteError` semantics: by atomic-rename design the
+ * on-disk REVIEW-*.md file is NEVER half-written when this throws — the
+ * `.tmp` staging file may linger as a diagnostic but no other consumer
+ * can ever read a partial REVIEW. Tests rely on this property (TS-6.3).
+ *
+ * Caller (typically `ReviewEngine`) MUST surface as a logger.error +
+ * fall back to NeedsHumanGate ("verdict cannot be persisted"), so the
+ * audit trail records the gap explicitly.
+ */
+export class ReviewWriteError extends Error {
+  override readonly name = "ReviewWriteError";
+  readonly reviewId: string;
+  override readonly cause?: unknown;
+
+  constructor(reviewId: string, message: string, options?: { cause?: unknown }) {
+    super(`ReviewWriter failed for review_id="${reviewId}": ${message}`);
+    this.reviewId = reviewId;
+    if (options?.cause !== undefined) {
+      this.cause = options.cause;
+    }
+  }
+}
+
+/**
+ * Thrown when `ReviewEngine`'s policy resolves a reviewer role
+ * (e.g. `"REVIEW"`) but the AgentRegistry has no matching agent.
+ *
+ * Per TASK-022 §主交付 3 step 3, the `ReviewEngine` catches this and
+ * falls back to `NeedsHumanGate.push({ trigger_reason: "reviewer_not_found" })`
+ * — the engine NEVER lets a missing reviewer drop a verdict on the floor.
+ * The class identity is what TS-6.8 asserts on.
+ */
+export class ReviewerNotFoundError extends Error {
+  override readonly name = "ReviewerNotFoundError";
+  readonly reviewerRole: string;
+  readonly subjectRef: string;
+
+  constructor(reviewerRole: string, subjectRef: string) {
+    super(
+      `no agent registered for reviewer_role="${reviewerRole}" ` +
+        `(reviewing subject_ref="${subjectRef}")`,
+    );
+    this.reviewerRole = reviewerRole;
+    this.subjectRef = subjectRef;
+  }
+}
+
+/**
+ * Thrown when `ReviewEngine` cannot extract a valid `decision` from the
+ * reviewer agent's stdout.
+ *
+ * v0.1 contract is the simplest thing that can possibly work — the
+ * reviewer is expected to emit a single line matching:
+ *
+ *   `VERDICT: <approved|rejected|needs_changes|abstained|needs_human>;` +
+ *   `[RATIONALE: <text>]`
+ *
+ * v0.2 will replace this with the reviewer agent writing a full REVIEW-*.md
+ * file directly. Until then, a parse failure routes to NeedsHumanGate
+ * with `trigger_reason: "verdict_parse_failed"` (TS-6.9).
+ */
+export class VerdictParseError extends Error {
+  override readonly name = "VerdictParseError";
+  readonly subjectRef: string;
+  readonly rawOutput: string;
+
+  constructor(subjectRef: string, rawOutput: string, message?: string) {
+    super(
+      message ??
+        `failed to parse reviewer verdict for subject_ref="${subjectRef}"; ` +
+          `expected line matching "VERDICT: <decision>; [RATIONALE: ...]" ` +
+          `(got ${rawOutput.length} chars; first 80: ${rawOutput.slice(0, 80).replace(/\s+/g, " ")})`,
+    );
+    this.subjectRef = subjectRef;
+    this.rawOutput = rawOutput;
+  }
+}

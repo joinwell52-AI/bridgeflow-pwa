@@ -1,8 +1,8 @@
 {
   "name": "@codeflow/runtime",
-  "version": "0.1.0-alpha.3",
+  "version": "0.1.0-alpha.4",
   "private": true,
-  "description": "CodeFlow AI Runtime — Agent Registry + Session Manager + Task Scheduler. Phase A (Sprint S3): AgentRegistry + PersistentStore + RuntimeBootstrap. Phase B (Sprint S3): SessionManager + SessionStore + TranscriptWriter. Phase C (Sprint S3): InboxWatcher + TaskParser + StateHistoryWriter + TaskDispatcher + Runtime composition root.",
+  "description": "CodeFlow AI Runtime — Agent Registry + Session Manager + Task Scheduler + Review Engine. Phase A (S3): AgentRegistry + PersistentStore + RuntimeBootstrap. Phase B (S3): SessionManager + SessionStore + TranscriptWriter. Phase C (S3): InboxWatcher + TaskParser + StateHistoryWriter + TaskDispatcher + Runtime composition root. Phase D / Sprint S4: ReviewEngine + ReviewWriter + NeedsHumanGate + AgentStatusReconciler (decision B' integration hook).",
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
