@@ -1,5 +1,11 @@
 # CodeFlow Desktop 发版规范
 
+## 适用范围
+
+本文档**只**规范 **CodeFlow 工具线**（当前以 **CodeFlow Desktop** 一条龙脚本为主，兼及与本仓绑定的 PWA/镜像推送流程）。**不包含** [FCoP](https://github.com/joinwell52-AI/FCoP) 的 **`fcop` / `fcop-mcp` PyPI 发版**；协议与双包发版请到 **FCoP 独立仓** 内的 `docs/release-process.md`（或该仓同目录文档）执行。
+
+**与 FCoP 的分工说明**见：[fcop-standalone-zh.md](./integrations/fcop-standalone-zh.md)。
+
 ## 概述
 
 CodeFlow Desktop 采用**一条龙发版流程**：一条命令完成从版本号校验到多平台发布的全部步骤。

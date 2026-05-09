@@ -3,6 +3,12 @@
 > 把 [Cursor AI 自动化团队方法论](https://joinwell52-ai.github.io/joinwell52/) 变成了一个真正能用的产品。
 > 下载、运行，然后用手机指挥你的 AI 团队。
 
+> 📜 **项目宪法** — 码流 = **面向多 Agent 协作开发的轻量级 AI Runtime / AI OS**，用 `@cursor/sdk` 驱动、应用 `fcop-mcp`（消费方，不定义 fcop）。
+> ADMIN 5/9 10:48 + 10:51 两条原话见 [设计文档 §0.0](docs/design/codeflow-v2-on-fcop-sdk.md)。
+>
+> 🚀 **CodeFlow v2 — 重新定位为 AI Runtime / AI OS**（草稿中）：
+> [5 分钟速读](docs/codeflow-overview.md) · [完整设计文档](docs/design/codeflow-v2-on-fcop-sdk.md)
+
 <p align="center">
   <img src="docs/images/product-1.png" width="260" alt="码流 — 指令成流，智能随行" />
   &nbsp;
@@ -10,6 +16,17 @@
   &nbsp;
   <img src="docs/images/product.png" width="260" alt="码流 — 手机驭 AI" />
 </p>
+
+---
+
+## 本仓与 FCoP 的关系（先读这段不混）
+
+| | **本仓库（Bridgeflow / CodeFlow 工具线）** | **FCoP**（[独立 GitHub 仓](https://github.com/joinwell52-AI/FCoP)） |
+|---|---|---|
+| **是什么** | **工具项目**：Desktop、PWA、中继、手机与 PC 联调等**产品**实现。 | **协议 + MCP**：文件驱动多 Agent 协作的**规范**与 **PyPI 双包**（`fcop` 库 + `fcop-mcp` 服务），与任何具体产品代码**分仓**维护。 |
+| **Git** | 本工作区 / `codeflow-pwa` 等，跟「卖什么功能」走。 | 仅 [FCoP 仓](https://github.com/joinwell52-AI/FCoP)，跟「协议与库怎么演进」走。 |
+
+把边界写死以后：**FCoP 的规范、Python 包、MCP 发版与 PR** 只在 **FCoP 仓**；本仓通过安装或文档链接使用，**不再把 FCoP 当成混在本树里的第二套主工程**。更细的说明见 [docs/integrations/fcop-standalone-zh.md](docs/integrations/fcop-standalone-zh.md)。
 
 ---
 
@@ -209,8 +226,7 @@ AI 角色在 Cursor 里工作时的样子：
 
 ## 协议与田野报告（FCoP）
 
-CodeFlow 的 `.cursor/rules/` 协议被单独抽出来维护在 [**FCoP 公仓**](https://github.com/joinwell52-AI/FCoP)
-（File-based Coordination Protocol），包含规范与实战随笔：
+FCoP 在 **独立仓库** 维护（见上表）。下列为协议相关的**田野报告**与随笔（仍在 FCoP 仓内）：
 
 - 📖 [《当 AI 自己整理工作》](https://github.com/joinwell52-AI/FCoP/blob/main/essays/when-ai-organizes-its-own-work.md)
   —— 4 个 AI 角色，17 天，87 人日

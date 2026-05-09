@@ -13,6 +13,14 @@
 
 [📖 English](README.en.md) | [📖 中文版](README.zh.md)
 
+> 📜 **Project Charter / 项目宪法** —
+> CodeFlow = a **lightweight AI Runtime / AI OS for multi-agent software development**, driven by `@cursor/sdk`, consuming `fcop-mcp` (consumer-side; does not define fcop).
+> 码流 = **面向多 Agent 协作开发的轻量级 AI Runtime / AI OS**，用 `@cursor/sdk` 驱动、应用 `fcop-mcp`（消费方，不定义 fcop）。
+> Verbatim ADMIN charter quotes (5/9 10:48 + 10:51) live in [design doc §0.0](docs/design/codeflow-v2-on-fcop-sdk.md) / 完整原话见设计文档 §0.0
+>
+> 🚀 **CodeFlow v2 — repositioning to AI Runtime / AI OS** ([draft]):
+> [English overview (5 min)](docs/codeflow-overview.en.md) · [中文速读 (5 分钟)](docs/codeflow-overview.md) · [Full design doc / 完整设计文档](docs/design/codeflow-v2-on-fcop-sdk.md)
+
 ---
 
 We published the methodology — [**How to Build an Automated AI Development Team in Cursor**](https://joinwell52-ai.github.io/joinwell52/) — and then built the tool to make it real.
@@ -22,6 +30,8 @@ We published the methodology — [**How to Build an Automated AI Development Tea
 **CodeFlow** (码流) is the production-ready tool born from that methodology. It turns the "filename as protocol" concept into a complete human-AI collaboration system: mobile command center + PC execution engine + multi-agent coordination.
 
 **码流（CodeFlow）** 就是这套方法论的产品化落地。它把"文件名即协议"的理念变成了完整的人机协作系统：手机主控台 + PC 执行机 + 多角色自动调度。
+
+**Scope / 范围：FCoP vs this repo** — The **FCoP** protocol and PyPI packages (`fcop`, `fcop-mcp`) are maintained in a **separate** GitHub repository ([joinwell52-AI/FCoP](https://github.com/joinwell52-AI/FCoP)). **This** repository is the **CodeFlow / Bridgeflow tool** line (Desktop, PWA, relay, etc.); it is not the FCoP source home. [Boundary (中文)](docs/integrations/fcop-standalone-zh.md) · [README.zh — 本仓与 FCoP](README.zh.md) · [README.en — This repo vs FCoP](README.en.md#this-repo-vs-fcop-read-this-to-avoid-mixing-them-up).
 
 <p align="center">
   <img src="docs/images/product-1.png" width="260" alt="CodeFlow — Commands Flow, Intelligence Follows" />

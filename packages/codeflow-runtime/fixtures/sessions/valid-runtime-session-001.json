@@ -1,0 +1,26 @@
+{
+  "protocol": {
+    "$schema": "https://codeflow.dev/schemas/session/v0.1.json",
+    "session_id": "session-7f82fb65-aaaa-bbbb-cccc-ddddeeee0001",
+    "agent_id": "DEV-01",
+    "task_id": "TASK-20260509-002-PM-to-DEV",
+    "started_at": "2026-05-09T09:14:00Z",
+    "ended_at": null,
+    "status": "running",
+    "runs": [
+      {
+        "run_id": "run-7f82fb65-aaaa-bbbb-cccc-ddddeeee0001",
+        "started_at": "2026-05-09T09:14:00Z",
+        "ended_at": null,
+        "status": "running",
+        "tokens_used": { "input": 28450, "output": 7820, "thinking": 540 },
+        "tool_calls_count": 14,
+        "transcript_path": ".codeflow/state/transcripts/run-7f82fb65-aaaa-bbbb-cccc-ddddeeee0001.md"
+      }
+    ],
+    "total_cost_usd": 0.41,
+    "outcome": null
+  },
+  "runtime_last_event_at": "2026-05-09T09:36:12Z",
+  "runtime_active_run_id": "run-7f82fb65-aaaa-bbbb-cccc-ddddeeee0001"
+}

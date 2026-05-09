@@ -1,0 +1,9 @@
+{
+  "$schema": "https://codeflow.dev/schemas/agent/v0.1.json",
+  "agent_id": "DEV-99",
+  "role": "developer",
+  "node": "local",
+  "runtime": "local",
+  "skills": ["fcop"],
+  "status": "idle"
+}

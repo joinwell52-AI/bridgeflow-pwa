@@ -1,0 +1,67 @@
+[
+  {
+    "protocol": {
+      "$schema": "https://codeflow.dev/schemas/agent/v0.1.json",
+      "agent_id": "PM-01",
+      "sdk_agent_id": "agent-c2b242c3-1111-1111-1111-111111110001",
+      "role": "pm",
+      "layer": "worker",
+      "node": "cloud",
+      "runtime": "cloud",
+      "model": { "id": "default" },
+      "skills": ["fcop"],
+      "status": "idle",
+      "current_task": null,
+      "current_session": null,
+      "started_at": "2026-05-09T01:00:00Z",
+      "last_active_at": "2026-05-09T09:30:00Z"
+    },
+    "runtime_binding_mode": "cloud",
+    "runtime_last_reconciled_at": "2026-05-09T09:30:00Z"
+  },
+  {
+    "protocol": {
+      "$schema": "https://codeflow.dev/schemas/agent/v0.1.json",
+      "agent_id": "DEV-01",
+      "sdk_agent_id": "agent-c2b242c3-2222-2222-2222-222222220001",
+      "role": "developer",
+      "layer": "worker",
+      "node": "local",
+      "runtime": "local",
+      "workspace": "D:\\Bridgeflow",
+      "model": {
+        "id": "claude-sonnet-4-6",
+        "params": [
+          { "id": "thinking", "value": "true" },
+          { "id": "context", "value": "1m" }
+        ]
+      },
+      "skills": ["fcop", "git"],
+      "status": "running",
+      "current_task": "TASK-20260509-002-PM-to-DEV",
+      "current_session": "session-7f82fb65-aaaa-bbbb-cccc-ddddeeee0001",
+      "started_at": "2026-05-09T01:00:00Z",
+      "last_active_at": "2026-05-09T09:35:00Z"
+    },
+    "runtime_binding_mode": "local",
+    "runtime_last_reconciled_at": "2026-05-09T09:35:00Z"
+  },
+  {
+    "protocol": {
+      "$schema": "https://codeflow.dev/schemas/agent/v0.1.json",
+      "agent_id": "QA-01",
+      "sdk_agent_id": "agent-c2b242c3-3333-3333-3333-333333330001",
+      "role": "reviewer",
+      "layer": "governance",
+      "node": "cloud",
+      "runtime": "cloud",
+      "model": { "id": "claude-haiku-4-5" },
+      "skills": ["fcop", "playwright"],
+      "status": "idle",
+      "started_at": "2026-05-09T01:00:00Z",
+      "last_active_at": "2026-05-09T08:00:00Z"
+    },
+    "runtime_binding_mode": "cloud",
+    "runtime_last_reconciled_at": "2026-05-09T08:00:00Z"
+  }
+]

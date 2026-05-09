@@ -3,6 +3,12 @@
 > The tool that turns [the Cursor AI team methodology](https://joinwell52-ai.github.io/joinwell52/) into a real product.
 > Just download, run, and command your AI team from your phone.
 
+> 📜 **Project Charter** — CodeFlow = a **lightweight AI Runtime / AI OS for multi-agent software development**, driven by `@cursor/sdk`, consuming `fcop-mcp` (consumer-side; does not define fcop).
+> Verbatim ADMIN charter quotes (5/9 10:48 + 10:51) live in [design doc §0.0](docs/design/codeflow-v2-on-fcop-sdk.md).
+>
+> 🚀 **CodeFlow v2 — repositioning to AI Runtime / AI OS** (draft):
+> [5-min overview](docs/codeflow-overview.en.md) · [Full design doc](docs/design/codeflow-v2-on-fcop-sdk.md)
+
 <p align="center">
   <img src="docs/images/product-1.png" width="260" alt="CodeFlow — Commands Flow" />
   &nbsp;
@@ -10,6 +16,17 @@
   &nbsp;
   <img src="docs/images/product.png" width="260" alt="CodeFlow — AI-powered" />
 </p>
+
+---
+
+## This repo vs FCoP (read this to avoid mixing them up)
+
+| | **This repository (Bridgeflow / CodeFlow tools)** | **FCoP** ([separate GitHub repo](https://github.com/joinwell52-AI/FCoP)) |
+|---|---|---|
+| **What it is** | **A tool project**: Desktop, PWA, relay, phone–PC bridge—**product** code. | **Protocol + MCP**: the **spec** and two **PyPI** packages (`fcop` + `fcop-mcp`), maintained **outside** any product tree. |
+| **Git** | This workspace / `codeflow-pwa`—tied to shipping features. | Only the [FCoP repo](https://github.com/joinwell52-AI/FCoP)—tied to protocol and library evolution. |
+
+**FCoP** issues, releases, and PRs for the spec and packages live only in the **FCoP** repository. This repo consumes them via `pip` or docs—**FCoP is not a second mainline source tree mixed in here**. More detail: [docs/integrations/fcop-standalone-zh.md](docs/integrations/fcop-standalone-zh.md) (Chinese; the boundary is the same in English).
 
 ---
 
@@ -209,9 +226,7 @@ Only task status events (JSON text, no file content) pass through the relay. All
 
 ## Protocol & field reports (FCoP)
 
-The `.cursor/rules/` protocol behind CodeFlow is extracted and maintained separately in the
-[**FCoP repo**](https://github.com/joinwell52-AI/FCoP) (File-based Coordination Protocol),
-along with essays from real deployments:
+FCoP is maintained in a **separate** repository (see table above). Field reports and essays:
 
 - 📖 [*When AI organizes its own work*](https://github.com/joinwell52-AI/FCoP/blob/main/essays/when-ai-organizes-its-own-work.en.md)
   — 4 AI roles, 17 days, 87 person-days delivered

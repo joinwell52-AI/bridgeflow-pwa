@@ -1,3 +1,0 @@
-# fcop MCP — runtime dependencies
-fastmcp>=3.2.0
-websockets>=12.0

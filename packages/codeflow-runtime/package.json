@@ -1,0 +1,18 @@
+{
+  "name": "@codeflow/runtime",
+  "version": "0.1.0-alpha.0",
+  "private": true,
+  "description": "CodeFlow AI Runtime — Agent Registry + Session Manager design skeleton (Sprint S2 of design doc §10.2). Method bodies throw not-implemented; S3-S5 will land actual logic.",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@codeflow/protocol": "file:../codeflow-protocol"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0"
+  }
+}

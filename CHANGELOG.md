@@ -6,6 +6,13 @@
 
 ## [Unreleased]
 
+### fcop-mcp 0.6.2 - 2026-04-24
+
+**说明：** 0.6.1 之后与安装说明、文档、脚本相关的一揽子修订，**不再**为细枝末节单独升补丁号，**统一**用 **0.6.2** 一次发。
+
+- **README（PyPI）**：推荐**交给 AI 安装**（中英整段提示词）、人类自装分「一条命令 / venv / Claude」、Windows 与 macOS 路径、WSL 与冷启 `uvx` 提示。
+- **`install-fcop.sh`**：`mcp.json` 里 `uvx` 的 `args` 从过时的 `fcop` 改为 **`fcop-mcp`**。
+
 ### fcop 0.6.1 / fcop-mcp 0.6.1 - 2026-04-23
 
 - 仓库内新增 `fcop-mcp/` 子项目（与 PyPI `fcop-mcp` 0.6.1 一致）；`codeflow-plugin` 仍以 **PyPI 包名 `fcop`** 发版。

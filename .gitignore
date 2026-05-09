@@ -80,6 +80,9 @@ private/
 
 # ── 推广草稿（已移至 private/promotion/，private/ 整体忽略）──
 
+# ── PM 工作笔记 / 草稿 / 一次性审计脚本（不入 git）──
+_ignore/
+
 # ── 临时文件 ──
 _patch_*.py
 _rebuild*.py
