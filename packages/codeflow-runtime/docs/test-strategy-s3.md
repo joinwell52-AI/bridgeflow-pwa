@@ -162,14 +162,23 @@
 - 通过标准：key 字段除时间戳外全部 `deepEqual`
 - 类型：unit
 
-**TS-2.8 SDK.list() 完全失败（超时/网络错误）→ 边界行为 [TBD]**
-- 输入：SDK.list() throw "timeout"
-- 操作：`bootstrap.run()`
-- 期望：**当前为 TBD**——此场景下应全部 records 标 failed，还是整个 bootstrap HARD FAIL？
-  - 候选 A：全部 records 标 failed（符合"单 record 失败不阻断"原则，但 SDK.list 失败影响的是全部 records）
-  - 候选 B：HARD FAIL + process.exit(1)（符合"不允许半启动状态"，但启动全中断体验差）
-- **QA 请求 PM 协调 DEV 在 Phase A 实施期间敲定此策略**，敲定后更新本条场景并补充通过标准
-- 类型：unit（待补全）
+**TS-2.8 SDK.list() 完全失败（超时/网络错误）→ HARD FAIL（B 路径，PM 5/9 14:00 确认）**
+
+- 输入：`InMemorySdkAdapter` 设置 `plantedListError = new Error("network down")`；PCB 含 ≥ 1 条 record
+- 操作步骤：
+  1. 构造含 1 条 AgentRecord 的 store
+  2. 触发 `bootstrap.run()`
+- 期望输出：
+  - `bootstrap.run()` **抛出** `RuntimeBootstrapError`
+  - error.message 含 `"SDK.list() failed during reconciliation"`
+  - error.cause 是原始 SDK error（"network down"）
+  - agents.json **不被修改**（仍是 bootstrap 之前的状态；bootstrap 期间未发起任何 saveAll）
+- 通过标准：
+  - `assert.rejects(() => bootstrap.run(), RuntimeBootstrapError)`
+  - error.message 匹配 `/SDK\.list\(\) failed during reconciliation/`
+  - spy 验证 store.saveAll callCount === 0（bootstrap 未写文件即中止）
+- 类型：unit
+- 依据：PM 5/9 14:00「按推荐」+ crash-recovery.md 决策 2 末尾「不允许半启动状态」。DEV 在 Phase B 附加交付 2 中 patch `RuntimeBootstrap.ts` 加 try-catch 翻译 SDK.list 失败为 RuntimeBootstrapError（TASK-013 §附加交付 2）。本场景对应 TASK-013 验收 #4。
 
 ---
 
@@ -256,42 +265,96 @@
 
 ### §3.4 SessionManager / SessionStore / TranscriptWriter（Phase B 范围）
 
-> **本节场景在 Phase B 实施期间会被填实**。以下为 QA 提前规划的场景轮廓；Phase B 启动时 QA 会补充完整的"输入/期望/通过标准"。
+> **本节通过标准已在 TASK-014 期间（与 DEV Phase B 并行）全部填实**（TS-4.1~TS-4.5）。TS-4.6 保持"Phase B / Phase C 决议中"，不在 Phase B acceptance 范围内。
 
-**TS-4.1 SessionStore 单 record per file**
-- 输入：1 个 SessionRecord（session_id, agent_id, status=running）
-- 操作：SessionStore.save(record)
-- 期望：`.codeflow/state/sessions/<session_id>.json` 文件存在，内容等效 record
-- 类型：unit（Phase B 待补全）
+**TS-4.1 SessionStore 单 record per file 落盘**
+
+- 输入：`SessionStore.save(sessionRecord)` with `session_id = "sess-xxx"`
+- 操作步骤：
+  1. 构造 fixture sessionRecord（含 session_id / agent_id / status=running）
+  2. 调 `store.save(sessionRecord)`
+  3. 检查文件系统
+- 期望：
+  - `<dir>/sess-xxx.json` 文件存在
+  - 文件内容 JSON 等效 sessionRecord（所有字段一致）
+  - `<dir>/sess-xxx.json.tmp` 不可见（atomic rename 已完成）
+- 通过标准：
+  - `await fs.access(path)` 不抛
+  - `JSON.parse(await fs.readFile(path, "utf-8"))` deepEqual sessionRecord
+  - 目录里没有 `.tmp` 文件
+- 类型：unit
 
 **TS-4.2 TranscriptWriter append-only — 单事件追加**
-- 输入：1 个 RuntimeEvent（turn, content="hello"）
-- 操作：`transcriptWriter.append(runId, event)`
-- 期望：`.codeflow/state/transcripts/<run_id>.md` 文件存在且末尾含 event 格式化输出；不做 atomic-rename（append-only 无需）
-- 类型：unit（Phase B 待补全）
 
-**TS-4.3 TranscriptWriter 高频事件流 — 不丢事件**
-- 输入：1000 个连续 RuntimeEvent，逐一 `append()`
-- 操作：串行 append 1000 次
-- 期望：transcript 文件行数与事件数一致（按 line-based 校验，每事件占固定行）
-- 类型：integration（Phase B 待补全）
+- 输入：`writer.attach(runId, mockHandle)` + 触发 1 个 `message_delta` RuntimeEvent
+- 操作步骤：
+  1. 构造 MockRunHandle（EventEmitter 模拟，或 spike 的 RunHandle 接口）
+  2. `writer.attach(runId, handle)`
+  3. 触发 1 个 `message_delta` 事件（content="hello"）
+  4. `await writer.close(runId)` flush
+  5. 读 transcript 文件
+- 期望：
+  - `<dir>/<run_id>.md` 存在且包含 1 行 entry
+  - 行格式：`[ISO timestamp] [message_delta] payload_summary`
+  - **不做 atomic-rename**（append-only 无需；直接 appendFile 或 stream.flags:"a"）
+- 通过标准：
+  - 文件存在，行数 === 1（close 后计算）
+  - 行匹配正则 `/^\[\d{4}-\d{2}-\d{2}T.*Z\] \[message_delta\] /`
+- 类型：unit
 
-**TS-4.4 SessionStore 元数据更新 → atomic-write**
-- 输入：SessionRecord status=running → 调 SessionStore.update(session_id, { status: "completed" })
-- 期望：文件内容更新；原子写（write-temp + rename）
-- 类型：unit（Phase B 待补全）
+**TS-4.3 TranscriptWriter 高频 1000 事件流 — 不丢事件**
+
+- 输入：attach 后触发 1000 次 `message_delta` 事件，间隔 0ms
+- 操作步骤：
+  1. attach mockHandle
+  2. 连续触发 1000 个事件
+  3. `await writer.close(runId)` flush
+  4. 读文件行数
+- 期望：
+  - 文件行数 **=== 1000**（不少；丢事件 = 测试失败）
+  - 每行格式正确（匹配同 TS-4.2 正则）
+  - 整个测试 < 5 秒
+- 通过标准：
+  - `(await fs.readFile(path, "utf-8")).split("\n").filter(Boolean).length === 1000`
+  - 测试耗时 < 5000ms
+- 类型：integration
+- 备注：必须在 `writer.close(runId)` 之后再读行数，确保 stream/buffer 已 flush
+
+**TS-4.4 SessionStore 元数据更新 → atomic-write 保持 durability**
+
+- 输入：先 `save(record)`（status=running），然后改 `record.status = "completed"` 再 `save(updated)`，期间 mock `fs.rename` 在第二次 save 时 throw
+- 操作步骤：
+  1. 第一次 `store.save(record)`（成功）
+  2. 设置 `fs.rename` mock throw
+  3. 第二次 `store.save(updated)` → 捕获 throw
+  4. `store.load(session_id)` 读回
+- 期望：
+  - 第一次 save 文件存在
+  - 第二次 save 抛错
+  - `load(session_id)` 返回**第一次 save 的版本**（status=running，不是 completed）
+- 通过标准：
+  - 第二次 save 抛出错误（RegistryWriteError 或同款）
+  - `loaded.status === "running"`（原子写保护原文件）
+- 类型：unit
 
 **TS-4.5 跨 run 累计 cost 字段正确累加**
-- 输入：Session 含 2 个 Run，各贡献 `cost_usd`；SessionManager.closeRun 调用
-- 期望：`session.total_cost_usd === run1.cost + run2.cost`
-- 类型：unit（Phase B 待补全）
 
-**TS-4.6 启动期扫描 status=running 的 session → 恢复策略 [TBD]**
-- 输入：`.codeflow/state/sessions/` 有 1 个 status=running 的 session（上次崩溃遗留）
-- 操作：RuntimeBootstrap.run()（Phase B 扩展）
-- 期望：**恢复策略 TBD**——继续 stream / 标 cancelled / 标 failed 哪种优先？
-- **QA 请求 PM 在 Phase B 派单时明确此策略，届时补全通过标准**
-- 类型：integration（Phase B 待补全）
+- 输入：SessionRecord 含 `runs: [{ cost: 0.05 }, { cost: 0.07 }]`；初始 `total_cost_usd = 0`
+- 操作步骤：
+  1. 调 SessionManager 内的 cost 累加逻辑（如 closeRun / endSession）触发 2 次
+  2. 读取 SessionRecord 的 `total_cost_usd`
+- 期望：`total_cost_usd === 0.12`
+- 通过标准：
+  - `Math.abs(record.total_cost_usd - 0.12) < 1e-9`（浮点容差）
+- 类型：unit
+
+**TS-4.6 启动期扫描 status=running session → 恢复策略**
+
+⏸ **Phase B / Phase C 决议中**
+
+PM 5/9 14:00 决定：Phase B 仅交付 SessionStore 读写 surface，**不实现** reconciliation 逻辑。具体策略（继续 stream / 标 cancelled / 标 failed）由 Phase C 或 S4（Review Engine）决议。
+
+QA 当前不补全本场景通过标准。`test-strategy-s3.md` 在 Phase B 实施期间不接受本场景作为 acceptance 项。
 
 ---
 
@@ -405,31 +468,56 @@ __tests__/fixtures/
 > 2. 重点手工验证 TS-3.3（spy 验证 SDK.create 未调用）和 TS-2.6（RuntimeNotReadyError）
 > 3. 跑 `git diff packages/codeflow-protocol/schemas/ packages/codeflow-protocol/src/types.ts` 确认空
 > 4. 跑 `git diff _ignore/spike_sdk_doorbell/` 确认空
-> 5. 全部通过后写 `REPORT-020-QA-to-PM`（或对应序号的 Phase A acceptance report）
+> 5. 全部通过后写对应序号的 Phase A acceptance report
 
 ---
 
-## §6 待 D:\FCoP 评审字段清单
+## §5b Phase B 验收清单（TASK-013 §验收标准 15 项 ↔ TS-x.x 对照）
 
-> 按 §8.0 硬规则 #4：QA 发现的 schema 歧义 / 缺字段 / 命名不一致**不允许**在本仓修复，统一列在此处，由 PM 合并到上游 FCoP Issue #2 提案。
+将 `TASK-20260509-013-PM-to-DEV.md` §验收标准 15 项与本策略 §3 场景逐项对照，供 PM 在收到 DEV `REPORT-013` 后快速交叉验证：
 
-### 现阶段发现
+| TASK-013 验收 # | 项 | 对应 QA 场景 | 备注 |
+|---|---|---|---|
+| **1** | 包编译通过（`tsc --noEmit` 零报错） | — （编译验收，非功能测试）| `cd packages/codeflow-runtime && npx tsc --noEmit` |
+| **2** | `@codeflow/protocol` 包未受影响（`npm test` 仍 8/8） | — （回归验收）| `cd packages/codeflow-protocol && npm test` |
+| **3** | Phase A 16 + Phase B 新增测试全过（≥ 25 tests / 0 fail） | Phase A：§3.1~§3.3 各场景；Phase B：**TS-4.1~TS-4.5** + **TS-2.8**（场景 12） | `cd packages/codeflow-runtime && npm test` |
+| **4** | TS-2.8 patch 测试场景 12 命中（`assert.rejects(... RuntimeBootstrapError, /SDK.list\(\) failed/)`） | **TS-2.8**（已更新通过标准）| DEV TASK-013 §附加交付 2 实现；QA 在 §3.2 TS-2.8 中已写完整断言规格 |
+| **5** | SessionStore atomic-write 模式正确（grep：`*.tmp + rename + fsync + win32 守护`） | **TS-4.4**（rename 中断保持原文件）| grep 验证 `SessionStore.ts` 含三步原子写 |
+| **6** | TranscriptWriter append-only（grep：`appendFile` 或 `createWriteStream(flags:"a")`，无 overwrite） | **TS-4.2 / TS-4.3** | grep 验证 `TranscriptWriter.ts` 不含 `writeFile(path, ...)` 覆盖模式 |
+| **7** | `cancelAllForEmergencyStop` 用 `Promise.allSettled`（grep 验证） | — （架构约束，非 QA 场景；grep 即可）| `grep "allSettled" packages/codeflow-runtime/src/session/SessionManager.ts` |
+| **8** | 协议依赖纪律 grep（runtime/src 不重新声明 schema 字段名） | **TS-0.2** | 同 Phase A 验收 #7 |
+| **9** | ReadLints 零错误（所有改动文件）| — （lint 检查）| 对 SessionManager / SessionStore / TranscriptWriter + 附加交付文件 |
+| **10** | README 更新至 Phase B 完成态（SessionManager / SessionStore / TranscriptWriter 标 ✅）| — （文档验收）| `Select-String "SessionStore.*✅" packages/codeflow-runtime/README.md` |
+| **11** | 不动 spike 文件夹（`git diff --stat _ignore/spike_sdk_doorbell/` 空）| — （git 验收）| 同 Phase A 验收 #10 |
+| **12** | 不动 protocol schema 字段（`git diff --stat packages/codeflow-protocol/schemas/` 空）| — （git 验收）| 同 Phase A 验收 #11 |
+| **13** | L2 §0.0 改动正确（`Select-String "ADMIN 5/9 13:51" docs/design/codeflow-v2-on-fcop-sdk.md` 命中）| — （文档验收）| 宪法第 3 句落档 |
+| **14** | L2 §3.0 节存在（`Select-String "^### 3.0 设计哲学" docs/design/codeflow-v2-on-fcop-sdk.md` 命中）| — （文档验收）| 协作宇宙哲学落档 |
+| **15** | L2 解读表追加成功（grep "协作宇宙" 命中 ≥ 2 处）| — （文档验收）| §0.0 + §3.0 各含 1 处 |
 
-**FCoP-QA-01：`state_history` 字段归属待确认**
+> Phase B acceptance 操作流程（QA 收到 DEV REPORT-013 后）：
+> 1. 对照上表，按 DEV 回执的自测结果逐项交叉核对
+> 2. 重点手工验证 TS-4.3（行数 === 1000，< 5s）和 TS-4.4（atomic-write durability）
+> 3. 手工验证 TS-2.8（场景 12）：确认 RuntimeBootstrapError 抛出 + message 含规定字符串
+> 4. 跑 `git diff packages/codeflow-protocol/` 确认空
+> 5. 跑 `git diff _ignore/spike_sdk_doorbell/` 确认空
+> 6. L2 验收 13/14/15 跑 grep 命令确认命中
+> 7. 全部通过后写对应序号的 Phase B acceptance report 回 PM
 
-- 场景来源：TS-5.3（Task Scheduler 状态变化追加）
-- 问题描述：`state_history[]` 数组（记录 AgentRecord 状态变化历史）应定义在 `@codeflow/protocol` 的 Agent Schema（协议层，跨实现可见）？还是 `types/state.ts` 的 runtime 私有类型（仅本 runtime 实现持久化）？
-- 影响：若属协议层 → 需 FCoP Issue #2 新增字段，等上游 maintainer 批准；若属 runtime 私有 → Phase C 可直接在 `types/state.ts` 添加，无需等待
-- 建议：QA 倾向「runtime 私有」——状态历史是 runtime 治理诊断信息，不是 agent 的协议身份属性；但需 PM 与 DEV 确认后录入
+> **Phase B 不含的 QA 场景**：TS-4.6（Phase C / S4 决议中），不在本轮 acceptance 检查范围。
 
-**FCoP-QA-02：TS-2.8 SDK.list 超时的全局策略未在 crash-recovery.md 涉及**
+---
 
-- 场景来源：TS-2.8（SDK.list 完全失败）
-- 问题描述：当 SDK.list() 本身失败时，crash-recovery.md 决策 2 只写了"单 record 失败不阻断启动"，但 SDK.list 失败属于"全局失败"而非"单 record 失败"，策略未被 4 决策覆盖
-- 建议：在 Phase A 实施期间由 PM 推动 DEV 补充 crash-recovery.md 相关段落，或在 Phase A DEV 回执里作为"关键决策记录"纳入
-- 与 FCoP 的关系：此问题属 runtime 工程层判断，无需上游协议变更；但如 v0.2 加 Mobile 告警，可能需要 FCoP 新增"bootstrap_failed" event schema
+## §6 字段归属判定与 FCoP 协调清单
 
-> 暂无 schema 字段层面的缺口（`agent_id`, `layer`, `sdk_agent_id`, `status`, `runtime_failure` 等均已在 §3 五类 schema 中定义）。
+> 标题已从"待 D:\FCoP 评审字段清单"改名——因为 PM-01 已对清单内 2 项作出正式判定（TASK-014 §一，PM 5/9 14:00 回告）。
+
+| 编号 | 字段 / 议题 | 状态 | 处置 |
+|---|---|---|---|
+| **FCoP-QA-01** | `state_history` 字段归属 | ✅ **已确认 = 协议层** | 已在 `packages/codeflow-protocol/schemas/task.schema.json` 等 4 处定义；**不进** FCoP Issue #2；Phase C Task Scheduler 消费时直接使用现有字段 |
+| **FCoP-QA-02** | TS-2.8 SDK.list 超时归属 | ✅ **已确认 = runtime 工程层** | DEV 在 Phase B 附加交付 2 中已 patch `RuntimeBootstrap.ts` 翻译为 `RuntimeBootstrapError`；**不进** FCoP 提案 |
+
+**v0.2 备忘**（placeholder，不在 S3 范围）：
+- 当 Mobile Console 启动后，runtime-level `RuntimeBootstrapError` 可能需要事件化，由 runtime 推送到 Mobile 的"Audit"屏。届时是否需要新增 FCoP event schema，由 v0.2 sprint 决议。
 
 ---
 

@@ -2340,9 +2340,267 @@ PM-01 派 `TASK-20260509-006-PM-to-DEV.md`，DEV-01 在 ~3 分钟内完成，回
 
 ---
 
-## 11. 附录
+## 11. Packaging & Distribution（v2 用户最终拿到什么）
 
-### 11.1 参考链接
+> **本章决策锁定（ADMIN 5/9 14:33）**：
+>
+> v2 沿用 v1 的「**双击 EXE = 码流**」产品形态。技术栈从 Python + PyInstaller
+> 换成 Node 22+ 官方 single-executable application（`--experimental-sea-config`）。
+> 新增 `codeflow-shell/` 子项目作为 v2 的"壳子"，内嵌 `@codeflow/runtime` + 系统托盘
+> + Web Panel + Mobile PWA bridge。
+>
+> v1 EXE 在 v2 EXE 出厂后**保留 1 个 release cycle**作为 deprecation buffer，
+> v0.3 触发归档到 `legacy/`。
+
+### 11.0 一句话锁定
+
+| 维度 | 决策 |
+|---|---|
+| 用户最终拿到 | `CodeFlow-v3.0.0.exe`（Windows 单 EXE）+ 后续 macOS/Linux pkg |
+| 启动方式 | 双击 → 系统托盘 + 自启 web panel `http://127.0.0.1:18765`（沿用 v1 端口） |
+| 安装前置 | **零额外依赖**（不需要装 Node / Python / Cursor IDE） |
+| 与 Mobile PWA 关系 | EXE = PC 执行节点入口；PWA = Governance 入口（§0.9）；两者通过 `server/relay/` 配对 |
+| 与 v1 EXE 关系 | v2 EXE 出厂后给 v1 用户 **1 release cycle** 缓冲，再归档 `legacy/` |
+| 实施 sprint | **Sprint S6**（v0.1 Backend Kernel 最后一刷，§10.2 末位） |
+
+### 11.1 为什么是 EXE，而不是 npm CLI 或 Mobile-only
+
+#### 选项空间
+
+| 路径 | 含义 | v0.x 是否采纳 |
+|---|---|---|
+| **X. 去 EXE 化** | Mobile PWA 主入口 + PC 守护进程（命令行） | ❌ |
+| **Y. v2 也是 EXE**（本章采纳） | v2 沿用双击形态，技术栈换 Node SEA | ✅ |
+| **Z. 双形态共生** | npm CLI + EXE 两条交付链并存 | ⏸ v1.0 后再评估（§10.6 触发） |
+
+#### 不选 X（去 EXE 化）的 4 条理由
+
+1. **270 commits + 19 releases 已训练用户预期**：v1 用户的"码流 = 一个图标"心智不是可丢的资产
+2. **零安装摩擦是产品门槛**：让 v0.1 用户先装 Node 18+ = 流失
+3. **PC 上的"图标"是产品锚点**：没有图标 = 产品在用户的开始菜单 / 任务栏 / 桌面没有"位置"
+4. **跟 §0.9 Mobile-first 不冲突**：Mobile 是 *Governance Plane*（治理面），EXE 是 *Worker Plane*（执行面）；§0.7.4 的"三节点"结构里两者并存
+
+#### 不选 Z（双形态共生）的 1 条理由
+
+v0.x 阶段维护两条交付链 = 维护成本翻倍 + release 复杂度翻倍。等 v1.0 schema freeze + 第三方实现接入（§10.6 判据）后再考虑 npm 公开包发布。
+
+#### 选 Y 的关键判据
+
+> 「**v2 EXE 是 v1 EXE 的下一代，不是不同物种。**」
+>
+> 这跟 §0.7.2 「身份反转」一致：v1 是 *外挂*，v2 是 *Runtime*——但**用户拿到的还是同一种东西的下一代**（图标、双击、托盘、Web Panel）。
+> 改变的是底层引擎（Python+pyautogui → Node+SDK），**不是**改变交付形态本身。
+
+### 11.2 工程结构：`codeflow-shell/` 子项目
+
+#### 仓内布局（Sprint S6 创建）
+
+```text
+codeflow-pwa/
+├── packages/
+│   ├── codeflow-protocol/         ← Sprint S1 已完成 ✅（5 schemas）
+│   └── codeflow-runtime/          ← Sprint S2-S5 在做（kernel）
+│
+├── codeflow-shell/                ← Sprint S6 新增 ⭐（v2 的"壳子"）
+│   ├── src/
+│   │   ├── main.ts                ← 入口（启动 runtime + tray + panel + bridge）
+│   │   ├── tray.ts                ← 系统托盘（继承 v1 codeflow-desktop/main.py 托盘行为）
+│   │   ├── web-panel.ts           ← 内嵌 Express + 复用 web/pwa/ 静态资源
+│   │   ├── relay-bridge.ts        ← 与 Mobile PWA 通信（沿用 v1 server/relay/ 协议）
+│   │   └── lifecycle.ts           ← 单实例互斥 + 优雅退出 + 自启注册（继承 v1 行为）
+│   ├── assets/
+│   │   ├── app.ico                ← 沿用 v1 panel/app.ico
+│   │   └── tray-icon.png
+│   ├── sea-config.json            ← Node 22+ SEA 配置
+│   ├── pack.cmd                   ← Windows 打包脚本（取代 v1 codeflow-desktop/pack.cmd）
+│   ├── pack.sh                    ← macOS/Linux 打包脚本
+│   ├── package.json
+│   └── README.md
+│
+├── codeflow-desktop/              ← v1 EXE（freeze + deprecation buffer）
+│
+└── dist/
+    ├── CodeFlow-Desktop-v2.12.17.exe   ← v1（继续提供 1 个 cycle）
+    └── CodeFlow-v3.0.0.exe              ← v2 ⭐（用户最终下载）
+```
+
+#### 技术栈选型对比（W1=Y 决策展开）
+
+| 候选 | 体积 | Node 版本 | 跨平台 | 是否第三方 | 评价 |
+|---|---|---|---|---|---|
+| **`node --experimental-sea-config`** | ~30MB | 22+（已稳定）| Win/macOS/Linux 都支持 | ❌ Node 官方原生 | ✅ **采纳** |
+| `Bun.compile` | ~50MB | n/a（Bun runtime）| Win/macOS/Linux | Bun 官方 | ⏸ 备选（如 Node SEA 出问题） |
+| `@vercel/pkg` | ~40MB | 18 LTS | 都支持 | ⚠️ 已 deprecated | ❌ 不采纳 |
+| `Tauri 2.0` | ~10MB | 22+ + Rust | 都支持 | Rust 工具链 | ❌ 不采纳（要 Rust 工具链 + Webview） |
+| `Electron` | ~150MB | 任意 | 都支持 | Electron | ❌ 不采纳（体积过大；跟 v1 ~30MB 形成断层） |
+
+**采纳 Node SEA 的关键理由**：
+- 官方原生（Node 22 LTS 已稳定）= 跟 Cursor SDK 同栈、零第三方依赖
+- 体积 ~30MB ≈ v1 PyInstaller 包，用户感知"码流没变重"
+- 不带 Webview/Chromium = web panel 仍走"系统浏览器/Cursor Simple Browser"模式（沿用 v1 行为）
+- 升级路径清晰：Node 23/24 LTS 时 SEA 只会更稳
+
+### 11.3 v2 EXE 的内部架构（4 层）
+
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│ CodeFlow-v3.0.0.exe (Node SEA, 内嵌 codeflow-shell/src/main.js)        │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│   Layer 1：Shell（codeflow-shell）                                    │
+│      • 单实例互斥 + 系统托盘 + lifecycle                                │
+│      • Web Panel 内嵌 (Express @ 18765)                              │
+│      • Relay Bridge → Mobile PWA                                     │
+│                                                                      │
+│   Layer 2：Runtime Kernel（@codeflow/runtime）                       │
+│      • AgentRegistry / SessionManager / Task Scheduler                │
+│      • PersistentStore / RuntimeBootstrap                            │
+│      • 6 个内核子系统（§2.1）                                         │
+│                                                                      │
+│   Layer 3：Protocol（@codeflow/protocol）                            │
+│      • 5 schemas + AJV validator + CLI                               │
+│                                                                      │
+│   Layer 4：External Adapter                                          │
+│      • CursorSdkAdapter → @cursor/sdk → cursor.com                   │
+│      • FcopMcpClient → fcop-mcp（pip install） → 文件系统               │
+│      • RelayClient → server/relay/ → Mobile PWA                       │
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
+        │                   │                       │
+        ▼                   ▼                       ▼
+   系统托盘 / 桌面图标   localhost:18765       Mobile PWA / Cursor / fcop
+```
+
+层级原则：
+
+- **Shell 不直接调 Cursor SDK**，必须经 Runtime Kernel
+- **Runtime Kernel 不知道有 Shell**（kernel 自身可以脱离 EXE 跑在 Node CLI 下，作为 Z 路径的预留通道）
+- **Protocol 完全独立**（既能被 Kernel 用，也能被外部 npm 包用 = §10.6 触发后）
+- **Adapter 层全部走 §3.6 Skill schema 描述**——Shell 加新外接能力（如 Slack 通知）= 不动 Kernel
+
+### 11.4 v1 EXE 的退役共生（W3=b 落档）
+
+#### 时间线
+
+```text
+[ Sprint S6 ─ v0.1 Backend Kernel 完成 ]    Q3 2026
+   │
+   ├─→ codeflow-shell/ 落地 + CodeFlow-v3.0.0.exe 首次出厂
+   ├─→ v1 codeflow-desktop/ 进入 freeze（按 §8.2 已规划）
+   └─→ Release notes 同时公告：
+         "CodeFlow v3.0.0（v2 backend kernel）已发布"
+         "CodeFlow Desktop v2.12.x 进入 deprecation buffer，下个 minor cycle 后归档"
+
+[ Sprint S7-S10 ─ v0.2 Mobile Governance MVP ]    Q4 2026
+   │
+   ├─→ v1 EXE 仍可下载，但 GitHub Release 标 "deprecated"
+   ├─→ Update notice：v1 用户运行时弹窗提示"v3.x 已发布"
+   └─→ v2 EXE 完成 §0.8.3 Hello World demo + Mobile pairing
+
+[ v0.3 触发节点 ]    Q1 2027
+   │
+   └─→ codeflow-desktop/ 整目录 git mv 到 legacy/codeflow-desktop-v1/
+       README 加 "v1 archived" 链接
+       Release page 不再显示 v2.12.x 下载链接
+```
+
+#### deprecation buffer 期间的判据
+
+| 判据 | v1 → v2 切换条件 | 状态触发 |
+|---|---|---|
+| v2 EXE 完成 §0.8.3 Hello World demo | ≥ 1 次成功跑通 PM→DEV→REVIEW→DONE | 立即 deprecate v1 |
+| v2 EXE 跑过 5 个真人用户验收 | ≥ 5 真人确认"双击就能用" | 锁定 v2 主链 |
+| v2 EXE 兼容 v1 的 `docs/agents/codeflow.json` | v1 用户切换不需要重选团队 | 解除"切换流失" 担忧 |
+| v0.3 释放完成 | §10.4 v0.3 sprint 全部 ship | 触发 `git mv` 到 legacy/ |
+
+任一判据未达成 = deprecation buffer 延长，不强制 v0.3 触发。
+
+### 11.5 与路径 X（去 EXE）/ 路径 Z（双形态）的兼容关系
+
+| 路径 | v0.x 状态 | 长期可能性 |
+|---|---|---|
+| **Y（本章采纳）** | ✅ v0.1 起执行 | 主线 |
+| X（去 EXE） | ❌ 不采纳 | 永远不采纳——但 §0.9 Mobile-first **本身就涵盖 X 的核心精神**（手机扫码即用 + PC 退化为执行节点），所以"X 的价值"已通过 PWA 实现 |
+| Z（双形态共生） | ⏸ 不采纳 | v1.0 schema freeze 后 + §10.6 第三方实现接入 ≥ 3 个 → 释放 npm 公开包：`npm install -g @codeflow/runtime` |
+
+**关键认识**：路径 Y 不排斥 X / Z；它只锁定"v0.x 阶段用户拿到的是 EXE"。
+- §11.3 Layer 2 (Runtime Kernel) 可独立脱离 Shell 运行 = Z 路径的工程预留
+- §11.3 Layer 1 (Shell) 是可选层 = X 路径的工程预留（如果将来真有用户只用 Mobile PWA）
+
+### 11.6 Sprint 归属：Sprint S6（v0.1 最后一刷）
+
+把 §10.2 v0.1 Backend Kernel 路线图重新对照：
+
+| Sprint | 主题 | 状态 |
+|---|---|---|
+| S1 | Skeleton + 协议冻结（@codeflow/protocol）| ✅ 已完成 |
+| S2 | AgentRegistry + Session 设计骨架 | ✅ 已完成 |
+| S3 | Task Scheduler + AgentRegistry/Session 真实实现 | 🚀 进行中 |
+| S4 | Skill Runtime | ⏳ 待启动 |
+| S5 | Review Engine | ⏳ 待启动 |
+| **S6** | **E2E mini demo + `codeflow-shell/` 落地 + 第一个 v2 EXE 出厂** | ⏳ 待启动 |
+
+**S6 sprint 范围扩展**（原 §10.2 仅"E2E mini demo"，本章追加 codeflow-shell/）：
+
+```text
+原 S6（§10.2 line 2245-2249）：
+  - E2E mini demo：跑通 §0.8.3 Hello World
+  - SDK / FCoP / Mobile bridge 集成
+
+本章追加：
+  - codeflow-shell/ 子项目创建 + main.ts/tray.ts/web-panel.ts/relay-bridge.ts
+  - sea-config.json + pack.cmd + pack.sh
+  - assets/app.ico 从 v1 codeflow-desktop/panel/ 继承
+  - dist/CodeFlow-v3.0.0.exe 首次发布
+  - GitHub Release: "CodeFlow v3.0.0 — first release on v2 backend kernel"
+  - Release notes 同步公告 v1 进入 deprecation buffer
+```
+
+### 11.7 Sprint S6 acceptance（v2 EXE 出厂判据）
+
+| # | 判据 | 验证方式 |
+|---|---|---|
+| 1 | EXE 在 Win10/11 干净虚拟机双击运行 | 不弹出"先装 Node"等任何依赖错误 |
+| 2 | 系统托盘出现"CodeFlow v3"图标 | 视觉检查 + 右键菜单 含 "Open Panel / Quit" |
+| 3 | Web Panel 自动开浏览器到 `http://127.0.0.1:18765` | 沿用 v1 端口（保证 Mobile pairing 不破） |
+| 4 | 与 Mobile PWA 配对成功 | 扫二维码 → relay 双向连通 |
+| 5 | 跑通 §0.8.3 Hello World Demo | 一份 TASK → DEV agent → REVIEW → DONE |
+| 6 | EXE 体积 ≤ 50MB | 跟 v1 PyInstaller ~30MB 同量级（不出现 Electron 级膨胀） |
+| 7 | EXE 启动时间 ≤ 3 秒 | 桌面双击 → 托盘出现 ≤ 3s |
+| 8 | 跨平台 pkg 至少出 macOS arm64 + Linux x64 | 不只是 Windows |
+| 9 | 与 v1 共存测试 | v1 EXE 和 v2 EXE 同时运行，不抢端口（v2 用 18765，v1 已经用 18765 → 需端口检测降级到 18766）|
+| 10 | Sprint S6 acceptance 复用 §0.8.3 验收脚本 | 单一 source-of-truth |
+
+### 11.8 风险与回退
+
+| 风险 | 概率 | Plan B |
+|---|---|---|
+| Node SEA 在 Node 22 LTS 仍标 experimental（Node 24 才稳定） | 中 | fallback 到 `Bun.compile`（同样 single-executable，体积稍大但跨平台稳） |
+| `@cursor/sdk` 在 SEA 内不能正常加载 native binding | 低 | 改用"EXE + sidecar Node 进程"模式（类似 Tauri） |
+| Mobile PWA 配对协议在 v2 跟 v1 不兼容 | 低 | server/relay/ 加 v1/v2 兼容层，按 client_type 分发 |
+| 用户拒绝从 v1 EXE 切换 | 中 | deprecation buffer 延长到 v0.5（§10.5 触发再砍） |
+| Windows Defender 误报 SEA 包成"未签名"风险 | 高 | 申请 EV code-signing 证书（v0.2 起做）；同时提供"无签名版本"+ md5 校验码 |
+
+### 11.9 与现有章节的索引
+
+| 议题 | 锚点章节 |
+|---|---|
+| 为什么 v2 不再做 UI 自动化 | §0.7.2「身份反转」 |
+| EXE 在三节点架构里的位置 | §0.7.4 / §1.2「三节点分布式 Runtime」 |
+| EXE 与 Mobile PWA 的分工 | §0.9.1 / §0.9.2「Worker / Governance / Admin」 |
+| EXE 内嵌的 6 大子系统 | §2.1「CodeFlow Runtime 6 大内核子系统」 |
+| EXE 跑出第一个 demo 的脚本 | §0.8.3「Hello World Demo 验收」 |
+| v1 EXE 的归档时间表 | §8.2 / §8.5 / §10.4 |
+| 第三方实现接入触发 npm 包发布 | §10.6 v1.0 Schema Freeze 判据 |
+
+> 📌 §11 是 §0.7 + §0.9 在"用户实际拿到什么"维度的工程兑现。
+> 后续任何关于"码流怎么发布 / 怎么安装 / 怎么升级"的讨论，必须先回 §11.0 决策锁定 + §11.1 选项空间。
+
+---
+
+## 12. 附录
+
+### 12.1 参考链接
 
 - **对外速读版（本仓内）：[`docs/codeflow-overview.md`](../codeflow-overview.md)** —— 5 分钟读完的一页纸版本，给非技术读者 / 第一次接触 v2 的人
 - [FCoP 公仓 (GitHub Pages)](https://joinwell52-ai.github.io/FCoP/)
@@ -2350,8 +2608,9 @@ PM-01 派 `TASK-20260509-006-PM-to-DEV.md`，DEV-01 在 ~3 分钟内完成，回
 - [Cursor SDK (TypeScript)](https://cursor.com/docs/api/sdk/typescript)
 - [Cursor 论坛 issue #158480 - Doorbell primitive](https://forum.cursor.com/t/feature-request-chat-notify-primitive-we-already-have-the-mailbox-files-we-just-need-the-doorbell/158480)
 - [Spike PoC: `_ignore/spike_sdk_doorbell/`](../../_ignore/spike_sdk_doorbell/) (本仓本地，已验证)
+- [Node.js Single Executable Applications](https://nodejs.org/api/single-executable-applications.html) (Node 22+ SEA, §11 关键依赖)
 
-### 11.2 相关 Essay（FCoP 公仓）
+### 12.2 相关 Essay（FCoP 公仓）
 
 - Essay 01 - The Natural Protocol
 - Essay 02 - Filename as Protocol
@@ -2361,7 +2620,7 @@ PM-01 派 `TASK-20260509-006-PM-to-DEV.md`，DEV-01 在 ~3 分钟内完成，回
 - Essay 06 - Patrol vs Governance Patrol（v1 → v2 灵魂转世，详见 §0.9.5.A）
 - Essay 07 - Runtime Protocol Lessons（v1.0 时撰写，详见 §10.6）
 
-### 11.3 术语表
+### 12.3 术语表
 
 | 术语 | 定义 | 章节 |
 |---|---|---|
@@ -2374,8 +2633,10 @@ PM-01 派 `TASK-20260509-006-PM-to-DEV.md`，DEV-01 在 ~3 分钟内完成，回
 | **HITL (Human-in-the-loop)** | 高风险操作的人工拍板机制 | §0.9.4 |
 | **needs_human** | Review decision 的特殊枚举值，触发 Mobile 推送 | §3.4 |
 | **Doorbell** | "门铃"——SDK 通过 `Agent.resume()` 唤醒长存 agent 的机制 | §0 / §2.1 #2 |
+| **codeflow-shell** | v2 EXE 的"壳子"子项目（Node SEA + 托盘 + Web Panel + Relay Bridge）| §11.2 |
+| **Node SEA** | Node 22+ 官方 single-executable application 机制 | §11.2 |
 
-### 11.4 起草历史（Draft History）
+### 12.4 起草历史（Draft History）
 
 | 刀次 | 范围 | 关键产物 |
 |---|---|---|
@@ -2383,6 +2644,7 @@ PM-01 派 `TASK-20260509-006-PM-to-DEV.md`，DEV-01 在 ~3 分钟内完成，回
 | 第二刀 | §0.5 + §0.6 + §3 | AI OS 雏形论 + 5 类 schema |
 | 第三刀 | §0.6.7 + §0.6.8 + §0.8 + §2.1.1 | 护城河 + Docker 前夜 + scoping + Review Engine 标星 |
 | 第四刀 | §0.7.4 升级 + §0.7.5 副定位 + §0.9 全章 | Mobile-first Governance |
-| **第五刀** | §0.0 Executive Summary + §3 schema 兑现 §0.9 + §10 路线图 + §11 附录 | 文档闭合：愿景→协议→sprint |
+| 第五刀 | §0.0 Executive Summary + §3 schema 兑现 §0.9 + §10 路线图 + §11 附录 | 文档闭合：愿景→协议→sprint |
+| **第六刀** | §11 Packaging & Distribution（v2 EXE 路径锁定）+ §12 附录改名 | ADMIN 5/9 14:33「按推荐」拍板：W1=Y / W2=A / W3=b |
 
 ---
