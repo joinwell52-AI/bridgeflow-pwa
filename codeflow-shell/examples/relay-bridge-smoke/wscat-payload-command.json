@@ -1,0 +1,16 @@
+{
+  "room_key": "__YOUR_ROOM_KEY__",
+  "sender": "ADMIN",
+  "client_type": "mobile_admin",
+  "event_type": "task_create",
+  "payload": {
+    "task_id": "TASK-20260510-RELAY-SMOKE-PM-to-DEV",
+    "sender": "PM",
+    "recipient": "DEV",
+    "priority": "P2",
+    "thread_key": "codeflow-v02-rc1-relay-bridge-smoke",
+    "layer": "worker",
+    "title": "Relay Bridge Smoke — v0.2.0-rc.1",
+    "body": "This task was injected via relay-bridge from wscat (simulating PWA/phone). If you see this in the CodeFlow governance loop, relay-bridge is working.\n\nExpected: InboxWatcher picks up TASK-*.md written by relay-bridge.ts, governance loop runs, task_event is emitted back through relay to this wscat session."
+  }
+}

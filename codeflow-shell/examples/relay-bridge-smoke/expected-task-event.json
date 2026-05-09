@@ -1,0 +1,15 @@
+{
+  "_comment": "This is the expected shape of the task_event message relayed back to PWA/wscat after CodeFlow picks up the injected task. Field values marked <dynamic> will differ per run.",
+  "event_type": "task_event",
+  "sender": "codeflow-shell",
+  "client_type": "desktop_agent",
+  "room_key": "__YOUR_ROOM_KEY__",
+  "payload": {
+    "task_id": "TASK-20260510-RELAY-SMOKE-PM-to-DEV",
+    "status": "in_progress",
+    "stage": "dispatched",
+    "agent": "DEV-01",
+    "timestamp": "<dynamic: ISO8601>",
+    "session_id": "<dynamic: uuid>"
+  }
+}
