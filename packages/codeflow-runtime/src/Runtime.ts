@@ -1,13 +1,18 @@
 /**
  * Runtime — high-level composition root for the CodeFlow AI Runtime.
  *
- * Sprint S3 Phase C shipped the first 8 subsystems; Sprint S4 adds
+ * Sprint S3 Phase C shipped the first 8 subsystems; Sprint S4 added
  * three more (review layer + the AgentStatusReconciler integration hook
- * resolving REPORT-018 §五决策 B'). The full v0.1 stack is now:
+ * resolving REPORT-018 §五决策 B'); Sprint S5 Phase E now adds three
+ * more for Skill Runtime + fcop hard-dependency enforcement. The full
+ * v0.1 stack is now:
  *
  *   PersistentStore (agents.json)
- *     → AgentRegistry
- *     → RuntimeBootstrap (run once at construction)
+ *     → SkillRegistry (.codeflow/state/skills/)              ★ S5
+ *     → KernelDependencyValidator (fcop hard-dep gate)       ★ S5
+ *     → MCPInjector (stub mode v0.1)                         ★ S5
+ *     → AgentRegistry (with optional kernel + mcp hooks)
+ *     → RuntimeBootstrap (run once + kernel-dep gate)        ★ S5
  *     → SessionStore (per-session JSON)
  *     → TranscriptWriter (per-run markdown)
  *     → SessionManager
@@ -22,7 +27,8 @@
  * Reference:
  *   - TASK-20260509-018 §主交付 5b (this file, original Phase C version)
  *   - TASK-20260509-022 §主交付 5a (this file, S4 update)
- *   - design doc §0.8.3 (Hello World demo) and §10.2 (sprint roadmap)
+ *   - TASK-20260509-024 §主交付 5b (this file, S5 update)
+ *   - design doc §0.5 + §0.7.5 (fcop hard-dep) + §0.8.3 + §10.2
  *
  * What this file deliberately is NOT:
  *
@@ -58,6 +64,11 @@ import {
 import { SessionManager } from "./session/SessionManager.ts";
 import { SessionStore } from "./session/SessionStore.ts";
 import { TranscriptWriter } from "./session/TranscriptWriter.ts";
+import {
+  KernelDependencyValidator,
+  MCPInjector,
+  SkillRegistry,
+} from "./skill/index.ts";
 import type { ReconciliationReport } from "./types/state.ts";
 
 export interface RuntimeCreateOptions {
@@ -92,6 +103,23 @@ export interface RuntimeCreateOptions {
    * review, always pick `"REVIEW"` role). Sprint S4 addition.
    */
   reviewPolicy?: ReviewPolicy;
+  /**
+   * Directory the `SkillRegistry` scans for `<skill_id>.json` files.
+   * Default: `<persistDir>/skills`. Sprint S5 addition.
+   *
+   * If absent or empty, the kernel-dep validator will reject every
+   * non-trivial agent (no fcop@.+ resolvable) — the demo opts out of
+   * this by registering only agents with `skills: []` and not wiring
+   * the validator. Production deployments MUST plant at least one
+   * fcop-providing skill file here before starting.
+   */
+  skillsDir?: string;
+  /**
+   * v0.1 = "stub". Setting "live" makes `Runtime.create` eager-throw
+   * `MCPInjectorLiveModeNotImplementedError` — see decision T in
+   * REPORT-024. Sprint S5 addition.
+   */
+  mcpInjectorMode?: "stub" | "live";
   /** Optional logger override forwarded to TaskDispatcher + Bootstrap. */
   logger?: TaskDispatcherLogger;
 }
@@ -110,6 +138,9 @@ export class Runtime {
   public readonly bootstrap: RuntimeBootstrapResult;
 
   public readonly store: PersistentStore;
+  public readonly skillRegistry: SkillRegistry;
+  public readonly kernelValidator: KernelDependencyValidator;
+  public readonly mcpInjector: MCPInjector;
   public readonly registry: AgentRegistry;
   public readonly sessionStore: SessionStore;
   public readonly transcriptWriter: TranscriptWriter;
@@ -125,6 +156,9 @@ export class Runtime {
   private constructor(parts: {
     bootstrap: RuntimeBootstrapResult;
     store: PersistentStore;
+    skillRegistry: SkillRegistry;
+    kernelValidator: KernelDependencyValidator;
+    mcpInjector: MCPInjector;
     registry: AgentRegistry;
     sessionStore: SessionStore;
     transcriptWriter: TranscriptWriter;
@@ -139,6 +173,9 @@ export class Runtime {
   }) {
     this.bootstrap = parts.bootstrap;
     this.store = parts.store;
+    this.skillRegistry = parts.skillRegistry;
+    this.kernelValidator = parts.kernelValidator;
+    this.mcpInjector = parts.mcpInjector;
     this.registry = parts.registry;
     this.sessionStore = parts.sessionStore;
     this.transcriptWriter = parts.transcriptWriter;
@@ -166,14 +203,42 @@ export class Runtime {
     const sessionsDir = join(opts.persistDir, "sessions");
     const transcriptsDir = join(opts.persistDir, "transcripts");
     const reviewsDir = opts.reviewsDir ?? join(opts.persistDir, "reviews");
+    const skillsDir = opts.skillsDir ?? join(opts.persistDir, "skills");
+
+    // --- skill layer (Sprint S5) — must come BEFORE registry so the
+    //     registry's kernel-dep hook has a non-null validator. The
+    //     mcpInjector ctor eager-throws on mode="live" (decision T)
+    //     before any other side effect runs.
+    const skillRegistry = new SkillRegistry({
+      skillsDir,
+      ...(opts.logger ? { logger: opts.logger } : {}),
+    });
+    await skillRegistry.load();
+    const kernelValidator = new KernelDependencyValidator({
+      skillRegistry,
+      ...(opts.logger ? { logger: opts.logger } : {}),
+    });
+    const mcpInjector = new MCPInjector({
+      skillRegistry,
+      sdkAdapter: opts.sdkAdapter,
+      mode: opts.mcpInjectorMode ?? "stub",
+      ...(opts.logger ? { logger: opts.logger } : {}),
+    });
 
     // --- registry layer ---
     const store = new JsonFileStore({ path: agentsJsonPath });
-    const registry = new AgentRegistry({ store, sdk: opts.sdkAdapter });
+    const registry = new AgentRegistry({
+      store,
+      sdk: opts.sdkAdapter,
+      kernelValidator,
+      mcpInjector,
+    });
     const bootstrap = new RuntimeBootstrap({
       store,
       sdk: opts.sdkAdapter,
       registry,
+      kernelValidator,
+      mcpInjector,
     });
     const report = await bootstrap.run();
 
@@ -225,6 +290,9 @@ export class Runtime {
     return new Runtime({
       bootstrap: { report },
       store,
+      skillRegistry,
+      kernelValidator,
+      mcpInjector,
       registry,
       sessionStore,
       transcriptWriter,

@@ -38,12 +38,15 @@
 import type { AgentRecord } from "../types/state.ts";
 import {
   ReconciliationStrategy,
+  type KernelValidationFailureEntry,
   type ReconciliationFailedEntry,
   type ReconciliationForeignEntry,
   type ReconciliationOrphanedEntry,
   type ReconciliationReport,
   type ReconciliationSuccessEntry,
 } from "../types/state.ts";
+import type { KernelDependencyValidator } from "../skill/KernelDependencyValidator.ts";
+import type { MCPInjector } from "../skill/MCPInjector.ts";
 import type { AgentRegistry } from "./AgentRegistry.ts";
 import type { AgentSdkAdapter } from "./AgentSdkAdapter.ts";
 import {
@@ -71,6 +74,27 @@ export interface RuntimeBootstrapOptions {
    * to assert on the stdout one-liner without polluting test output.
    */
   logger?: Pick<Console, "log" | "warn">;
+  /**
+   * Phase E (S5) hook. When provided, after reconciliation the bootstrap
+   * runs `validateAll(success)` and:
+   *
+   *   - moves rejected agents from `success[]` → `failed[]` (with
+   *     `markFailed` so persistence agrees)
+   *   - records each rejection in `kernel_failures[]` for audit
+   *
+   * When absent (Phase A/B/C/D wiring), the bootstrap behaves exactly
+   * as before — `report.kernel_failures` is `[]`. Test scenario 13
+   * (TS-7.11) verifies the gating.
+   */
+  kernelValidator?: KernelDependencyValidator;
+  /**
+   * Phase E (S5) hook. When provided, after the kernel gate the
+   * bootstrap mounts skills for each surviving `success[]` agent
+   * (decision Q: sequential `await`, NOT `Promise.all` — stub mode
+   * is logger-only and we want stable ordering for test/operator
+   * assertions). v0.2 live mode swaps the body to real spawns.
+   */
+  mcpInjector?: MCPInjector;
 }
 
 export class RuntimeBootstrap {
@@ -78,12 +102,16 @@ export class RuntimeBootstrap {
   private readonly _sdk: AgentSdkAdapter;
   private readonly _registry: AgentRegistry;
   private readonly _logger: Pick<Console, "log" | "warn">;
+  private readonly _kernelValidator: KernelDependencyValidator | null;
+  private readonly _mcpInjector: MCPInjector | null;
 
   constructor(opts: RuntimeBootstrapOptions) {
     this._store = opts.store;
     this._sdk = opts.sdk;
     this._registry = opts.registry;
     this._logger = opts.logger ?? console;
+    this._kernelValidator = opts.kernelValidator ?? null;
+    this._mcpInjector = opts.mcpInjector ?? null;
   }
 
   /**
@@ -216,6 +244,77 @@ export class RuntimeBootstrap {
       // Decision 3 case Z (drift) — Phase A leaves detection unimplemented.
       const drifted: ReconciliationReport["drifted"] = [];
 
+      // Phase E (decision P): kernel-dep validation runs AFTER the
+      // SDK reconcile loop, so we know exactly which records are alive
+      // candidates for skill mounting. We loop the success array,
+      // demote violators to failed, and stamp `kernel_failures[]` for
+      // operator audit. The loop reads `success` while mutating it,
+      // so we walk it backwards to keep splicing semantics simple.
+      const kernel_failures: KernelValidationFailureEntry[] = [];
+      if (this._kernelValidator) {
+        const survivingRecords: AgentRecord[] = [];
+        for (const record of records) {
+          // We need the full record (skills + agent_id) — `success` only
+          // holds id pairs. The `records` we loaded in step 1 are the
+          // authoritative shape; intersect with `success`.
+          if (
+            success.some(
+              (s) => s.agent_id === record.protocol.agent_id,
+            )
+          ) {
+            survivingRecords.push(record);
+          }
+        }
+        const failures = this._kernelValidator.validateAll(survivingRecords);
+        for (const failure of failures) {
+          // Demote in success/failed.
+          const idx = success.findIndex(
+            (s) => s.agent_id === failure.agent_id,
+          );
+          if (idx >= 0) success.splice(idx, 1);
+          const reason =
+            `kernel-dep violation (${failure.reason}): ${failure.detail}`;
+          await this._safeMarkFailed(failure.agent_id, reason);
+          failed.push({
+            agent_id: failure.agent_id,
+            sdk_agent_id:
+              records.find((r) => r.protocol.agent_id === failure.agent_id)
+                ?.protocol.sdk_agent_id ?? "(unknown)",
+            reason,
+          });
+          kernel_failures.push({
+            agent_id: failure.agent_id,
+            reason: failure.reason,
+            detail: failure.detail,
+          });
+        }
+      }
+
+      // Phase E (decision Q): mount skills for the survivors. Sequential
+      // `await` for stable log ordering; failures are NOT fatal — we
+      // log a warning and move on. (A failed mount in stub mode means
+      // an operator typo in the registry; in v0.2 live mode it'll
+      // mean a child-process spawn failure and the policy will need
+      // to firm up.)
+      if (this._mcpInjector) {
+        for (const entry of success) {
+          const record = records.find(
+            (r) => r.protocol.agent_id === entry.agent_id,
+          );
+          if (!record) continue;
+          try {
+            await this._mcpInjector.mount(record);
+          } catch (err) {
+            this._logger.warn(
+              `[RuntimeBootstrap] mcpInjector.mount failed for ` +
+                `agent_id="${entry.agent_id}": ${
+                  err instanceof Error ? err.message : String(err)
+                }`,
+            );
+          }
+        }
+      }
+
       const finishedAt = new Date().toISOString();
       const report: ReconciliationReport = {
         startedAt,
@@ -225,6 +324,7 @@ export class RuntimeBootstrap {
         orphaned,
         foreign,
         drifted,
+        kernel_failures,
       };
 
       this._printSummary(report);
@@ -259,6 +359,9 @@ export class RuntimeBootstrap {
         `👻 ${report.foreign.length} foreign` +
         (report.drifted.length > 0
           ? ` / 🌊 ${report.drifted.length} drifted`
+          : "") +
+        (report.kernel_failures.length > 0
+          ? ` / 🚫 ${report.kernel_failures.length} kernel-dep`
           : ""),
     );
   }

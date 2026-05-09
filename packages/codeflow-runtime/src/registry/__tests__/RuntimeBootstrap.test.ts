@@ -1,6 +1,7 @@
 /**
  * RuntimeBootstrap unit tests — TASK-20260509-009 §必交付 6 scenarios 7-9 + 11
- * + TASK-20260509-013 附加交付 2 scenario 12 (TS-2.8 B-path).
+ * + TASK-20260509-013 附加交付 2 scenario 12 (TS-2.8 B-path)
+ * + TASK-20260509-024 §必交付 4.a TS-7.11 (kernel-dep audit phase).
  *
  * Run with `npm test`.
  *
@@ -10,6 +11,8 @@
  *   9.  Bootstrap ignore_foreign (SDK has extra id not in records)
  *   11. Race-defense: register during run() throws RuntimeNotReadyError
  *   12. SDK.list() failure → RuntimeBootstrapError (TS-2.8 B HARD FAIL)
+ *   13. (TS-7.11) Kernel-dep audit phase moves rejected agents from
+ *       success → failed and stamps `report.kernel_failures[]`.
  */
 
 import { strict as assert } from "node:assert";
@@ -24,7 +27,13 @@ import {
   RuntimeNotReadyError,
 } from "../errors.ts";
 import { RuntimeBootstrap } from "../RuntimeBootstrap.ts";
+import { KernelDependencyValidator } from "../../skill/KernelDependencyValidator.ts";
+import { SkillRegistry } from "../../skill/SkillRegistry.ts";
 import { ReconciliationStrategy } from "../../types/state.ts";
+import {
+  plantSkill,
+  withTempSkill,
+} from "../../skill/__tests__/helpers.ts";
 
 import { captureLogger, validAgentSpec, withTempStore } from "./helpers.ts";
 
@@ -215,5 +224,99 @@ test("bootstrap: SDK.list() throws → RuntimeBootstrapError (TS-2.8 B)", async 
       false,
       "isBootstrapping flag must clear after HARD FAIL via finally{}",
     );
+  });
+});
+
+// Scenario 13 (TS-7.11) — Phase E: kernel-dep audit phase
+//
+// Note: agent.schema.json `skills.contains: "fcop"` makes it impossible
+// to write a non-fcop record VIA register() — schema rejects first.
+// To exercise the bootstrap-only audit path we plant the violator
+// record directly via `store.saveAll` (post-register the file already
+// exists; subsequent boots rehydrate without schema re-checks). This
+// is exactly the production scenario: an old `agents.json` that
+// PRE-DATED the v0.1 fcop-mcp dependency rule needs to be migrated,
+// and the kernel-dep audit is what tells the operator which records
+// to fix.
+test("TS-7.11: kernel_failures[] picks up agents lacking fcop on bootstrap", async () => {
+  await withTempStore(async ({ store }) => {
+    await withTempSkill(async ({ skillsDir }) => {
+      // Plant fcop only — the validator will reject anything that
+      // declares a skill not in the registry.
+      await plantSkill(skillsDir, { skill_id: "fcop" });
+      const skillReg = new SkillRegistry({ skillsDir });
+      await skillReg.load();
+      const kernelValidator = new KernelDependencyValidator({
+        skillRegistry: skillReg,
+      });
+
+      const sdk = new InMemorySdkAdapter();
+      const registry = new AgentRegistry({ store, sdk });
+
+      // Step 1: register a clean DEV-01 (passes both agent schema
+      // AND kernel-dep validation).
+      const devRecord = await registry.register(
+        validAgentSpec({ agent_id: "DEV-01", skills: ["fcop"] }),
+      );
+
+      // Step 2: register a clean PM-01 first (so SDK has a known id),
+      // then post-process its skills to a violating set via saveAll —
+      // mirrors the migration scenario where v0.0 deployments stored
+      // skills that v0.1 rejects.
+      const pmRecord = await registry.register(
+        validAgentSpec({
+          agent_id: "PM-01",
+          role: "pm",
+          workspace: undefined,
+          skills: ["fcop"],
+        }),
+      );
+      // Mutate to violation skills (bypassing register schema check).
+      pmRecord.protocol.skills = ["ghost-skill", "fcop"];
+      await store.saveAll([devRecord, pmRecord]);
+
+      const logger = captureLogger();
+      const bootstrap = new RuntimeBootstrap({
+        store,
+        sdk,
+        registry,
+        logger,
+        kernelValidator,
+      });
+      const report = await bootstrap.run();
+
+      // DEV-01 survived; PM-01 demoted to failed[] AND audited in
+      // kernel_failures[].
+      assert.equal(report.success.length, 1);
+      assert.equal(report.success[0]!.agent_id, "DEV-01");
+      assert.equal(report.failed.length, 1);
+      assert.equal(report.failed[0]!.agent_id, "PM-01");
+      assert.match(report.failed[0]!.reason, /skill_not_found/);
+
+      assert.equal(report.kernel_failures.length, 1);
+      assert.equal(report.kernel_failures[0]!.agent_id, "PM-01");
+      assert.equal(report.kernel_failures[0]!.reason, "skill_not_found");
+      assert.match(report.kernel_failures[0]!.detail, /ghost-skill/);
+
+      // The summary line includes the 🚫 prefix when failures occur.
+      assert.match(logger.logs[0]!, /🚫 1 kernel-dep/);
+    });
+  });
+});
+
+test("TS-7.11b: kernelValidator absent → kernel_failures is [] (zero behavior change)", async () => {
+  await withTempStore(async ({ store }) => {
+    const sdk = new InMemorySdkAdapter();
+    const registry = new AgentRegistry({ store, sdk });
+    await registry.register(validAgentSpec());
+
+    const logger = captureLogger();
+    const bootstrap = new RuntimeBootstrap({ store, sdk, registry, logger });
+    const report = await bootstrap.run();
+
+    assert.equal(report.success.length, 1);
+    assert.equal(report.kernel_failures.length, 0);
+    // Summary line does NOT include the 🚫 prefix.
+    assert.equal(/🚫/.test(logger.logs[0]!), false);
   });
 });

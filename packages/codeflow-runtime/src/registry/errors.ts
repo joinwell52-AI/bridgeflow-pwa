@@ -357,3 +357,99 @@ export class VerdictParseError extends Error {
     this.rawOutput = rawOutput;
   }
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// Skill-runtime errors (Sprint S5 — TASK-024 §主交付 1/2/3 + 错误类清单)
+//
+// Co-located here per decision J (Phase B → C → D → E sequence): named
+// errors for each subsystem live in this single file rather than a
+// per-subsystem `*-errors.ts`. Adds 3 classes — final count is 17
+// (Phase A 6 + B 2 + C 2 + D 4 + E 3).
+// ───────────────────────────────────────────────────────────────────────────
+
+/**
+ * Thrown by `AgentRegistry.register` when the agent's `skills` list does
+ * not satisfy the v0.1 fcop-mcp hard-dependency rule (design doc §0.5 +
+ * §0.7.5 + skill.schema.json `required_kernel.contains: "^fcop@.+"`).
+ *
+ * Three sub-reasons are carried via the `reason` field — callers
+ * (Mobile, audit log, stdout summary) switch on `instanceof` first then
+ * read `reason` for user-facing wording. Per decision S, the throw
+ * happens AFTER agent-schema validation but BEFORE `SDK.create`, so SDK
+ * quota is preserved on failed registers (mirrors the layer=admin
+ * preflight check in TS-2.3 / register scenario 3).
+ */
+export class KernelDependencyError extends Error {
+  override readonly name = "KernelDependencyError";
+  readonly agentId: string;
+  readonly reason:
+    | "no_fcop_skill"
+    | "skill_not_found"
+    | "no_compatible_runtime";
+  readonly detail: string;
+
+  constructor(
+    agentId: string,
+    reason:
+      | "no_fcop_skill"
+      | "skill_not_found"
+      | "no_compatible_runtime",
+    detail: string,
+  ) {
+    super(
+      `agent_id="${agentId}" rejected by KernelDependencyValidator ` +
+        `(reason=${reason}): ${detail}`,
+    );
+    this.agentId = agentId;
+    this.reason = reason;
+    this.detail = detail;
+  }
+}
+
+/**
+ * Thrown by `MCPInjector` constructor when a caller asks for `mode: "live"`
+ * before v0.2 wires the real `@cursor/sdk` MCP runtime (decision T:
+ * eager-throw at ctor-time, not at first `mount` call).
+ *
+ * Same posture as `UnsupportedHumanPushSinkError` (decision O): we'd
+ * rather fail loud at composition time than have a silent v0.1 deployment
+ * call `mount()` and discover later that no MCP server was actually
+ * spawned.
+ */
+export class MCPInjectorLiveModeNotImplementedError extends Error {
+  override readonly name = "MCPInjectorLiveModeNotImplementedError";
+
+  constructor(message?: string) {
+    super(
+      message ??
+        `MCPInjector mode="live" is reserved for v0.2 (real @cursor/sdk MCP runtime). ` +
+          `v0.1 only supports mode="stub". See design doc §0.7.5 + §10.2 S5 row + TASK-024 §主交付 3.`,
+    );
+  }
+}
+
+/**
+ * Thrown by `SkillRegistry.load` when a single skill file fails ajv
+ * validation against `@codeflow/protocol` `skill` schema.
+ *
+ * Tolerant-read contract (TASK-024 §主交付 1 line 73): the registry does
+ * NOT propagate this — it logs `logger.warn` and pushes the file to the
+ * `skipped[]` audit list. The class is exported so tests
+ * (TS-7.2) can `assert.throws(() => loadOne(badJson), SkillSchemaError)`
+ * against the inner helper, mirroring `ReviewWriteError`'s test posture.
+ */
+export class SkillSchemaError extends Error {
+  override readonly name = "SkillSchemaError";
+  readonly file: string;
+  readonly errors: unknown[];
+
+  constructor(file: string, errors: unknown[], message?: string) {
+    super(
+      message ??
+        `skill file ${file} failed @codeflow/protocol skill schema ` +
+          `(${errors.length} error(s))`,
+    );
+    this.file = file;
+    this.errors = errors;
+  }
+}

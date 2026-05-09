@@ -1,14 +1,15 @@
 # @codeflow/runtime
 
-> **Phase A + Phase B + Phase C（Sprint S3）+ Phase D（Sprint S4）已完成 — AgentRegistry + PersistentStore + RuntimeBootstrap + SessionManager + SessionStore + TranscriptWriter + InboxWatcher + TaskParser + StateHistoryWriter + TaskDispatcher + ReviewEngine + ReviewWriter + NeedsHumanGate + AgentStatusReconciler + Runtime 顶层装配 全部 v0.1 兑现。Skill Runtime 见路线图 S5。**
+> **Phase A + Phase B + Phase C（Sprint S3）+ Phase D（Sprint S4）+ Phase E（Sprint S5）已完成 — AgentRegistry + PersistentStore + RuntimeBootstrap + SessionManager + SessionStore + TranscriptWriter + InboxWatcher + TaskParser + StateHistoryWriter + TaskDispatcher + ReviewEngine + ReviewWriter + NeedsHumanGate + AgentStatusReconciler + SkillRegistry + KernelDependencyValidator + MCPInjector + Runtime 顶层装配 全部 v0.1 兑现。codeflow-shell EXE 见路线图 S6。**
 
-CodeFlow AI Runtime —— 6 大 kernel 子系统中的 **4 个**（Agent Registry + Session Manager + Task Scheduler + Review Engine），现已 v0.1 全量落地。
+CodeFlow AI Runtime —— 6 大 kernel 子系统中的 **5 个**（Agent Registry + Session Manager + Task Scheduler + Review Engine + Skill Runtime），现已 v0.1 全量落地。
 
-- 上游设计：[`docs/design/codeflow-v2-on-fcop-sdk.md`](../../docs/design/codeflow-v2-on-fcop-sdk.md) §2.1（子系统 1 + 3）+ §2.4（Inbox watcher）+ §3（Runtime Protocol & Schemas）+ §3.4（Review schema）+ §0.9.4（Review Engine 行为）
+- 上游设计：[`docs/design/codeflow-v2-on-fcop-sdk.md`](../../docs/design/codeflow-v2-on-fcop-sdk.md) §0.5（fcop-mcp 强依赖）+ §0.7.5（Skill Runtime）+ §2.1（子系统 1 + 3）+ §2.4（Inbox watcher）+ §3（Runtime Protocol & Schemas）+ §3.4（Review schema）+ §3.6（Skill schema）+ §0.9.4（Review Engine 行为）
 - Phase A 派单：[`docs/agents/tasks/TASK-20260509-009-PM-to-DEV.md`](../../docs/agents/tasks/TASK-20260509-009-PM-to-DEV.md)
 - Phase B 派单：[`docs/agents/tasks/TASK-20260509-013-PM-to-DEV.md`](../../docs/agents/tasks/TASK-20260509-013-PM-to-DEV.md)
 - Phase C 派单：[`docs/agents/tasks/TASK-20260509-018-PM-to-DEV.md`](../../docs/agents/tasks/TASK-20260509-018-PM-to-DEV.md)
 - Phase D 派单：[`docs/agents/tasks/TASK-20260509-022-PM-to-DEV.md`](../../docs/agents/tasks/TASK-20260509-022-PM-to-DEV.md)
+- Phase E 派单：[`docs/agents/tasks/TASK-20260509-024-PM-to-DEV.md`](../../docs/agents/tasks/TASK-20260509-024-PM-to-DEV.md)
 - Sprint 路线图：[`docs/design/codeflow-v2-on-fcop-sdk.md` §10.2](../../docs/design/codeflow-v2-on-fcop-sdk.md)
 - 持久化决策：[`docs/crash-recovery.md`](./docs/crash-recovery.md)
 
@@ -32,8 +33,11 @@ CodeFlow AI Runtime —— 6 大 kernel 子系统中的 **4 个**（Agent Regist
 | **ReviewWriter** | `src/review/ReviewWriter.ts` | 审查回执持久化 | ✅ Phase D 完成（schema-light validate + atomic-write + refuse-overwrite） |
 | **NeedsHumanGate** | `src/review/NeedsHumanGate.ts` | 人工兜底 push | ✅ Phase D 完成（v0.1 sink="cli" 严格白名单 + UnsupportedHumanPushSinkError eager fail） |
 | **AgentStatusReconciler** | `src/registry/AgentStatusReconciler.ts` | session 生命周期 ↔ agent.status 同步器 | ✅ Phase D 完成（订阅 SessionManager 事件 + 不改各层接口 + per-agent 串行化 + error 序不被覆盖；闭环 REPORT-018 §决策 B'） |
-| **Runtime** | `src/Runtime.ts` | 顶层 composition root | ✅ Phase D 升级（11 子系统装配；start/stop 顺序保证 reconciler 先于 dispatcher attach） |
-| `ReconciliationReport` / `ReconciliationStrategy` | `src/types/state.ts` | 启动审计 | ✅ Phase A 完成（drift 检测留位 Phase B+） |
+| **SkillRegistry** | `src/skill/SkillRegistry.ts` | 设备驱动表（per-skill JSON 装载 + ajv 校验 + role 反向索引） | ✅ Phase E 完成（tolerant-read 复用 SessionStore pattern + 内置 schema 校验 + filename↔skill_id 双校） |
+| **KernelDependencyValidator** | `src/skill/KernelDependencyValidator.ts` | 内核 syscall 强依赖闸（v0.1 = `^fcop@.+`） | ✅ Phase E 完成（3 reasons：no_fcop_skill / skill_not_found / no_compatible_runtime；register pre-hook + bootstrap audit 两路皆挂） |
+| **MCPInjector** | `src/skill/MCPInjector.ts` | per-agent MCP 装载层（v0.1 stub） | ✅ Phase E 完成（stub mode log + live mode ctor eager throw `MCPInjectorLiveModeNotImplementedError`） |
+| **Runtime** | `src/Runtime.ts` | 顶层 composition root | ✅ Phase E 升级（**14 子系统装配**；skill 层先于 registry 装配；start/stop 顺序保证 reconciler 先于 dispatcher attach） |
+| `ReconciliationReport` / `ReconciliationStrategy` | `src/types/state.ts` | 启动审计 | ✅ Phase A 完成 + Phase E 加 `kernel_failures: KernelValidationFailureEntry[]` |
 
 ### AgentRegistry 6 方法 method-by-method
 
@@ -66,9 +70,9 @@ CodeFlow AI Runtime —— 6 大 kernel 子系统中的 **4 个**（Agent Regist
 | **3. `SessionManager.startSession`** | `state_history: inbox → rejected_busy / start_failed` | `InvalidAgentStatusError` 触发 reject_busy；queue 是 v0.2 |
 | **4. 监听 `runtime.session_ended` / `_cancelled`** | `state_history: dispatched → ended / cancelled`（含 status / reason） | filter `session_id` 命中后 unsubscribe；防内存泄漏 |
 
-### Phase B + C + D 关键设计决策（实施时锁定）
+### Phase B + C + D + E 关键设计决策（实施时锁定）
 
-- **决策 J**（Phase B → C → D 一致沿用）：所有 named errors 合并到对应子模块的 `errors.ts`，不另起 *-errors.ts。Phase D 新增 `ReviewWriteError` / `ReviewerNotFoundError` / `VerdictParseError` / `UnsupportedHumanPushSinkError` 也跟同一规则放入 `registry/errors.ts`
+- **决策 J**（Phase B → C → D → E 一致沿用）：所有 named errors 合并到对应子模块的 `errors.ts`，不另起 *-errors.ts。Phase D 新增 `ReviewWriteError` / `ReviewerNotFoundError` / `VerdictParseError` / `UnsupportedHumanPushSinkError`；Phase E 再新增 `KernelDependencyError` / `MCPInjectorLiveModeNotImplementedError` / `SkillSchemaError`，全在 `registry/errors.ts`（共 17 个 named error class：A 6 + B 2 + C 2 + D 4 + E 3）
 - **决策 M**（Phase B）：`RuntimeEventType` 8 个 sdk.* 类型以 `_ignore/spike_sdk_doorbell/` 实测为准（system / thinking / assistant / tool_call / status / task / request / user）
 - **决策 N**（Phase B）：每次 `send` 内部走 `Agent.resume → agent.send → 包装成 RunHandle → settled 时 dispose`，不在 adapter 内持池
 - **决策 A**（Phase C ⚠️）：StateHistoryWriter **不**改 frontmatter `state_history` 数组，只在 markdown body 末尾追加 `## state_history (auto-appended by runtime)` 段落。原因：`task.schema.json` line 47-60 把 `state_history.items` 锁为 `{state, at, by}` 且 `additionalProperties: false`，runtime 想记录的 `{at, by, from, to, note}` 不兼容；markdown body 不在 schema 约束范围
@@ -77,12 +81,19 @@ CodeFlow AI Runtime —— 6 大 kernel 子系统中的 **4 个**（Agent Regist
 - **决策 K**（Phase D）：Review Engine 落在本包 `src/review/` 而**不是单独的 `@codeflow/review-engine` 包**——理由：与 SessionManager / SessionStore / StateHistoryWriter / AgentRegistry 共享 `_internal/atomic-write.ts` + 相同事件总线，单独包会强迫 export 内部细节，违背 §8.0 硬规则 #4。Review schema 仍只在 `@codeflow/protocol`，不在本包重复定义
 - **决策 L**（Phase D）：reviewer 输出协议采用 `VERDICT: <decision>; RATIONALE: <text>` 单行、case-sensitive、accumulator-pattern（buffer 全部 sdk.assistant text，最后一遍 regex match）。失败 → `decision="needs_human" + trigger_reason="verdict_parse_failed"`。规约简到能用纯字符串解析，不引第三方 grammar / LLM-as-arbiter
 - **决策 O**（Phase D）：`NeedsHumanGate.push(sink="cli")` v0.1 走 `logger.info(...)` 写 stdout（一次 JSON-able payload，含 `subject_ref` / `decision` / `rationale` / `trigger_reason` / `pushed_at` ISO-8601）；`sink="mobile"` 在 ctor 里 **eager throw** `UnsupportedHumanPushSinkError`，不让"v0.2 才支持"的代码路径在生产里走过去无人发现
+- **决策 P**（Phase E）：`RuntimeBootstrap` 在 SDK reconcile loop 之后、`ReconciliationReport` 生成之前插一个 kernel-dep audit 阶段。失败 agent 同时进 `failed[]`（带 `kernel-dep violation (reason)` 文案）和 `kernel_failures[]`（结构化 `{agent_id, reason, detail}`），`markFailed` 同步落盘 → 操作员能从 stdout 一行 + 文件双向溯源
+- **决策 Q**（Phase E）：`MCPInjector.mount` 在 bootstrap 阶段对 success 数组**顺序 await**，**不**用 `Promise.all`。理由：stub 模式 log 顺序对操作员可读，v0.2 live 模式也希望失败一台不连累其他（可放慢但不掉单）。不是 fatal 错误（`logger.warn` + 继续），**仅在 register 阶段**才 fatal（避免悄悄留下半挂载的新 agent）
+- **决策 R**（Phase E）：`AgentRegistry` ctor 接受 `kernelValidator` / `mcpInjector` 为**可选参数**，缺省 = `null` = Phase A-D 行为完全不变（Phase A 18 测试 + Phase B 22 + Phase C 14 + Phase D 13 共 67 条**零回归**验证）。Phase E 钩子只在 `Runtime.create` 装配时被注入
+- **决策 S**（Phase E ⭐）：`AgentRegistry.register` 中 kernel-dep 检查的位置 = **schema validate 之后、SDK.create 之前**。和 layer=admin reject 同一 pre-flight 槽位。这保证了 SDK quota 在 reject 时不被消耗，TS-7.12 测试断言 `sdk.calls.create.length === 0` + `agents.json` 不存在
+- **决策 T**（Phase E ⭐）：`MCPInjector` ctor 收到 `mode: "live"` 立即 **eager throw** `MCPInjectorLiveModeNotImplementedError`，不留给第一次 `mount` 才发现。同 §决策 O 的 `UnsupportedHumanPushSinkError` 原则——composition-root 失败必须比第一次业务调用更早暴露
+- **决策 U**（Phase E）：`Runtime.start/stop` 顺序**不变**——`SkillRegistry.load` 是同步在 `Runtime.create` 内执行（`await skillRegistry.load()` 在 ctor 里完成），`KernelDependencyValidator` 是纯计算无生命周期，`MCPInjector` stub 模式没有需要 start/stop 的资源（v0.2 live 模式才需要）
 
 ## 不在本包内（按 §0.7 + §10.2 sprint 边界）
 
 | 子系统 | 在哪个 sprint 落 |
 |---|---|
-| Skill Runtime (per-role MCP 注入) | **S5** —— 单独的 `@codeflow/skill-runtime` 包 |
+| Skill Runtime（per-role MCP 注入）实际 spawn | **v0.2** —— v0.1 stub 模式只 log；`MCPInjector mode="live"` ctor 即抛异常 |
+| `@codeflow/skill-runtime` 单独包 | **不再单独发** —— 决策 K' (S5)：`src/skill/` 与 registry / session 共享 `_internal/atomic-write.ts` + 同事件总线，单独发包会破 §8.0 硬规则 #4 |
 | Review Engine（手机端 sink）⭐ | **v0.2 S7-S10** —— `NeedsHumanGate.sink="mobile"` 走中继；本 sprint 已 eager-throw 占位 |
 | codeflow-shell EXE 壳子 | **S6** —— Node SEA bundle，import `Runtime.create` 即用 |
 | Mobile Console / 中继 | **v0.2 S7-S10** |
@@ -94,10 +105,11 @@ CodeFlow AI Runtime —— 6 大 kernel 子系统中的 **4 个**（Agent Regist
 ## 协议依赖纪律（Phase A + B + C 一致）
 
 - 本包**只消费**`@codeflow/protocol`（FCoP spec 的 TS 镜像）的类型与 schema
-- **不允许**在 `src/types/state.ts` 创造任何 schema 字段；只允许 *runtime 私有* 的纯运行时构造（如 `RuntimeEvent` / `ReconciliationReport` / `SessionHandle` / `RunHandle` / `ParsedTask` / `StateHistoryEntry` 等）
+- **不允许**在 `src/types/state.ts` 创造任何 schema 字段；只允许 *runtime 私有* 的纯运行时构造（如 `RuntimeEvent` / `ReconciliationReport` / `SessionHandle` / `RunHandle` / `ParsedTask` / `StateHistoryEntry` / `KernelValidationFailureEntry` 等）
 - Phase D 的 `ReviewVerdict` / `HumanApproval` 接口在 `src/review/ReviewWriter.ts` 中是 `review.schema.json` 的 TS 镜像 + 必要的可选/条件字段补全；**完整 schema 校验仍走 `@codeflow/protocol` 的 `validate("review", ...)`**（见 `ReviewWriter.test.ts` TS-6.1）
+- Phase E 的 `SkillRecord` / `SkillToolSpec` / `SkillProvider` 接口在 `src/skill/SkillRegistry.ts` 中是 `skill.schema.json` 的 TS 镜像；**完整 schema 校验仍走 `validate("skill", ...)`**（见 `SkillRegistry.test.ts` TS-7.2）
 - 任何 schema 缺口 → 写到 PM 的回执，**不在本包内私自加**
-- Phase A + Phase B + Phase C + Phase D 实施过程中 **0 个** schema 缺口出现（详见 §决策 A / §决策 K）
+- Phase A + B + C + D + E 实施过程中 **0 个** schema 缺口出现（详见 §决策 A / §决策 K / §决策 R）
 - 详见设计文档 §8.0 硬规则 #4 + §3.3.1.b 唯一合法升级路径
 
 ## 目录结构
@@ -150,7 +162,7 @@ packages/codeflow-runtime/
 │   │       ├── TaskDispatcher.test.ts         TS-5.10 ~ TS-5.13（含 reject_busy 验收 #5）
 │   │       └── helpers.ts
 │   ├── review/                                Review Engine（§0.9.4 + §3.4 — Phase D 新增）
-│   │   ├── ReviewEngine.ts                    ✅ Phase D 完成（subject ↔ reviewer context 区分 + verdict 解析 + needs_human 兑现 + state_history 闭环 + orphan-event buffering）
+│   │   ├── ReviewEngine.ts                    ✅ Phase D 完成（subject ↔ reviewer context 区分 + verdict 解析 + needs_human 兑现 + state_history 闭环 + orphan-event buffering + Phase D-post fix `whenSettled` race-loop）
 │   │   ├── ReviewWriter.ts                    ✅ Phase D 完成（schema-light validate + atomic-write + refuse-overwrite + renderReviewMarkdown helper）
 │   │   ├── NeedsHumanGate.ts                  ✅ Phase D 完成（v0.1 sink="cli" → logger.info；sink="mobile" eager throw）
 │   │   ├── index.ts
@@ -160,10 +172,21 @@ packages/codeflow-runtime/
 │   │       ├── ReviewEngine.test.ts           TS-6.6 ~ TS-6.11（含 approved / needs_changes 双 E2E + needs_human 兜底）
 │   │       ├── AgentStatusReconciler.test.ts  TS-6.12 / TS-6.13 + rejected_busy 集成（闭 REPORT-018 §决策 B'）
 │   │       └── helpers.ts                     withTempReview / waitFor / quietLogger / readReviewFile
+│   ├── skill/                                 Skill Runtime（§0.5 fcop-mcp 强依赖 + §0.7.5 + §3.6 — Phase E 新增）
+│   │   ├── SkillRegistry.ts                   ✅ Phase E 完成（tolerant-read 复用 SessionStore pattern + role 反向索引 + filename↔skill_id 双校）
+│   │   ├── KernelDependencyValidator.ts       ✅ Phase E 完成（3 reasons + compatible_runtimes 缺省 = 默认接受 local）
+│   │   ├── MCPInjector.ts                     ✅ Phase E 完成（stub mode log + live mode ctor eager throw）
+│   │   ├── index.ts
+│   │   └── __tests__/                         17 个 node:test (TS-7.1 ~ TS-7.13 + 4 bonus)
+│   │       ├── SkillRegistry.test.ts          TS-7.1 ~ TS-7.4 + 3 bonus（idempotent reload / missing dir / filename mismatch）
+│   │       ├── KernelDependencyValidator.test.ts   TS-7.5 ~ TS-7.8 + TS-7.13 bonus + validateAll aggregator
+│   │       ├── MCPInjector.test.ts            TS-7.9 / TS-7.10 + 2 bonus（unknown skill / empty skills agent）
+│   │       └── helpers.ts                     withTempSkill / quietLogger / plantSkill / plantRaw
 │   └── types/
 │       └── state.ts                           AgentRecord / SessionRecord / RuntimeEvent
 │                                              + Phase A: ReconciliationReport
 │                                              + Phase B: RunHandle.onEvent + RuntimeEventType 12 类
+│                                              + Phase E: ReconciliationReport.kernel_failures + KernelValidationFailureEntry
 ├── fixtures/                                  样例数据（设计 review，非测试）
 │   ├── agents.json                            §2.1 子系统 3 的 agents.json 样例
 │   └── sessions/
@@ -178,7 +201,7 @@ packages/codeflow-runtime/
 | 项 | 验证方式 |
 |---|---|
 | 包编译通过 | `npx tsc --noEmit`（零报错） |
-| 单元测试 | `npm test`（**71/71** 全过 — Phase A 18 + Phase B 22 + Phase C 14 + Phase D **13** + 4 跨阶段 sanity） |
+| 单元测试 | `npm test`（**94/94** 全过 — Phase A 18 + Phase B 22 + Phase C 14 + Phase D 13 + Phase E **17** + 10 跨阶段 sanity） |
 | `@codeflow/protocol` 包未受影响 | `cd ../codeflow-protocol && npm test`（仍 8/8 通过） |
 | atomic-write 模式 | `PersistentStore.ts` + `_internal/atomic-write.ts` 含 `writeFile(*.tmp)` + `rename` + 父目录 `fsync` |
 | layer=admin 拒绝在 SDK 调用前 | 测试场景 3 spy 验证 `sdk.calls.create.length === 0` |
@@ -194,7 +217,13 @@ packages/codeflow-runtime/
 | NeedsHumanGate sink 严格 | TS-6.4：cli sink → `logger.info` 含 trigger_reason 且返回 stub `HumanApproval`；TS-6.5：`pushed_at` 通过 `Date.parse` |
 | ReviewEngine governance loop | TS-6.6：subject session_ended 同步引发 reviewer `sdk.send` 调用；TS-6.7：policy.shouldReview=false 时不写 REVIEW-*.md；TS-6.8：reviewer 未注册 → NeedsHumanGate 兜底；TS-6.9：reviewer 输出无 VERDICT 行 → `decision="needs_human" + trigger_reason="verdict_parse_failed"`；TS-6.10/6.11：approved + needs_changes 端到端，REVIEW-*.md schema-valid + state_history 在 subject 上追加 |
 | AgentStatusReconciler 闭环 REPORT-018 §B' | TS-6.12：`session_started` → `Agent.status="running"`；TS-6.13：`session_ended` / `_cancelled` → `idle`，但 `error` 序不被覆盖；集成路径：注册 → 起 session A（手动 settle）→ 起 session B → 第二次 dispatch 命中 `rejected_busy`（**无需手写 fixture**） |
-| 协议依赖纪律 | `src/registry`/`src/session`/`src/scheduler`/`src/review`/`src/types` 不重新声明 schema 字段，仅 `import type` from `@codeflow/protocol` |
+| SkillRegistry tolerant-read | TS-7.1：3 valid skill 全部装载，`logger.info` 一行总结；TS-7.2：schema 不合法 → `skipped[]` 收录；TS-7.3：`.tmp` / 非 `.json` / 损坏 JSON / 空文件 全跳过 |
+| SkillRegistry 索引一致 | TS-7.4：`getById` / `listForRole` / `list` / `size` 全对（`available_to_roles` 重叠多角色覆盖反向索引） |
+| KernelDependencyValidator 3 reasons | TS-7.5：fcop 在 → null；TS-7.6/7.13：empty skills → `no_fcop_skill`；TS-7.7：unknown skill_id → `skill_not_found`；TS-7.8：`compatible_runtimes` 不含 `local` → `no_compatible_runtime`；TS-7.8b：缺 `compatible_runtimes` 字段 = 默认接受 local |
+| MCPInjector stub 严格 | TS-7.9：mount 仅 `logger.info`，不 spawn，`sdk.calls.create.length === 0`；TS-7.10：`mode="live"` ctor 即 `MCPInjectorLiveModeNotImplementedError` |
+| RuntimeBootstrap kernel-dep audit | TS-7.11：违规 agent 同时进 `failed[]`（带 `kernel-dep violation`）+ `kernel_failures[]` + summary 行 `🚫 1 kernel-dep`；TS-7.11b：未注入 validator 时 `kernel_failures=[]` 行为零变 |
+| AgentRegistry register pre-hook | TS-7.12：unknown skill → `KernelDependencyError` 抛出 + `sdk.calls.create.length === 0` + `agents.json` 不存在；TS-7.12b：注入 `mcpInjector` 后 register 成功路径触发 mount 日志 |
+| 协议依赖纪律 | `src/registry`/`src/session`/`src/scheduler`/`src/review`/`src/skill`/`src/types` 不重新声明 schema 字段，仅 `import type` from `@codeflow/protocol` |
 
 ## 跑测试 + Demo
 
@@ -202,9 +231,9 @@ packages/codeflow-runtime/
 cd packages/codeflow-runtime
 npm install         # 一次性
 npm run typecheck   # 0 错误
-npm test            # 71/71 PASS
+npm test            # 94/94 PASS
 
-# Phase C E2E demo（无需真实 Cursor SDK，用 InMemorySdkAdapter）
+# Phase E E2E demo（无需真实 Cursor SDK，用 InMemorySdkAdapter；plant fixture skill）
 npx tsx examples/hello-world.ts
 # Drop a TASK-*-XXX-to-DEV.md into examples/inbox/ to trigger the pipeline.
 # 如果 inbox 里同时有 reviewer agent（角色 = REVIEW）注册到 registry，
@@ -218,8 +247,8 @@ npx tsx examples/hello-world.ts
 - ✅ **Phase A**（commit `407cfa5`）：AgentRegistry + PersistentStore + RuntimeBootstrap
 - ✅ **Phase B**（commit `8c49907`）：SessionManager + SessionStore + TranscriptWriter + TS-2.8 patch + L2 文档落档
 - ✅ **Phase C**（commit `bd7d3d8`）：InboxWatcher + TaskParser + StateHistoryWriter + TaskDispatcher + Runtime 顶层装配 + E2E mini demo
-- ✅ **Phase D / Sprint S4**（本里程碑）：ReviewEngine + ReviewWriter + NeedsHumanGate + AgentStatusReconciler + Runtime 11-子系统装配；闭环 REPORT-20260509-018 §决策 B'
-- ⏸ **S5**：Skill Runtime + fcop 强依赖校验
-- ⏸ **S6**：E2E 跑通 §0.8.3 Hello World demo + v2 EXE 出厂（codeflow-shell + Node SEA）
+- ✅ **Phase D / Sprint S4**（commit `1ba2aa6`）：ReviewEngine + ReviewWriter + NeedsHumanGate + AgentStatusReconciler + Runtime 11-子系统装配；闭环 REPORT-20260509-018 §决策 B'
+- ✅ **Phase E / Sprint S5**（本里程碑）：SkillRegistry + KernelDependencyValidator + MCPInjector + Runtime 14-子系统装配；fcop-mcp 强依赖闸落地（design doc §0.5/§0.7.5/§3.6 兑现）+ Phase D `whenSettled` race-loop 兜底（5 秒 deadline）
+- ⏸ **S6**：E2E 跑通 §0.8.3 Hello World demo + v2 EXE 出厂（codeflow-shell + Node SEA）+ MCPInjector live mode
 
 详见 [`docs/design/codeflow-v2-on-fcop-sdk.md` §10.2](../../docs/design/codeflow-v2-on-fcop-sdk.md) + [§11 v2 Packaging](../../docs/design/codeflow-v2-on-fcop-sdk.md)。

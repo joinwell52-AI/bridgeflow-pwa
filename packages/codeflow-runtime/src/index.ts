@@ -1,5 +1,5 @@
 /**
- * @codeflow/runtime — public API surface (Sprint S4 — Review Engine).
+ * @codeflow/runtime — public API surface (Sprint S5 — Skill Runtime + fcop hard-dep).
  *
  * What's exported:
  *   - AgentRegistry + RuntimeBootstrap + PersistentStore + AgentSdkAdapter
@@ -9,15 +9,19 @@
  *   - InboxWatcher + TaskParser + StateHistoryWriter + TaskDispatcher + Runtime
  *     (§2.4 doorbell + §3.3 task lifecycle; Sprint S3 Phase C — `bd7d3d8` checkpoint)
  *   - ReviewEngine + ReviewWriter + NeedsHumanGate + AgentStatusReconciler
- *     (§3.4 review schema + §0.9.4 HITL + REPORT-018 §五决策 B'; Sprint S4 — this commit)
+ *     (§3.4 review schema + §0.9.4 HITL + REPORT-018 §五决策 B'; Sprint S4 — `1ba2aa6`)
+ *   - SkillRegistry + KernelDependencyValidator + MCPInjector
+ *     (§0.5 fcop hard-dep + §0.7.5 skill runtime + §3.6 skill schema;
+ *      Sprint S5 — this commit)
  *   - State types (runtime-private; layered on @codeflow/protocol)
  *
  * What's NOT here (and why):
- *   - Skill Runtime           → S5, `@codeflow/skill-runtime`
  *   - codeflow-shell EXE      → S6 (Node SEA bundle that imports `Runtime`)
  *   - Mobile Console / relay  → v0.2 (separate effort)
  *   - Cloud agent runtime     → v0.x; binding-mode field exists, but
  *                               local-only is the v0.1 reality
+ *   - Real MCP spawning       → v0.2 (`MCPInjector` mode="live" is
+ *                               eager-throw-stubbed in v0.1)
  *
  * See `README.md` for the full sprint roadmap and `docs/crash-recovery.md`
  * for the 4 persistence/recovery decisions.
@@ -52,6 +56,9 @@ export {
   AgentStatusReconciler,
   type AgentStatusReconcilerLogger,
   type AgentStatusReconcilerOptions,
+  KernelDependencyError,
+  MCPInjectorLiveModeNotImplementedError,
+  SkillSchemaError,
 } from "./registry/index.ts";
 
 export {
@@ -114,6 +121,25 @@ export {
 } from "./review/index.ts";
 
 export {
+  SkillRegistry,
+  KernelDependencyValidator,
+  MCPInjector,
+  FCOP_KERNEL_PATTERN,
+  type SkillRecord,
+  type SkillToolSpec,
+  type SkillProvider,
+  type SkillRegistryOptions,
+  type SkillRegistryLogger,
+  type SkillSkippedEntry,
+  type KernelDependencyValidatorOptions,
+  type KernelDependencyValidatorLogger,
+  type ValidationFailure,
+  type MCPInjectorOptions,
+  type MCPInjectorLogger,
+  type MCPMount,
+} from "./skill/index.ts";
+
+export {
   Runtime,
   type RuntimeCreateOptions,
   type RuntimeBootstrapResult,
@@ -133,6 +159,7 @@ export type {
   ReconciliationOrphanedEntry,
   ReconciliationForeignEntry,
   ReconciliationDriftEntry,
+  KernelValidationFailureEntry,
 } from "./types/state.ts";
 
 export { ReconciliationStrategy } from "./types/state.ts";

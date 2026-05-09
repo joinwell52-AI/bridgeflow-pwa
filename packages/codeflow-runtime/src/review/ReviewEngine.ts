@@ -302,10 +302,53 @@ export class ReviewEngine {
    * Test/diagnostic helper — wait for any in-flight review pipelines to
    * settle. Used by integration tests so they can observe the produced
    * REVIEW-*.md without polling.
+   *
+   * Subtlety: `_reviewSubjectSession` returns *as soon as* it has fired
+   * `startSession` for the reviewer agent — it does NOT await the
+   * reviewer's eventual `session_ended` (that would require parking the
+   * promise on every dispatched review). So when the subject promise
+   * resolves and leaves `_inflight`, the reviewer's `_finalizeReview`
+   * promise has not yet been registered. We therefore loop until all
+   * three "pending review work" indicators are clear:
+   *
+   *   - `_inflight` is the explicit set of subject + finalize promises
+   *   - `_contexts` holds reviewer sessions that we've started but
+   *     haven't finalized yet
+   *   - `_pendingReviewerTaskIds` is set the moment we decide to start
+   *     a reviewer session (covers the brief window between subject
+   *     pipeline returning and the reviewer's session_ended landing).
+   *
+   * This lets tests reliably `await whenSettled()` after firing a
+   * subject session_ended, without having to count `sdk.calls.send`
+   * by hand.
    */
   async whenSettled(): Promise<void> {
-    if (this._inflight.size === 0) return;
-    await Promise.allSettled([...this._inflight]);
+    // Loop until every signal of pending review work clears. The poll
+    // sleep yields to the macrotask queue so InMemoryRunHandle's
+    // setImmediate-scheduled emits can land.
+    // Cap at ~5s so a stuck reviewer (test bug) fails loudly via
+    // surrounding test timeout rather than hanging forever.
+    const deadline = Date.now() + 5_000;
+    while (
+      this._inflight.size > 0 ||
+      this._contexts.size > 0 ||
+      this._pendingReviewerTaskIds.size > 0
+    ) {
+      if (Date.now() > deadline) {
+        throw new Error(
+          `[ReviewEngine.whenSettled] timed out after 5s; ` +
+            `inflight=${this._inflight.size}, ` +
+            `contexts=${this._contexts.size}, ` +
+            `pending=${this._pendingReviewerTaskIds.size}`,
+        );
+      }
+      if (this._inflight.size > 0) {
+        await Promise.allSettled([...this._inflight]);
+      } else {
+        // Yield to the macrotask queue so reviewer events can land.
+        await new Promise<void>((resolve) => setImmediate(resolve));
+      }
+    }
   }
 
   // ── private ──────────────────────────────────────────────────────────

@@ -31,6 +31,12 @@ export {
   RuntimeNotReadyError,
   SessionNotFoundError,
   InvalidAgentStatusError,
+  ReviewWriteError,
+  ReviewerNotFoundError,
+  VerdictParseError,
+  KernelDependencyError,
+  MCPInjectorLiveModeNotImplementedError,
+  SkillSchemaError,
 } from "./errors.ts";
 
 export {

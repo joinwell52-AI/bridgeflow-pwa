@@ -25,6 +25,8 @@ import type {
   AgentRecord,
   RuntimeBindingMode,
 } from "../types/state.ts";
+import type { KernelDependencyValidator } from "../skill/KernelDependencyValidator.ts";
+import type { MCPInjector } from "../skill/MCPInjector.ts";
 import type { AgentSdkAdapter } from "./AgentSdkAdapter.ts";
 import type { PersistentStore } from "./PersistentStore.ts";
 import {
@@ -46,10 +48,35 @@ export interface AgentRegistryFilter {
  * Constructor options for the AgentRegistry. Concrete wiring lives in
  * the caller's composition root so the registry itself stays
  * dependency-free.
+ *
+ * Phase E (S5) added two OPTIONAL hooks (decision R + T) — when they're
+ * absent the registry behaves exactly as in Phase A/B/C/D; when they're
+ * provided, `register()` runs the kernel-dep validator before SDK.create
+ * and the MCP injector after store.upsert. The "optional" property is
+ * load-bearing: tests that don't care about Phase E (e.g. all 18 Phase A
+ * tests + the existing register scenarios) construct `AgentRegistry`
+ * with `{ store, sdk }` and observe zero behavior change.
  */
 export interface AgentRegistryOptions {
   store: PersistentStore;
   sdk: AgentSdkAdapter;
+  /**
+   * Phase E hook — when provided, `register()` calls
+   * `assertAgentSpec(spec)` BEFORE `SDK.create` (decision S: same
+   * pre-flight slot as `layer=admin`). Failure throws
+   * `KernelDependencyError` with `agents.json` and SDK both
+   * untouched (TS-7.12 invariant).
+   */
+  kernelValidator?: KernelDependencyValidator;
+  /**
+   * Phase E hook — when provided, `register()` calls
+   * `mount(record)` AFTER `store.upsert` succeeds (decision T:
+   * mount-on-register so the new agent has its skills wired
+   * before the next `startSession`). Stub mode is logger-only;
+   * mount failures throw and roll back the store + SDK (we
+   * don't leave a half-mounted record).
+   */
+  mcpInjector?: MCPInjector;
 }
 
 /**
@@ -79,11 +106,15 @@ export interface AgentRegistryOptions {
 export class AgentRegistry {
   private readonly _store: PersistentStore;
   private readonly _sdk: AgentSdkAdapter;
+  private readonly _kernelValidator: KernelDependencyValidator | null;
+  private readonly _mcpInjector: MCPInjector | null;
   private _isBootstrapping = false;
 
   constructor(opts: AgentRegistryOptions) {
     this._store = opts.store;
     this._sdk = opts.sdk;
+    this._kernelValidator = opts.kernelValidator ?? null;
+    this._mcpInjector = opts.mcpInjector ?? null;
   }
 
   // ──────────────────────────────────────────────────────────────────────
@@ -146,6 +177,16 @@ export class AgentRegistry {
       );
     }
 
+    // Phase E hook (decision R + S): kernel-dep validation runs AFTER
+    // schema validation but BEFORE SDK.create — same race-defense slot
+    // as the layer=admin reject. When `_kernelValidator` is null
+    // (Phase A-D wiring), this is a no-op and the registry behaves
+    // exactly as before. Test scenario 12 (TS-7.12) verifies the
+    // SDK adapter is NOT touched on rejection.
+    if (this._kernelValidator) {
+      this._kernelValidator.assertAgentSpec(agentSpec);
+    }
+
     // SDK adapter call — if it throws, agents.json is untouched (we
     // haven't called the store yet).
     const { sdk_agent_id } = await this._sdk.create({
@@ -175,6 +216,16 @@ export class AgentRegistry {
     };
 
     await this._store.upsert(record);
+
+    // Phase E hook (decision T): mount the agent's skills after the
+    // record is durable. v0.1 stub mode just logs; v0.2 will spawn
+    // real MCP processes. Mount failures DO bubble (the agent is
+    // already in agents.json, but the operator clearly needs to
+    // know — they likely have a misconfigured skill registration).
+    if (this._mcpInjector) {
+      await this._mcpInjector.mount(record);
+    }
+
     return record;
   }
 

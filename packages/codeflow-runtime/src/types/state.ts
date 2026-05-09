@@ -287,6 +287,25 @@ export interface ReconciliationDriftEntry {
 }
 
 /**
+ * Phase E (Sprint S5 — TASK-024 §主交付 2). One audit entry per agent
+ * that failed `KernelDependencyValidator` during `RuntimeBootstrap.run()`.
+ * The agent is moved out of `success[]` and into `failed[]` (via
+ * `markFailed`), AND a corresponding entry lands here so the operator
+ * can tell "fcop-mcp violation" apart from generic "Agent.resume failed".
+ *
+ * `reason` matches `KernelDependencyError.reason` 1:1 (decision S: same
+ * type for the error class and the audit entry — no translation layer).
+ */
+export interface KernelValidationFailureEntry {
+  agent_id: string;
+  reason:
+    | "no_fcop_skill"
+    | "skill_not_found"
+    | "no_compatible_runtime";
+  detail: string;
+}
+
+/**
  * Aggregate result of one `RuntimeBootstrap.run()` invocation.
  *
  * Returned to the caller and ALSO printed to stdout as a one-line
@@ -308,4 +327,12 @@ export interface ReconciliationReport {
   foreign: ReconciliationForeignEntry[];
   /** Decision-3 case Z (accept_drift_with_audit). Empty until Phase B. */
   drifted: ReconciliationDriftEntry[];
+  /**
+   * Phase E: agents whose `skills` list violates the v0.1 fcop-mcp
+   * hard-dependency rule (design doc §0.5). These records ALSO appear
+   * in `failed[]` (with `reason` quoting `KernelDependencyError.message`),
+   * and on disk via `markFailed`. Empty array when the kernel validator
+   * is not configured (zero behavioral change vs. Phase D).
+   */
+  kernel_failures: KernelValidationFailureEntry[];
 }

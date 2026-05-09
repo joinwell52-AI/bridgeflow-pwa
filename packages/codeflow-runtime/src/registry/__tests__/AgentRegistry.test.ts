@@ -1,5 +1,6 @@
 /**
- * AgentRegistry unit tests — TASK-20260509-009 §必交付 6 scenarios 1-6.
+ * AgentRegistry unit tests — TASK-20260509-009 §必交付 6 scenarios 1-6
+ * + Sprint S5 TS-7.12 (kernel-dep hook integration).
  *
  * Run with `npm test` (which invokes `node --import tsx --test`).
  *
@@ -10,6 +11,8 @@
  *   4. register SDK create throws → agents.json untouched
  *   5. resume happy path → record updated
  *   6. resume target missing → AgentNotFoundError
+ *  12. (TS-7.12) register with kernelValidator hook → SDK + store
+ *      both untouched on rejection (decision S timing invariant)
  */
 
 import { strict as assert } from "node:assert";
@@ -21,10 +24,19 @@ import type { Agent } from "@codeflow/protocol";
 import { AgentRegistry } from "../AgentRegistry.ts";
 import {
   AgentNotFoundError,
+  KernelDependencyError,
   LayerViolationError,
   ValidationError,
 } from "../errors.ts";
 import { InMemorySdkAdapter } from "../AgentSdkAdapter.ts";
+import { KernelDependencyValidator } from "../../skill/KernelDependencyValidator.ts";
+import { MCPInjector } from "../../skill/MCPInjector.ts";
+import { SkillRegistry } from "../../skill/SkillRegistry.ts";
+import {
+  plantSkill,
+  quietLogger,
+  withTempSkill,
+} from "../../skill/__tests__/helpers.ts";
 
 import { captureLogger, validAgentSpec, withTempStore } from "./helpers.ts";
 
@@ -167,5 +179,105 @@ test("resume: agent not in store → AgentNotFoundError", async () => {
       AgentNotFoundError,
     );
     assert.equal(sdk.calls.resume.length, 0);
+  });
+});
+
+// Scenario 12 (TS-7.12) — Phase E hook: kernel-dep validator gates
+// register BEFORE SDK.create (decision S). Verifies that on rejection:
+//   1. SDK adapter is NOT called (sdk quota preserved)
+//   2. agents.json is NOT created (no half-state on disk)
+//   3. The thrown error is `KernelDependencyError` with correct reason
+test("TS-7.12: register with kernelValidator → SDK + store untouched on rejection", async () => {
+  await withTempStore(async ({ store, agentsPath }) => {
+    await withTempSkill(async ({ skillsDir }) => {
+      // Plant a fcop skill so the registry is non-trivially populated.
+      await plantSkill(skillsDir, { skill_id: "fcop" });
+      const skillReg = new SkillRegistry({ skillsDir });
+      await skillReg.load();
+      const kernelValidator = new KernelDependencyValidator({
+        skillRegistry: skillReg,
+      });
+
+      const sdk = new InMemorySdkAdapter();
+      const registry = new AgentRegistry({
+        store,
+        sdk,
+        kernelValidator,
+      });
+
+      // Agent declares a non-existent skill — should reject before SDK.
+      const spec = validAgentSpec({ skills: ["fcop", "ghost-skill"] });
+
+      await assert.rejects(
+        () => registry.register(spec),
+        (err: unknown) => {
+          assert.ok(err instanceof KernelDependencyError);
+          assert.equal(err.reason, "skill_not_found");
+          assert.equal(err.agentId, "DEV-01");
+          return true;
+        },
+      );
+
+      // Decision S invariant: SDK.create NOT called.
+      assert.equal(
+        sdk.calls.create.length,
+        0,
+        "SDK.create must NOT be called when kernelValidator rejects",
+      );
+      // agents.json was never written.
+      assert.equal(
+        existsSync(agentsPath),
+        false,
+        "agents.json must not exist after a rejected register",
+      );
+    });
+  });
+});
+
+test("TS-7.12b: register with kernelValidator + valid skills → mounts via mcpInjector", async () => {
+  await withTempStore(async ({ store, agentsPath }) => {
+    await withTempSkill(async ({ skillsDir }) => {
+      await plantSkill(skillsDir, { skill_id: "fcop" });
+      await plantSkill(skillsDir, { skill_id: "git" });
+      const skillReg = new SkillRegistry({ skillsDir });
+      await skillReg.load();
+
+      const sdk = new InMemorySdkAdapter();
+      const kernelValidator = new KernelDependencyValidator({
+        skillRegistry: skillReg,
+      });
+      const logger = quietLogger();
+      const mcpInjector = new MCPInjector({
+        skillRegistry: skillReg,
+        sdkAdapter: sdk,
+        logger,
+      });
+      const registry = new AgentRegistry({
+        store,
+        sdk,
+        kernelValidator,
+        mcpInjector,
+      });
+
+      const record = await registry.register(
+        validAgentSpec({ skills: ["fcop", "git"] }),
+      );
+
+      // Successful path: SDK.create was called once, agents.json exists,
+      // and mcpInjector emitted exactly one mount line for this agent.
+      assert.equal(sdk.calls.create.length, 1);
+      assert.ok(existsSync(agentsPath));
+      assert.equal(record.protocol.skills.length, 2);
+
+      const mountLine = logger.logs.find((l) =>
+        l.includes("[MCPInjector stub] mounting"),
+      );
+      assert.ok(mountLine, `expected mount info; got ${JSON.stringify(logger.logs)}`);
+      assert.match(mountLine!, /DEV-01/);
+      assert.match(mountLine!, /fcop/);
+
+      // Mount audit reflects per-agent state.
+      assert.equal(mcpInjector.getMounted("DEV-01").length, 2);
+    });
   });
 });
