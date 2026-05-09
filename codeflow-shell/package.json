@@ -1,8 +1,8 @@
 {
   "name": "codeflow-shell",
-  "version": "0.2.0-alpha",
+  "version": "0.2.0-beta",
   "private": true,
-  "description": "CodeFlow Shell — minimal executable wrapper around @codeflow/runtime. v0.2.0-alpha (sprint 0 P1: real CursorSdkAdapter wiring + ConfigLoader; not published).",
+  "description": "CodeFlow Shell — minimal executable wrapper around @codeflow/runtime. v0.2.0-beta (sprint 0 P2: 7-strategy single-EXE spike + atomic-write retry-on-EPERM MT-2; npm start is the official distribution method, single-EXE deferred to v1.0).",
   "type": "module",
   "main": "src/main.ts",
   "scripts": {

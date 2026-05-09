@@ -2,7 +2,7 @@
  * SDK adapter factory — picks the right `AgentSdkAdapter` for the
  * environment the shell is starting in.
  *
- * v0.2.0-alpha (sprint 0 P1):
+ * v0.2.0-beta (sprint 0 P2; semantics introduced in P1, no behavioral change in P2):
  *
  *   - `makeRealCursorSdkAdapter(cfg)` returns a real `CursorSdkAdapter`
  *     IFF `cfg.apiKey` (or `process.env.CURSOR_API_KEY`) is set, else

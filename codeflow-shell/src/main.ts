@@ -1,9 +1,10 @@
 /**
- * codeflow-shell main entry — v0.2.0-alpha (P1 of v0.2 sprint 0).
+ * codeflow-shell main entry — v0.2.0-beta (P2 of v0.2 sprint 0).
  *
  * Reference:
  *   - design doc §11.2 + §11.3 (Layer 1 minimal entry)
- *   - TASK-20260510-002-PM-to-DEV §三 P1 §1 main.ts wiring
+ *   - TASK-20260510-002-PM-to-DEV §三 P1 §1 main.ts wiring (still in force)
+ *   - TASK-20260510-007-PM-to-DEV §四 P2 §3 + §4 (P2 acceptance: spike + MT-2)
  *
  * Pipeline:
  *
@@ -41,7 +42,7 @@ import {
   makeRealCursorSdkAdapter,
 } from "./sdk-factory.ts";
 
-const VERSION = "0.2.0-alpha";
+const VERSION = "0.2.0-beta";
 
 interface ShellLogger {
   info: (msg: string) => void;

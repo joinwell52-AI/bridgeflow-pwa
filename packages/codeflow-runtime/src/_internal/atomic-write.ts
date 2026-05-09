@@ -12,8 +12,10 @@
  *
  *   1. write `${path}.tmp` (full body)
  *   2. fsync the temp file fd
- *   3. atomic `rename(${path}.tmp -> ${path})`
- *      (POSIX-rename + NTFS-rename are both atomic for same-device renames)
+ *   3. atomic `rename(${path}.tmp -> ${path})` with retry-on-EPERM
+ *      (POSIX-rename + NTFS-rename are both atomic for same-device renames;
+ *      the retry loop handles a Windows-specific race where a concurrent
+ *      reader holds the destination open for a few ms — see MT-2 §note below)
  *   4. fsync the parent directory (Linux requires this; harmless on Windows
  *      where `fs.open(<dir>)` rejects, so we skip — the rename itself
  *      flushes NTFS journal metadata)
@@ -30,6 +32,19 @@
  *     buffer cache and almost-certainly already in the journal. We log
  *     a warning but DO NOT throw — throwing here would suggest the write
  *     rolled back, which it did NOT.
+ *
+ * MT-2 note (rename retry-on-EPERM, v0.2.0-beta):
+ *
+ *   On Windows NTFS, `rename(tmp -> dst)` can fail with `EPERM` when
+ *   another process has the destination open for read (anti-virus, file
+ *   indexers, or — most commonly in our case — a concurrent
+ *   `JsonFileStore.load()` racing an `AgentStatusReconciler.reconcile()`
+ *   write). POSIX `rename` is atomic AND can clobber an open destination,
+ *   but Windows can return `ERROR_ACCESS_DENIED` (mapped to `EPERM` by
+ *   libuv) for a few microseconds. Empirically a single 50ms backoff is
+ *   enough to clear this; we cap at 3 retries to bound the worst case.
+ *   Tests TS-AW-1 / TS-AW-2 in `__tests__/atomic-write.test.ts` exercise
+ *   the retry loop with planted EPERM via a `fs.rename` spy.
  */
 
 import { promises as fs } from "node:fs";
@@ -65,8 +80,8 @@ export async function atomicWriteJson(
     }
   }
 
-  // Step 3: atomic rename.
-  await fs.rename(tmpPath, path);
+  // Step 3: atomic rename, with retry-on-EPERM (MT-2; Windows NTFS race).
+  await renameWithRetry(tmpPath, path);
 
   // Step 4: fsync parent dir. Skipped on win32 (NTFS rename flushes journal).
   if (process.platform !== "win32") {
@@ -96,4 +111,48 @@ export async function cleanupTmp(path: string): Promise<void> {
   } catch {
     // intentional: keeping the tmp on disk for diagnostics is fine
   }
+}
+
+/**
+ * Internal: rename `tmp -> dst` with a small retry loop for `EPERM` only.
+ *
+ * Windows NTFS occasionally returns `EPERM` (libuv mapping of
+ * `ERROR_ACCESS_DENIED`) when a concurrent reader has `dst` open. The
+ * race window is sub-millisecond in our codebase; a 50ms backoff is far
+ * more than enough. Other errno classes (`ENOENT`, `ENOSPC`, etc.) are
+ * NOT retried — those are real failures, not contention.
+ *
+ * Exported for the unit test, but callers should always go through
+ * `atomicWriteJson()`.
+ */
+export async function renameWithRetry(
+  tmpPath: string,
+  destPath: string,
+  opts: { maxAttempts?: number; backoffMs?: number } = {},
+): Promise<void> {
+  const maxAttempts = opts.maxAttempts ?? 3;
+  const backoffMs = opts.backoffMs ?? 50;
+
+  let lastErr: unknown = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await fs.rename(tmpPath, destPath);
+      return;
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException | undefined)?.code;
+      // Only retry transient EPERM (Windows NTFS reader-vs-rename race).
+      if (code !== "EPERM") {
+        throw err;
+      }
+      lastErr = err;
+      if (attempt < maxAttempts) {
+        await sleep(backoffMs);
+      }
+    }
+  }
+  throw lastErr;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

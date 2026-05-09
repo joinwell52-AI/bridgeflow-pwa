@@ -1,8 +1,13 @@
-# CodeFlow Shell — v0.2.0-alpha (sprint 0 P1)
+# CodeFlow Shell — v0.2.0-beta (sprint 0 P2)
 
 > ⚠️ **Internal preview release.** Not published to npm/PyPI/GitHub Releases. For ADMIN test only.
 >
-> **What's new since v0.1.0-rc.1**:
+> **What's new since v0.2.0-alpha (P1)**:
+> - 🛠️ MT-2: `_internal/atomic-write.ts` now retries on Windows-NTFS `EPERM` race (50ms backoff × 3); fixes the cross-cutting bug surfaced in REPORT-028 / REPORT-002. Runtime tests 94 → 99 (4 new + 1 bonus, all green).
+> - 📊 `docs/design/spike-exe-packaging.md` — full evaluation of 7 single-EXE packaging strategies (bun, pkg, nexe, Tauri, Node SEA × 3 esbuild variants). Verdict: all blocked by ESM/CJS + native sqlite3 + monorepo hoist three-way conflict. **`npm start` is the official v0.2 distribution method**, single-EXE is deferred to v1.0 with explicit re-eval gates documented.
+> - 🪛 `pack.cmd` rewritten as **spike-only stub** — default invocation prints summary and dispatches to `npm start`; sub-commands `bun` / `sea-cjs` / `sea-esm` keep the spike attempts available for advance users.
+>
+> **What's new since v0.1.0-rc.1 (P1, still active)**:
 > - 🆕 Real `CursorSdkAdapter` wiring (no longer hard-stubbed to `InMemorySdkAdapter`).
 > - 🆕 `ConfigLoader` — 6-tier merge (`defaults` → `~/.codeflow/v2/config.json` → `./codeflow.config.json` → `~/.codeflow/v2/.env` → `./.env` → `process.env` → CLI args).
 > - 🆕 `.env.example` whitelisted env vars.
@@ -39,9 +44,15 @@ What it does **not** do (deferred to v0.2 — see [TASK-20260509-028 §二](../d
 
 ## Quick start
 
-> ⚠️ **v0.1.0-rc.1 SEA/EXE status**: `pack.cmd` is **not currently green** on Node 24.14.0 + esbuild bundle. The bundler hits `@cursor/sdk` internal `.d.ts.map` references and `import.meta.url` in `@codeflow/protocol`'s validator (`cjs` format incompatibility). The PM `TASK-028 §三` explicitly accepted this fallback: **v0.1 ADMIN test runs via `npm start` (Option A); EXE bundling is rolled to v0.2 sprint 0** alongside the real `@cursor/sdk` adapter wiring (which itself blocks on Cursor's doorbell primitive). See [REPORT-20260509-028-DEV-to-PM.md](../docs/agents/tasks/REPORT-20260509-028-DEV-to-PM.md) §决策栏 for the full root cause + retry plan.
+> ⚠️ **v0.2.0-beta single-EXE status**: **deferred to v1.0**. After P2 spiked 7 packaging strategies (bun --compile, Node SEA × 3 esbuild variants, @vercel/pkg, nexe, Tauri sidecar), all routes are blocked by a 3-way conflict:
+>
+> 1. `@cursor/sdk@1.0.12` is a pure ESM package whose `dist/esm/index.d.ts` references `.js` files that don't exist in the published artifact (SDK packaging bug).
+> 2. `@cursor/sdk → sqlite3 → bindings` requires the native `.node` binary to be physically resolvable from `process.cwd()/package.json` ancestor chain — not possible inside `bun --compile`'s virtual fs nor a Node SEA single-file binary.
+> 3. monorepo workspace hoist puts `@cursor/sdk` under `packages/codeflow-runtime/node_modules/`, not `codeflow-shell/node_modules/` → ESM resolver from `dist/main.bundle.mjs` can't find it.
+>
+> Full RCA + re-eval gates: [`docs/design/spike-exe-packaging.md`](../docs/design/spike-exe-packaging.md). PM `TASK-007 §四 §2` explicitly blesses `npm start` as the **official v0.2 distribution method**; this is no longer a v0.1-style temporary fallback.
 
-### Option A — npm script (works today, recommended fallback)
+### Option A — npm script (official v0.2 distribution method)
 
 ```powershell
 cd codeflow-shell
@@ -77,25 +88,19 @@ copy codeflow-shell\examples\hello-world\sample-task.md "$env:USERPROFILE\.codef
 
 The main window's stdout will stream the full governance loop. See [`examples/hello-world/README.md`](examples/hello-world/README.md) for the expected log lines.
 
-### Option B — single-EXE (Node SEA, Windows) — **DEFERRED to v0.2**
+### Option B — single-EXE — **DEFERRED to v1.0** (spike-only)
 
 ```powershell
 cd codeflow-shell
 npm install
-.\pack.cmd
+.\pack.cmd                # default → forwards to `npm start` with explanation
+.\pack.cmd bun            # spike: bun --compile (will fail at runtime with `bindings` error)
+.\pack.cmd sea-cjs        # spike: esbuild CJS bundle (will fail at runtime — CJS can't require ESM)
+.\pack.cmd sea-esm        # spike: esbuild ESM bundle (will fail at runtime — hoist mis-alignment)
+.\pack.cmd --help         # banner
 ```
 
-**Status (v0.1.0-rc.1): not green.** The pack pipeline (tsc typecheck → esbuild bundle → SEA blob → postject inject) currently fails at the esbuild step on three fronts:
-
-1. `@cursor/sdk`'s ESM bundle references `.d.ts.map` files which esbuild has no loader for.
-2. `@codeflow/protocol/src/validator.ts` uses `import.meta.url`, which is empty under esbuild's `--format=cjs` output.
-3. `@cursor/sdk` re-exports from `@anysphere/cursor-sdk-shared/core-adapter`, which esbuild cannot resolve from the bundle root.
-
-These are **bundler-tooling issues in the v0.1 dependency tree**, not Node SEA limitations per se — they require either (a) external-marking the cursor SDK + its sub-shared module + a `--format=esm` switch + a `.map` loader stub, or (b) a different bundler (`@vercel/ncc` looks promising; PM `TASK-028 §三` blesses this swap).
-
-**v0.1 RC fallback (PM-blessed)**: ADMIN uses Option A (`npm start`). EXE bundling will be re-attempted in v0.2 sprint 0 alongside the real `@cursor/sdk` adapter wiring. `pack.cmd` is committed for v0.2's starting point.
-
-If you want to experiment with EXE locally: `pack.cmd` is the recipe. If it succeeds, double-click `dist\CodeFlow-v0.1.0-rc.1.exe`.
+**Status (v0.2.0-beta): all 7 packaging strategies blocked.** See [`docs/design/spike-exe-packaging.md`](../docs/design/spike-exe-packaging.md) for the full RCA, the 4 re-eval gates (R-1..R-4), and the conditions under which v1.0 should retry. The default `pack.cmd` invocation now prints the spike summary and forwards to `npm start` so a casual user gets a working shell with one double-click.
 
 ---
 
