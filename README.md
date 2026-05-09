@@ -21,6 +21,8 @@
 > 🚀 **CodeFlow v2 — repositioning to AI Runtime / AI OS** ([draft]):
 > [English overview (5 min)](docs/codeflow-overview.en.md) · [中文速读 (5 分钟)](docs/codeflow-overview.md) · [Full design doc / 完整设计文档](docs/design/codeflow-v2-on-fcop-sdk.md)
 
+> 🟡 **v1.0 alignment pending** — The current backend kernel ships as `v0.1.0-rc.1` (internal preview, **not** published to npm/PyPI). It implements CodeFlow protocol v0.1 (5 schemas: agent / task / review / session / skill) with `Review.decision="needs_human"` and a `human_approval` sub-structure. **These v0.1 concepts will be deprecated in v0.2** in favour of FCoP v1.0's Boundary capability — see [FCoP issue #2](https://github.com/joinwell52-AI/FCoP/issues/2#issuecomment-4412811192) for the upstream v1.0 charter (7 abstractions, Boundary, etc.). CodeFlow v0.2 sprint 0 will fully align to `fcop@>=1.0,<2.0`. Release notes: [`docs/releases/v0.1.0-rc.1.md`](docs/releases/v0.1.0-rc.1.md).
+
 ---
 
 We published the methodology — [**How to Build an Automated AI Development Team in Cursor**](https://joinwell52-ai.github.io/joinwell52/) — and then built the tool to make it real.

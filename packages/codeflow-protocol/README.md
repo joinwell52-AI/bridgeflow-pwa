@@ -6,6 +6,8 @@
 >
 > 这是 **CodeFlow v2 真正的核心交付物**——见 [设计文档 §3](../../docs/design/codeflow-v2-on-fcop-sdk.md) 和 [overview §六](../../docs/codeflow-overview.md)。
 
+> 🟡 **v1.0 alignment pending** — The current schemas ship as part of CodeFlow `v0.1.0-rc.1` (internal preview). They include `Review.decision="needs_human"` and a `human_approval` sub-structure that **will be deprecated in v0.2** in favour of FCoP v1.0's Boundary capability — see [FCoP issue #2](https://github.com/joinwell52-AI/FCoP/issues/2#issuecomment-4412811192) for the upstream v1.0 charter (7 abstractions, Boundary, etc.). CodeFlow v0.2 sprint 0 will fully align to `fcop@>=1.0,<2.0`.
+
 ## 安装
 
 ```bash

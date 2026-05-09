@@ -1,8 +1,8 @@
 {
   "name": "@codeflow/runtime",
-  "version": "0.1.0-alpha.5",
+  "version": "0.1.0-rc.1",
   "private": true,
-  "description": "CodeFlow AI Runtime — Agent Registry + Session Manager + Task Scheduler + Review Engine + Skill Runtime. Phase A (S3): AgentRegistry + PersistentStore + RuntimeBootstrap. Phase B (S3): SessionManager + SessionStore + TranscriptWriter. Phase C (S3): InboxWatcher + TaskParser + StateHistoryWriter + TaskDispatcher + Runtime composition root. Phase D / Sprint S4: ReviewEngine + ReviewWriter + NeedsHumanGate + AgentStatusReconciler (decision B' integration hook). Phase E / Sprint S5: SkillRegistry + KernelDependencyValidator + MCPInjector — fcop-mcp hard-dependency gate per design doc §0.5 / §0.7.5 / §3.6.",
+  "description": "CodeFlow AI Runtime — Agent Registry + Session Manager + Task Scheduler + Review Engine + Skill Runtime. v0.1.0-rc.1 internal preview (Sprint S6 acceptance): 14 subsystems, 94/94 tests, 30x 0 flakes. Backed by codeflow-shell single-EXE entry point. Not published to npm — for ADMIN test only. v0.2 sprint 0 will align to fcop@>=1.0,<2.0 (see FCoP issue #2).",
   "type": "module",
   "main": "src/index.ts",
   "scripts": {

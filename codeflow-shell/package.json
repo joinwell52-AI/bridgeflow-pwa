@@ -1,0 +1,25 @@
+{
+  "name": "codeflow-shell",
+  "version": "0.1.0-rc.1",
+  "private": true,
+  "description": "CodeFlow Shell — minimal executable wrapper around @codeflow/runtime. v0.1.0-rc.1 internal preview (not published).",
+  "type": "module",
+  "main": "src/main.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "start": "tsx src/main.ts",
+    "build": "tsc --noEmit && esbuild src/main.ts --bundle --platform=node --target=node22 --format=cjs --outfile=dist/main.bundle.js",
+    "pack:win": "pack.cmd"
+  },
+  "dependencies": {
+    "@codeflow/runtime": "file:../packages/codeflow-runtime",
+    "@codeflow/protocol": "file:../packages/codeflow-protocol"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.25.0",
+    "postject": "^1.0.0-alpha.6",
+    "tsx": "^4.21.0",
+    "typescript": "^5.6.0"
+  }
+}

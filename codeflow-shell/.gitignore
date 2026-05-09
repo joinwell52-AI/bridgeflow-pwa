@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.log
+*.tmp
+
+# Demo state — wiped on each run; not source code.
+examples/hello-world/.codeflow-state/

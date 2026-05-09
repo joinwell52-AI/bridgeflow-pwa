@@ -1,6 +1,8 @@
 # @codeflow/runtime
 
-> **Phase A + Phase B + Phase C（Sprint S3）+ Phase D（Sprint S4）+ Phase E（Sprint S5）已完成 — AgentRegistry + PersistentStore + RuntimeBootstrap + SessionManager + SessionStore + TranscriptWriter + InboxWatcher + TaskParser + StateHistoryWriter + TaskDispatcher + ReviewEngine + ReviewWriter + NeedsHumanGate + AgentStatusReconciler + SkillRegistry + KernelDependencyValidator + MCPInjector + Runtime 顶层装配 全部 v0.1 兑现。codeflow-shell EXE 见路线图 S6。**
+> **v0.1 Backend Kernel 全量完工** — Sprint S2 (Phase A) + S3 (Phase B + C) + S4 (Phase D) + S5 (Phase E) + S6 (codeflow-shell) 14 子系统装配，94/94 tests pass，30× 0 flakes。**当前版本 `0.1.0-rc.1` (internal preview)** — 见 [`codeflow-shell/README.md`](../../codeflow-shell/README.md) 与 [`docs/releases/v0.1.0-rc.1.md`](../../docs/releases/v0.1.0-rc.1.md)。
+
+> 🟡 **v1.0 alignment pending** — This release implements CodeFlow protocol v0.1 (5 schemas: agent / task / review / session / skill) with `Review.decision="needs_human"` and a `human_approval` sub-structure. **These v0.1 concepts will be deprecated in v0.2** in favour of FCoP v1.0's Boundary capability — see [FCoP issue #2](https://github.com/joinwell52-AI/FCoP/issues/2#issuecomment-4412811192) for the upstream v1.0 charter (7 abstractions, Boundary, etc.). CodeFlow v0.2 sprint 0 will fully align to `fcop@>=1.0,<2.0`.
 
 CodeFlow AI Runtime —— 6 大 kernel 子系统中的 **5 个**（Agent Registry + Session Manager + Task Scheduler + Review Engine + Skill Runtime），现已 v0.1 全量落地。
 
