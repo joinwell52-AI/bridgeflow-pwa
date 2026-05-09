@@ -1,18 +1,21 @@
 {
   "name": "@codeflow/runtime",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0-alpha.1",
   "private": true,
-  "description": "CodeFlow AI Runtime — Agent Registry + Session Manager design skeleton (Sprint S2 of design doc §10.2). Method bodies throw not-implemented; S3-S5 will land actual logic.",
+  "description": "CodeFlow AI Runtime — Agent Registry + Session Manager. Phase A (Sprint S3) implements AgentRegistry + PersistentStore + RuntimeBootstrap; SessionManager remains S2 design skeleton until Phase B.",
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test src/registry/__tests__/*.test.ts"
   },
   "dependencies": {
-    "@codeflow/protocol": "file:../codeflow-protocol"
+    "@codeflow/protocol": "file:../codeflow-protocol",
+    "@cursor/sdk": "^1.0.12"
   },
   "devDependencies": {
-    "typescript": "^5.6.0",
-    "@types/node": "^22.0.0"
+    "@types/node": "^22.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.6.0"
   }
 }

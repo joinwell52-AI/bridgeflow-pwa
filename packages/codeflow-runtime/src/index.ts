@@ -23,7 +23,22 @@ export {
   type AgentRegistryFilter,
   type AgentRegistryOptions,
   type PersistentStore,
-  type PersistentStoreFactory,
+  JsonFileStore,
+  type JsonFileStoreOptions,
+  type AgentSdkAdapter,
+  type AgentCreateSpec,
+  CursorSdkAdapter,
+  type CursorSdkAdapterOptions,
+  InMemorySdkAdapter,
+  InMemorySdkPlantedError,
+  ValidationError,
+  LayerViolationError,
+  AgentNotFoundError,
+  RegistryWriteError,
+  RuntimeBootstrapError,
+  RuntimeNotReadyError,
+  RuntimeBootstrap,
+  type RuntimeBootstrapOptions,
 } from "./registry/index.ts";
 
 export {
@@ -43,4 +58,12 @@ export type {
   RuntimeEvent,
   RuntimeEventType,
   Unsubscribe,
+  ReconciliationReport,
+  ReconciliationSuccessEntry,
+  ReconciliationFailedEntry,
+  ReconciliationOrphanedEntry,
+  ReconciliationForeignEntry,
+  ReconciliationDriftEntry,
 } from "./types/state.ts";
+
+export { ReconciliationStrategy } from "./types/state.ts";
