@@ -200,3 +200,65 @@ export class InvalidAgentStatusError extends Error {
     this.allowedStatuses = allowedStatuses;
   }
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// Scheduler-layer errors (Sprint S3 Phase C)
+//
+// Co-located with the registry/session error file per Phase B decision J:
+// callers tend to import a single error module; keeping the scheduler error
+// surface here means downstream code (Mobile push, audit log) only needs one
+// `import { ... } from "@codeflow/runtime/registry/errors"` line.
+// ───────────────────────────────────────────────────────────────────────────
+
+/**
+ * Thrown when `TaskParser.parse` cannot read or interpret a Task file.
+ *
+ * Two failure modes:
+ *
+ * 1. The YAML front-matter exists but is malformed (e.g. unbalanced quotes,
+ *    duplicate keys). The `cause` is the underlying yaml-parser error.
+ * 2. A field that's expected to be typed (e.g. `priority`, `recipient`)
+ *    has a wrong shape and the caller asked for strict mode (Phase C
+ *    default = lenient — see `TaskParser.parse` doc).
+ *
+ * Note that "no front-matter at all" is NOT an error — `TaskParser` returns
+ * `frontmatter: {}` and the full body in that case (per TASK-018 §主交付 2
+ * implementation point: "tolerate files without front-matter").
+ */
+export class TaskParseError extends Error {
+  override readonly name = "TaskParseError";
+  readonly filepath: string;
+  override readonly cause?: unknown;
+
+  constructor(filepath: string, message: string, options?: { cause?: unknown }) {
+    super(`TaskParser failed for "${filepath}": ${message}`);
+    this.filepath = filepath;
+    if (options?.cause !== undefined) {
+      this.cause = options.cause;
+    }
+  }
+}
+
+/**
+ * Thrown when `StateHistoryWriter.append` is asked to append to a Task file
+ * that no longer exists on disk (the watcher may have seen it briefly during
+ * a `git checkout` flicker, or the file was unlinked between dispatch and
+ * settlement).
+ *
+ * The dispatcher MUST catch this and degrade to a logger.warn — it's never
+ * a runtime-fatal error (a missing file just means we lost the audit trail
+ * for that one task; the next chokidar add re-creates the dispatch path).
+ */
+export class TaskFileNotFoundError extends Error {
+  override readonly name = "TaskFileNotFoundError";
+  readonly filepath: string;
+  override readonly cause?: unknown;
+
+  constructor(filepath: string, options?: { cause?: unknown }) {
+    super(`Task file not found at "${filepath}" (expected for state_history append)`);
+    this.filepath = filepath;
+    if (options?.cause !== undefined) {
+      this.cause = options.cause;
+    }
+  }
+}

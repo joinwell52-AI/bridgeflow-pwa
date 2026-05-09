@@ -1,8 +1,8 @@
 {
   "name": "@codeflow/runtime",
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0-alpha.3",
   "private": true,
-  "description": "CodeFlow AI Runtime — Agent Registry + Session Manager. Phase A (Sprint S3): AgentRegistry + PersistentStore + RuntimeBootstrap. Phase B (Sprint S3): SessionManager + SessionStore + TranscriptWriter.",
+  "description": "CodeFlow AI Runtime — Agent Registry + Session Manager + Task Scheduler. Phase A (Sprint S3): AgentRegistry + PersistentStore + RuntimeBootstrap. Phase B (Sprint S3): SessionManager + SessionStore + TranscriptWriter. Phase C (Sprint S3): InboxWatcher + TaskParser + StateHistoryWriter + TaskDispatcher + Runtime composition root.",
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "@codeflow/protocol": "file:../codeflow-protocol",
-    "@cursor/sdk": "^1.0.12"
+    "@cursor/sdk": "^1.0.12",
+    "chokidar": "^4.0.3",
+    "yaml": "^2.8.4"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
