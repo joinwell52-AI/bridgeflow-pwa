@@ -1,8 +1,14 @@
-# CodeFlow Shell — v0.2.0-beta (sprint 0 P2)
+# CodeFlow Shell — v0.2.0-beta.1 (MT-1 hotfix)
 
 > ⚠️ **Internal preview release.** Not published to npm/PyPI/GitHub Releases. For ADMIN test only.
 >
-> **What's new since v0.2.0-alpha (P1)**:
+> **What's new since v0.2.0-beta (P2)**:
+> - 🩹 **MT-1 hotfix (BUG-SDK-001)**: `CursorSdkAdapter` now wires `cfg.cursor.defaultModel` end-to-end into `Agent.create({ model })` and `agent.send({ model })`. Without this, every real-SDK task drop in `local` mode failed with `Local SDK agents require an explicit model.` (QA-009 §五). The fallback chain is `spec.modelId ?? this._opts.defaultModel ?? <omit>`, so cloud-mode users still get SDK auto-pick when neither is set.
+> - 🆕 `CURSOR_DEFAULT_MODEL=auto` ships uncommented in `.env.example` so a fresh `cp .env.example ~/.codeflow/v2/.env` + add real key gives a working real-SDK setup with zero extra editing.
+> - 🆕 Banner now prints a multi-line `WARNING` block when `live + local + no defaultModel` is detected, so you see the misconfig before dropping a task and waiting for the failure.
+> - ✅ Runtime tests **99 → 104** (+5 TS-MODEL-1..5: model-injection seam tests via `Agent.create` / `Agent.resume` monkey-patch).
+>
+> **What's new since v0.2.0-alpha (P1, still active)**:
 > - 🛠️ MT-2: `_internal/atomic-write.ts` now retries on Windows-NTFS `EPERM` race (50ms backoff × 3); fixes the cross-cutting bug surfaced in REPORT-028 / REPORT-002. Runtime tests 94 → 99 (4 new + 1 bonus, all green).
 > - 📊 `docs/design/spike-exe-packaging.md` — full evaluation of 7 single-EXE packaging strategies (bun, pkg, nexe, Tauri, Node SEA × 3 esbuild variants). Verdict: all blocked by ESM/CJS + native sqlite3 + monorepo hoist three-way conflict. **`npm start` is the official v0.2 distribution method**, single-EXE is deferred to v1.0 with explicit re-eval gates documented.
 > - 🪛 `pack.cmd` rewritten as **spike-only stub** — default invocation prints summary and dispatches to `npm start`; sub-commands `bun` / `sea-cjs` / `sea-esm` keep the spike attempts available for advance users.
@@ -120,8 +126,8 @@ The shell merges configuration from **six** layers (later layers override earlie
 | Var | Purpose | Default |
 |---|---|---|
 | `CURSOR_API_KEY` | Activates real `CursorSdkAdapter`. **Without this, the shell uses `InMemorySdkAdapter` (smoke-test fallback)**. | unset |
-| `CURSOR_DEFAULT_MODEL` | Default model hint (recorded for forward compat — not yet wired through SDK calls). | unset |
-| `CURSOR_LIST_SCOPE` | `local` (per-cwd) or `cloud` (cross-machine). | `local` |
+| `CURSOR_DEFAULT_MODEL` | **Required when `CURSOR_LIST_SCOPE=local` (the default).** Forwarded to `Agent.create({ model })` and `agent.send({ model })`. v0.2.0-beta.1 (MT-1) wired this end-to-end — without it, every task drop fails at `agent.send()` with `Local SDK agents require an explicit model.` `auto` is the safest first choice; `claude-sonnet-4`, `gpt-5`, etc. are also valid where your account has access. | unset |
+| `CURSOR_LIST_SCOPE` | `local` (per-cwd) or `cloud` (cross-machine). When `cloud`, the SDK auto-picks a default model so `CURSOR_DEFAULT_MODEL` becomes optional. | `local` |
 | `CODEFLOW_DATA_DIR` | Override `dataDir` (skills/, inbox/, reviews/, transcripts/, sessions/, agents.json). | `~/.codeflow/v2/` |
 | `CODEFLOW_RELAY_URL` | WebSocket URL for Mobile PWA bridge (P3, not yet active). | unset |
 | `CODEFLOW_ROOM_KEY` | Relay room key. | unset |
@@ -151,16 +157,22 @@ Every key is optional. The `~` prefix expands to `homedir()` for `dataDir`. Plac
 ### Quick start: getting a Cursor API key
 
 1. Open [https://cursor.com/settings](https://cursor.com/settings) → **Account** → **API keys**.
-2. Click **Create new key**. Copy the value (starts with `ck_`).
+2. Click **Create new key**. Copy the value (starts with `crsr_`).
 3. Pick **one** of the following options:
-   - Easiest: `cp codeflow-shell/.env.example ~/.codeflow/v2/.env` then edit the file and set `CURSOR_API_KEY`.
+   - Easiest: `cp codeflow-shell/.env.example ~/.codeflow/v2/.env` then edit the COPY (never `.env.example` directly — see the warning block at the top of that file). Set `CURSOR_API_KEY=crsr_<your_real_key>`.
    - Per-project: same but copy to `codeflow-shell/.env`.
-   - Per-shell: `set CURSOR_API_KEY=ck_xxx` then `npm start` in the same window (PowerShell: `$env:CURSOR_API_KEY="ck_xxx"`).
-4. Re-launch the shell. Banner should show:
+   - Per-shell: `set CURSOR_API_KEY=crsr_xxx` then `npm start` in the same window (PowerShell: `$env:CURSOR_API_KEY="crsr_xxx"`).
+4. **Local mode requires a default model** (v0.2.0-beta.1 / MT-1, BUG-SDK-001). Either:
+   - Keep the `CURSOR_DEFAULT_MODEL=auto` line that ships uncommented in `.env.example` (recommended first choice), OR
+   - Switch to cloud mode by setting `CURSOR_LIST_SCOPE=cloud` (the SDK then auto-picks a default).
+
+   Without one of those, every task drop fails at `agent.send()` with `Local SDK agents require an explicit model.` The shell prints a `WARNING` block in the banner if it detects this misconfiguration so you don't waste a 30-second governance loop discovering it.
+
+5. Re-launch the shell. Banner should show:
    ```text
-   Cursor SDK     : live (CursorSdkAdapter; apiKey from process.env.CURSOR_API_KEY, listScope="local")
+   Cursor SDK     : live (CursorSdkAdapter; apiKey from process.env.CURSOR_API_KEY, listScope="local", defaultModel="auto")
    ```
-   instead of the v0.1 fallback line.
+   instead of the v0.1 fallback line. The `defaultModel="..."` segment confirms the wire-through worked.
 
 If the banner still shows `fake (InMemorySdkAdapter; ...)`, the key didn't reach the shell — the most common cause on Windows is forgetting to relaunch after editing `.env`. The shell reads config exactly once, at startup.
 

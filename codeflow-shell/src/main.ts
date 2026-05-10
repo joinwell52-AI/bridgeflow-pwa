@@ -1,10 +1,12 @@
 /**
- * codeflow-shell main entry — v0.2.0-beta (P2 of v0.2 sprint 0).
+ * codeflow-shell main entry — v0.2.0-beta.1 (MT-1 hotfix on top of P2).
  *
  * Reference:
  *   - design doc §11.2 + §11.3 (Layer 1 minimal entry)
  *   - TASK-20260510-002-PM-to-DEV §三 P1 §1 main.ts wiring (still in force)
  *   - TASK-20260510-007-PM-to-DEV §四 P2 §3 + §4 (P2 acceptance: spike + MT-2)
+ *   - TASK-20260510-010-PM-to-DEV (MT-1 hotfix: defaultModel wire-through;
+ *     adds banner WARNING block when live + local + no model)
  *
  * Pipeline:
  *
@@ -42,7 +44,7 @@ import {
   makeRealCursorSdkAdapter,
 } from "./sdk-factory.ts";
 
-const VERSION = "0.2.0-beta";
+const VERSION = "0.2.0-beta.1";
 
 interface ShellLogger {
   info: (msg: string) => void;
@@ -113,6 +115,34 @@ async function main(): Promise<void> {
   console.log(`Reviews        : ${runtime.reviewWriter.reviewsDir}`);
   console.log(`Config sources : ${describeSources(cfg.sources)}`);
   console.log(`Cursor SDK     : ${adapterDescription}`);
+  // MT-1 friendly hint: live adapter without a default model + local
+  // listScope = nothing actually wrong yet, but every task drop will
+  // fail at `agent.send()` with `Local SDK agents require an explicit
+  // model.` We surface that up-front instead of letting users hit it
+  // after a 30-second governance loop. (BUG-SDK-001 / TASK-007 §3.5)
+  const listScope = cfg.cursor.listScope ?? "local";
+  const liveAdapterPicked = adapterDescription.startsWith("live ");
+  if (
+    liveAdapterPicked &&
+    listScope === "local" &&
+    !cfg.cursor.defaultModel
+  ) {
+    console.warn(
+      "WARNING        : live SDK + local mode + no CURSOR_DEFAULT_MODEL set.",
+    );
+    console.warn(
+      "                 First task drop will fail with 'Local SDK agents",
+    );
+    console.warn(
+      "                 require an explicit model.' Set CURSOR_DEFAULT_MODEL",
+    );
+    console.warn(
+      "                 in ~/.codeflow/v2/.env (e.g. `auto`, `claude-sonnet-4`)",
+    );
+    console.warn(
+      "                 or per-task `spec.modelId`. See README §Cursor API key.",
+    );
+  }
   console.log(
     `Skills loaded  : ${runtime.skillRegistry.size()} ` +
       `(${runtime.skillRegistry.list().map((s) => s.skill_id).join(", ") || "(none)"})`,

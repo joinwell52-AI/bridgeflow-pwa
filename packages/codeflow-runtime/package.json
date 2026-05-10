@@ -1,8 +1,8 @@
 {
   "name": "@codeflow/runtime",
-  "version": "0.2.0-beta",
+  "version": "0.2.0-beta.1",
   "private": true,
-  "description": "CodeFlow AI Runtime — Agent Registry + Session Manager + Task Scheduler + Review Engine + Skill Runtime. v0.2.0-beta (sprint 0 P2 acceptance): 14 subsystems, 99/99 tests, 0 flakes; MT-2 atomic-write retry-on-EPERM patch lands. Backed by codeflow-shell. Not published to npm — for ADMIN test only. v0.2 sprint 0 will align to fcop@>=1.0,<2.0 (see FCoP issue #2).",
+  "description": "CodeFlow AI Runtime — Agent Registry + Session Manager + Task Scheduler + Review Engine + Skill Runtime. v0.2.0-beta.1 (MT-1 hotfix): 14 subsystems, 104/104 tests, 0 flakes; CursorSdkAdapter wires defaultModel into Agent.create / agent.send (BUG-SDK-001). MT-2 atomic-write retry-on-EPERM still active. Backed by codeflow-shell. Not published to npm — for ADMIN test only.",
   "type": "module",
   "main": "src/index.ts",
   "scripts": {

@@ -146,6 +146,23 @@ export interface CursorSdkAdapterOptions {
    * which scope is correct).
    */
   listScope?: "local" | "cloud" | undefined;
+  /**
+   * Default model id forwarded to `Agent.create({ model })` and
+   * `agent.send({ model })` whenever the per-call spec did NOT specify
+   * one. **Required for `local` runtime** — the SDK rejects local
+   * agents in `send()` with `Local SDK agents require an explicit
+   * model. Pass model: { id: "..." } to Agent.create() or to send(),
+   * or run this agent in cloud mode.` (BUG-SDK-001 / MT-1).
+   *
+   * Both per-call (`spec.modelId`) and adapter-level (`defaultModel`)
+   * are optional in the type system so cloud-mode users (whose SDK
+   * picks a default automatically) aren't forced to set a value, but
+   * `local`-mode users MUST set at least one of them.
+   *
+   * Reference: TASK-20260510-010-PM-to-DEV §3.1 + REPORT-20260510-009
+   * §五 BUG-SDK-001.
+   */
+  defaultModel?: string;
 }
 
 /**
@@ -162,13 +179,18 @@ export class CursorSdkAdapter implements AgentSdkAdapter {
 
   async create(spec: AgentCreateSpec): Promise<{ sdk_agent_id: string }> {
     const apiKey = this._resolveApiKey();
+    // MT-1 / BUG-SDK-001: per-call modelId wins; otherwise fall back to
+    // the adapter-level defaultModel. If neither is set, omit `model` and
+    // let the SDK decide (cloud mode auto-picks; local mode will throw
+    // at `send()` with a clear actionable error).
+    const modelId = spec.modelId ?? this._opts.defaultModel;
 
     let agent;
     try {
       agent = await Agent.create({
         apiKey,
         name: `CodeFlow ${spec.agentId}`,
-        ...(spec.modelId ? { model: { id: spec.modelId } } : {}),
+        ...(modelId ? { model: { id: modelId } } : {}),
         local: { cwd: spec.workspace ?? this._opts.defaultCwd ?? process.cwd() },
       });
     } catch (err) {
@@ -226,12 +248,14 @@ export class CursorSdkAdapter implements AgentSdkAdapter {
 
   async send(spec: AgentSendSpec, sdkAgentId: string): Promise<RunHandle> {
     const apiKey = this._resolveApiKey();
+    // MT-1 / BUG-SDK-001 (see `create` above for the same fallback chain).
+    const modelId = spec.modelId ?? this._opts.defaultModel;
 
     let agent;
     try {
       agent = await Agent.resume(sdkAgentId, {
         apiKey,
-        ...(spec.modelId ? { model: { id: spec.modelId } } : {}),
+        ...(modelId ? { model: { id: modelId } } : {}),
         local: { cwd: this._opts.defaultCwd ?? process.cwd() },
       });
     } catch (err) {

@@ -1,8 +1,8 @@
 {
   "name": "codeflow-shell",
-  "version": "0.2.0-beta",
+  "version": "0.2.0-beta.1",
   "private": true,
-  "description": "CodeFlow Shell — minimal executable wrapper around @codeflow/runtime. v0.2.0-beta (sprint 0 P2: 7-strategy single-EXE spike + atomic-write retry-on-EPERM MT-2; npm start is the official distribution method, single-EXE deferred to v1.0).",
+  "description": "CodeFlow Shell — minimal executable wrapper around @codeflow/runtime. v0.2.0-beta.1 (MT-1 hotfix on top of P2: cfg.cursor.defaultModel wired end-to-end into Agent.create / agent.send; closes BUG-SDK-001 from QA-009).",
   "type": "module",
   "main": "src/main.ts",
   "scripts": {

@@ -2,11 +2,15 @@
  * SDK adapter factory — picks the right `AgentSdkAdapter` for the
  * environment the shell is starting in.
  *
- * v0.2.0-beta (sprint 0 P2; semantics introduced in P1, no behavioral change in P2):
+ * v0.2.0-beta.1 (MT-1 hotfix; full wire-through of cfg.cursor.defaultModel):
  *
  *   - `makeRealCursorSdkAdapter(cfg)` returns a real `CursorSdkAdapter`
  *     IFF `cfg.apiKey` (or `process.env.CURSOR_API_KEY`) is set, else
  *     returns `null` so callers chain `??` to the in-memory fallback.
+ *     Now also forwards `cfg.defaultModel` to `CursorSdkAdapterOptions`
+ *     so `Agent.create({ model })` and `agent.send({ model })` get a
+ *     value when callers don't specify per-task `spec.modelId` (closes
+ *     BUG-SDK-001 / QA-009 §五).
  *
  *   - `makeFakeCursorSdkAdapter()` returns the in-memory adapter
  *     (`InMemorySdkAdapter`) — settles agents synthetically via
@@ -14,7 +18,10 @@
  *     by automated tests AND by users who haven't configured a Cursor
  *     API key yet (so first launch still smoke-tests cleanly).
  *
- * Reference: TASK-20260510-002-PM-to-DEV §三 P1 §1
+ * References:
+ *   - TASK-20260510-002-PM-to-DEV §三 P1 §1 (factory introduced)
+ *   - TASK-20260510-010-PM-to-DEV §3.3 (defaultModel wire-through)
+ *   - REPORT-20260510-009-QA-to-PM §五 BUG-SDK-001 (root cause)
  */
 
 import {
@@ -36,10 +43,15 @@ export interface CursorAdapterConfig {
    */
   apiKey?: string;
   /**
-   * Per-call default model hint. NOT yet wired to `CursorSdkAdapter`'s
-   * 4 methods (the SDK's `Agent.create` / `Agent.resume` accept `model`
-   * per-call, not as constructor state). Recorded here for surfacing
-   * in the banner; full wiring is a P3+ follow-up — see REPORT-002 §决策.
+   * Default model id forwarded to `Agent.create({ model })` and
+   * `agent.send({ model })`. **Required for `local` runtime mode** —
+   * the SDK rejects local agents at `send()` without an explicit
+   * model (see BUG-SDK-001).
+   *
+   * MT-1 (v0.2.0-beta.1): now wired all the way to
+   * `CursorSdkAdapterOptions.defaultModel`. Previously this field
+   * was recorded for the banner only — that left `local`-mode users
+   * with a 100% failure rate at first task drop.
    */
   defaultModel?: string;
   /**
@@ -72,6 +84,11 @@ export function makeRealCursorSdkAdapter(
     apiKey,
     listScope: cfg.listScope ?? "local",
     defaultCwd: process.cwd(),
+    // MT-1: forward defaultModel so `Agent.create` / `agent.send` see
+    // it when the caller doesn't supply `spec.modelId` per-task. We
+    // forward the raw value (may be `undefined`); CursorSdkAdapter is
+    // responsible for the `?? undefined` semantics in its `??` chain.
+    ...(cfg.defaultModel ? { defaultModel: cfg.defaultModel } : {}),
   });
 }
 
