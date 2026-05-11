@@ -1,8 +1,8 @@
 {
   "name": "codeflow-shell",
-  "version": "0.2.0-beta.2",
+  "version": "0.2.0-beta.3",
   "private": true,
-  "description": "CodeFlow Shell — minimal executable wrapper around @codeflow/runtime. v0.2.0-beta.2 (MT-2 + MT-3 + MT-4 bundle): MT-2 = agent.send() local.force=true (BUG-SDK-002); MT-3 = .env.example CURSOR_DEFAULT_MODEL default not auto (BUG-SDK-003); MT-4 = ReviewEngine.extractText() walks SDKAssistantMessage content[] (BUG-SDK-004 — fixes verdict_parse_failed → needs_human collapse on real-SDK reviews). All four BUG-SDK-001..004 closed.",
+  "description": "CodeFlow Shell — minimal executable wrapper around @codeflow/runtime. v0.2.0-beta.3 (MT-5 single hotfix on top of MT-1..4 bundle): MT-5 = Agent.create() no longer passes `model` to the SDK on ANY API key tier; the resume-time model wire-through (where BUG-SDK-001 actually fires) is preserved. Closes BUG-SDK-007 which QA-014 surfaced as a Cursor backend ACL on ADMIN-class keys that wrongly reuses the 'Cannot use this model' error code. Five of BUG-SDK-001..007 now closed (005 ripgrep noise + 006 reviewer dispatch race tracked separately).",
   "type": "module",
   "main": "src/main.ts",
   "scripts": {

@@ -1,5 +1,5 @@
 /**
- * codeflow-shell main entry — v0.2.0-beta.2 (MT-2 hotfix on top of MT-1).
+ * codeflow-shell main entry — v0.2.0-beta.3 (MT-5 hotfix on top of MT-1..4).
  *
  * Reference:
  *   - design doc §11.2 + §11.3 (Layer 1 minimal entry)
@@ -15,6 +15,12 @@
  *     MT-4 hotfix: ReviewEngine.extractText() walks SDKAssistantMessage
  *     content[] array; closes BUG-SDK-004. No banner change — both
  *     fixes live in subordinate files.)
+ *   - TASK-20260511-001-PM-to-DEV (MT-5 hotfix: Agent.create() no longer
+ *     receives a `model` field on ANY key tier — closes BUG-SDK-007 which
+ *     QA-014 surfaced as a Cursor backend ACL on ADMIN-class keys. The
+ *     resume-time model wire-through is untouched, so BUG-SDK-001 stays
+ *     fixed. Banner WARNING example updated `auto` → `default` to match
+ *     MT-3. v0.2.0-beta.3.)
  *
  * Pipeline:
  *
@@ -52,7 +58,7 @@ import {
   makeRealCursorSdkAdapter,
 } from "./sdk-factory.ts";
 
-const VERSION = "0.2.0-beta.2";
+const VERSION = "0.2.0-beta.3";
 
 interface ShellLogger {
   info: (msg: string) => void;
@@ -145,7 +151,7 @@ async function main(): Promise<void> {
       "                 require an explicit model.' Set CURSOR_DEFAULT_MODEL",
     );
     console.warn(
-      "                 in ~/.codeflow/v2/.env (e.g. `auto`, `claude-sonnet-4`)",
+      "                 in ~/.codeflow/v2/.env (e.g. `default`, `claude-sonnet-4`)",
     );
     console.warn(
       "                 or per-task `spec.modelId`. See README §Cursor API key.",

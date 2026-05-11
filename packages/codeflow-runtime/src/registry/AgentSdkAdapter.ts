@@ -58,6 +58,64 @@
  *  - Direction C (drop `prompt` from create) — `AgentOptions` doesn't
  *    accept a `prompt` field; only `Agent.prompt()` (a different API)
  *    does. Already not applicable.
+ *
+ * ── BUG-SDK-007 (v0.2.0-beta.3, TASK-20260511-001) ────────────────────
+ *
+ * QA-014 ran three real-key smokes on ADMIN's Cursor API key, each with
+ * `CURSOR_DEFAULT_MODEL` set to a different value drawn from the SDK's
+ * own "Available models" allowlist (`default`, `claude-sonnet-4`,
+ * `claude-sonnet-4-5`). All three crashed identically at
+ * `registerDefaultAgentKitIfEmpty()` (before the banner even prints):
+ *
+ *   fatal: Error: Agent.create failed for agent_id="DEV-01":
+ *          Cannot use this model: <name>.
+ *          Available models: default, composer-2, gpt-5.5, ...,
+ *                            claude-sonnet-4, ..., claude-sonnet-4-5, ...
+ *          (code=undefined, isRetryable=false)
+ *
+ * The error message is paradoxical — the rejected name appears *in*
+ * the "Available models" list — which is the signature of an ACL
+ * problem, not a model-name problem. Control evidence:
+ *
+ *   - ADMIN key + `Agent.create()` WITHOUT a model arg → success
+ *     (QA-011 §六 v0.2.0-beta.1; QA-014 `.smoke-qa014-20260511-080830`)
+ *   - DEV key + `Agent.create({ model: { id } })` → success
+ *     (DEV-013 §四 #3 smoke under `.smoke-beta2-redux/`)
+ *
+ * Inferred root cause: Cursor's backend has a per-API-key ACL on the
+ * "programmatically specify model on Agent.create" capability. ADMIN's
+ * key tier is not in the allow-list; DEV's key tier is. The SDK does
+ * NOT surface this as a 403/ACL error — it reuses the "bad model name"
+ * code path, masking the real reason. This is a SDK UX bug, but the
+ * application-layer workaround is straightforward:
+ *
+ * Fix (direction A, adopted): **never pass `model` to `Agent.create()`**,
+ * regardless of `spec.modelId` or `this._opts.defaultModel`. `model` is
+ * still passed through `Agent.resume()` inside `send()` (the resume
+ * path is on a different ACL endpoint and QA-014 has implicit positive
+ * evidence — DEV-012/013 send() calls ran cleanly on both key tiers).
+ *
+ * Consequences:
+ *  - `CURSOR_DEFAULT_MODEL` env var becomes **send-time only**. The
+ *    `Agent.create()` step is now model-agnostic for ALL key tiers,
+ *    not just enterprise ones. Documented in `.env.example`.
+ *  - MT-1's "wire defaultModel through Agent.create()" is partially
+ *    reverted: only the create() half is reverted; send()/resume()
+ *    half (where BUG-SDK-001's "Local SDK agents require an explicit
+ *    model" error actually fires) is unchanged.
+ *  - Test seams: TS-MODEL-1/2 (which formerly asserted Agent.create
+ *    receives a model key) are flipped to assert NO model key. New
+ *    TS-MODEL-6/7/8 pin the v0.2.0-beta.3 contract.
+ *
+ * Investigated and rejected:
+ *  - Direction B (drop model from BOTH create() and send()) — would
+ *    re-trigger BUG-SDK-001 on local-mode sends; QA-009 evidence
+ *    documents that Agent.resume({ model: {...} }) is required for
+ *    local sends to succeed.
+ *  - Direction C (env switch `CURSOR_SDK_MODEL_ON_CREATE=true|false`,
+ *    default false) — overengineered; the create-time model arg has
+ *    no observable benefit over the send-time model arg (the SDK
+ *    plans the run using the *send* model anyway).
  */
 
 import { Agent, CursorAgentError } from "@cursor/sdk";
@@ -85,7 +143,16 @@ export interface AgentCreateSpec {
   runtime: AgentRuntime;
   /** For local agents: cwd path. For cloud agents: repo URL. */
   workspace?: string;
-  /** Optional model hint forwarded to `Agent.create({ model })`. */
+  /**
+   * Optional model hint. BUG-SDK-007 (v0.2.0-beta.3): this field is
+   * NO LONGER forwarded to `Agent.create({ model })` — Cursor's backend
+   * rejects programmatic model spec on create() for ADMIN-class API
+   * keys with a misleading "Cannot use this model: <name>" error.
+   * The field is kept on the spec for API stability and so the registry
+   * can forward it through to send()-time on AgentSendSpec.modelId
+   * (where the same value DOES get fed to Agent.resume({ model })).
+   * See file-level JSDoc BUG-SDK-007 section + TS-MODEL-6 contract.
+   */
   modelId?: string;
 }
 
@@ -188,12 +255,15 @@ export interface CursorSdkAdapterOptions {
    */
   listScope?: "local" | "cloud" | undefined;
   /**
-   * Default model id forwarded to `Agent.create({ model })` and
-   * `agent.send({ model })` whenever the per-call spec did NOT specify
-   * one. **Required for `local` runtime** — the SDK rejects local
-   * agents in `send()` with `Local SDK agents require an explicit
+   * Default model id forwarded ONLY to `Agent.resume({ model })` /
+   * `agent.send({ model })` (BUG-SDK-007 fix, v0.2.0-beta.3 onwards;
+   * Agent.create() is now intentionally model-free for ALL key tiers).
+   *
+   * **Required for `local` runtime** — the SDK rejects local agents
+   * in `send()`/`resume()` with `Local SDK agents require an explicit
    * model. Pass model: { id: "..." } to Agent.create() or to send(),
-   * or run this agent in cloud mode.` (BUG-SDK-001 / MT-1).
+   * or run this agent in cloud mode.` (BUG-SDK-001 / MT-1; still
+   * fires on the resume half of the pipeline even after BUG-SDK-007).
    *
    * Both per-call (`spec.modelId`) and adapter-level (`defaultModel`)
    * are optional in the type system so cloud-mode users (whose SDK
@@ -220,18 +290,24 @@ export class CursorSdkAdapter implements AgentSdkAdapter {
 
   async create(spec: AgentCreateSpec): Promise<{ sdk_agent_id: string }> {
     const apiKey = this._resolveApiKey();
-    // MT-1 / BUG-SDK-001: per-call modelId wins; otherwise fall back to
-    // the adapter-level defaultModel. If neither is set, omit `model` and
-    // let the SDK decide (cloud mode auto-picks; local mode will throw
-    // at `send()` with a clear actionable error).
-    const modelId = spec.modelId ?? this._opts.defaultModel;
-
+    // BUG-SDK-007 fix (TASK-20260511-001 / v0.2.0-beta.3): NEVER pass a
+    // `model` field to Agent.create(), regardless of spec.modelId or
+    // this._opts.defaultModel. See file-level JSDoc for the QA-014 +
+    // QA-011 ACL evidence. The defaultModel / spec.modelId precedence
+    // chain still applies on the send/resume path inside `send()`
+    // below — that's where BUG-SDK-001 ("Local SDK agents require an
+    // explicit model") actually fires, and where the ACL does NOT
+    // reject the model arg for ADMIN-class keys.
+    //
+    // `spec.modelId` is still accepted on AgentCreateSpec (kept for
+    // API stability + so AgentRegistry.register() can forward the
+    // per-agent hint through to send()-time), but is intentionally
+    // unused here. TS-MODEL-6 pins this contract.
     let agent;
     try {
       agent = await Agent.create({
         apiKey,
         name: `CodeFlow ${spec.agentId}`,
-        ...(modelId ? { model: { id: modelId } } : {}),
         local: { cwd: spec.workspace ?? this._opts.defaultCwd ?? process.cwd() },
       });
     } catch (err) {
@@ -289,7 +365,11 @@ export class CursorSdkAdapter implements AgentSdkAdapter {
 
   async send(spec: AgentSendSpec, sdkAgentId: string): Promise<RunHandle> {
     const apiKey = this._resolveApiKey();
-    // MT-1 / BUG-SDK-001 (see `create` above for the same fallback chain).
+    // MT-1 / BUG-SDK-001 fallback chain still applies HERE on the
+    // resume path (BUG-SDK-007 only reverts create-time model). Local
+    // sends without an explicit model fail with "Local SDK agents
+    // require an explicit model"; this layer feeds the SDK either the
+    // per-task `spec.modelId` hint or the adapter-level defaultModel.
     const modelId = spec.modelId ?? this._opts.defaultModel;
 
     let agent;

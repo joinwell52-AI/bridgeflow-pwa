@@ -29,18 +29,23 @@
  *   TS-RUN-1..2 pin the new send-opts shape (local vs cloud).
  *
  * Test plan:
- *   TS-MODEL-1  defaultModel set, no spec.modelId → Agent.create receives
- *               model: { id: defaultModel }
- *   TS-MODEL-2  spec.modelId set (overrides defaultModel) → Agent.create
- *               receives model: { id: spec.modelId }
+ *   TS-MODEL-1  (BUG-SDK-007 flipped) defaultModel set, no spec.modelId →
+ *               Agent.create receives NO model key. Pre-beta.3 this
+ *               asserted the model was wired through; QA-014 proved that
+ *               path crashes on ADMIN-class keys (see AgentSdkAdapter.ts
+ *               BUG-SDK-007 JSDoc section).
+ *   TS-MODEL-2  (BUG-SDK-007 flipped) spec.modelId set (overrides
+ *               defaultModel) → Agent.create STILL receives NO model
+ *               key. The precedence chain (spec.modelId ?? defaultModel)
+ *               applies only on the resume/send path now.
  *   TS-MODEL-3  neither set → Agent.create receives no `model` key at all
- *               (caller decides; cloud mode auto-picks, local mode will
- *               throw at send). This regression-guards the non-empty case
- *               from accidentally always emitting model.
+ *               (existing pre-BUG-SDK-007 contract; kept as a sanity
+ *               anchor since 1/2 now match its assertion too).
  *   TS-MODEL-4  send() inherits the same precedence chain (defaultModel
- *               fallback when spec.modelId is omitted) — verifies that
- *               we wired BOTH create+send paths, not just create.
- *   TS-MODEL-5  send() spec.modelId override symmetric to create().
+ *               fallback when spec.modelId is omitted) on the
+ *               Agent.resume({ model }) side — unchanged by BUG-SDK-007.
+ *   TS-MODEL-5  send() spec.modelId override symmetric to TS-MODEL-4
+ *               (resume side; unchanged by BUG-SDK-007).
  *   TS-RUN-1    local-mode send → agent.send(text, { local: { force: true } }).
  *               This is the BUG-SDK-002 fix — without `force` the SDK
  *               rejects every local send after a `create()` because the
@@ -48,6 +53,22 @@
  *   TS-RUN-2    cloud-mode send → agent.send(text, {}).
  *               No `local` field is allowed on cloud sends per SDK type
  *               system; cloud uses server-side `409 agent_busy` instead.
+ *
+ *   ── BUG-SDK-007 (TASK-20260511-001, v0.2.0-beta.3) ──────────────────
+ *   TS-MODEL-6  ANY combination of (defaultModel set / spec.modelId set /
+ *               both set / neither set) → Agent.create NEVER receives a
+ *               `model` key. Parameterized strong-acceptance guard for
+ *               the BUG-SDK-007 hotfix; pins the contract independently
+ *               of TS-MODEL-1/2/3.
+ *   TS-MODEL-7  spec.modelId set → Agent.resume receives
+ *               `model: { id: spec.modelId }` (regression guard: the
+ *               BUG-SDK-007 hotfix must NOT accidentally also strip the
+ *               resume-path model arg, which is required to make local
+ *               sends succeed per BUG-SDK-001).
+ *   TS-MODEL-8  defaultModel set but spec.modelId omitted → Agent.resume
+ *               receives `model: { id: defaultModel }` (regression guard
+ *               for the defaultModel fallback half of the resume-path
+ *               precedence chain, symmetric to TS-MODEL-7).
  *
  * SDK seam: we import `Agent` from `@cursor/sdk` and monkey-patch
  * `Agent.create` / `Agent.resume` for the duration of each test, then
@@ -178,9 +199,17 @@ function patchAgentResumeForSeamTest(): {
   };
 }
 
-// ───────────── TS-MODEL-1: defaultModel only, no spec.modelId ─────────────
+// ───────────── TS-MODEL-1 (BUG-SDK-007 flipped): defaultModel set but
+//               Agent.create() still receives NO model key ─────────────
+//
+// PRE-BUG-SDK-007 (v0.2.0-beta.1/.2): this asserted that the adapter
+// wired defaultModel through to Agent.create({ model: { id } }). QA-014
+// then proved that path crashes on ADMIN-class API keys with the
+// misleading "Cannot use this model: <name>" error. v0.2.0-beta.3
+// reverts the create-time wire while keeping the resume-time wire
+// (covered by TS-MODEL-4/5). See file-level JSDoc BUG-SDK-007 section.
 
-test("TS-MODEL-1: defaultModel set + spec.modelId omitted → Agent.create gets model.id=defaultModel", async () => {
+test("TS-MODEL-1 (BUG-SDK-007): defaultModel set + spec.modelId omitted → Agent.create receives NO model key", async () => {
   const { captured, restore } = patchAgentCreate();
   try {
     const adapter = new CursorSdkAdapter({
@@ -190,20 +219,21 @@ test("TS-MODEL-1: defaultModel set + spec.modelId omitted → Agent.create gets 
     await adapter.create(baseCreateSpec());
 
     assert.ok(captured.lastOpts, "Agent.create must have been called");
-    const model = (captured.lastOpts as { model?: { id?: string } }).model;
-    assert.deepEqual(
-      model,
-      { id: "claude-sonnet-4" },
-      "model must be filled from adapter-level defaultModel",
+    assert.ok(
+      !("model" in (captured.lastOpts as Record<string, unknown>)),
+      "BUG-SDK-007: Agent.create must NEVER receive a `model` key, even when " +
+        "defaultModel is set on the adapter. The defaultModel still gets " +
+        "wired through Agent.resume() inside send() — see TS-MODEL-4.",
     );
   } finally {
     restore();
   }
 });
 
-// ───────── TS-MODEL-2: spec.modelId overrides defaultModel ─────────
+// ──────── TS-MODEL-2 (BUG-SDK-007 flipped): spec.modelId set but
+//          Agent.create() still receives NO model key ────────
 
-test("TS-MODEL-2: spec.modelId set (overrides defaultModel) → Agent.create gets model.id=spec.modelId", async () => {
+test("TS-MODEL-2 (BUG-SDK-007): spec.modelId set + defaultModel set → Agent.create still receives NO model key", async () => {
   const { captured, restore } = patchAgentCreate();
   try {
     const adapter = new CursorSdkAdapter({
@@ -214,11 +244,12 @@ test("TS-MODEL-2: spec.modelId set (overrides defaultModel) → Agent.create get
     await adapter.create(spec);
 
     assert.ok(captured.lastOpts);
-    const model = (captured.lastOpts as { model?: { id?: string } }).model;
-    assert.deepEqual(
-      model,
-      { id: "gpt-5" },
-      "spec.modelId must take precedence over adapter-level defaultModel",
+    assert.ok(
+      !("model" in (captured.lastOpts as Record<string, unknown>)),
+      "BUG-SDK-007: Agent.create must NEVER receive a `model` key, even when " +
+        "BOTH defaultModel and per-call spec.modelId are set. The precedence " +
+        "chain (spec.modelId ?? defaultModel) still applies on the resume " +
+        "path inside send() — see TS-MODEL-5.",
     );
   } finally {
     restore();
@@ -365,6 +396,142 @@ test("TS-RUN-2: cloud-mode send → agent.send is called with empty SendOptions 
       {},
       "cloud-mode sends MUST omit `local` (SDK type system rejects it; " +
         "cloud has server-side 409 agent_busy concurrency control instead)",
+    );
+  } finally {
+    restore();
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════
+// BUG-SDK-007 (TASK-20260511-001, v0.2.0-beta.3) — strong-acceptance
+// guards. TS-MODEL-1/2 above were FLIPPED for this hotfix; the tests
+// below pin the new contract from independent angles so a future
+// regression cannot quietly re-enable Agent.create({ model: ... }).
+// ════════════════════════════════════════════════════════════════════
+
+// ─────── TS-MODEL-6: parameterised — ANY config → create gets NO model ───────
+//
+// Iterates four (defaultModel, spec.modelId) configurations and asserts
+// that the captured Agent.create options never contain a `model` key.
+// This is the canonical "BUG-SDK-007 closed" contract — TS-MODEL-1/2/3
+// each cover one cell of this matrix in isolation; TS-MODEL-6 sweeps
+// the whole matrix in one run so a partial regression on any single
+// cell still fails the suite.
+
+test("TS-MODEL-6 (BUG-SDK-007): Agent.create() receives NO model key under ANY (defaultModel, spec.modelId) combo", async () => {
+  const matrix: Array<{
+    label: string;
+    defaultModel?: string;
+    modelId?: string;
+  }> = [
+    { label: "neither set", defaultModel: undefined, modelId: undefined },
+    { label: "defaultModel only", defaultModel: "claude-sonnet-4" },
+    { label: "spec.modelId only", modelId: "gpt-5" },
+    {
+      label: "both set (precedence chain unused on create)",
+      defaultModel: "claude-sonnet-4",
+      modelId: "gpt-5",
+    },
+  ];
+
+  for (const cell of matrix) {
+    const { captured, restore } = patchAgentCreate();
+    try {
+      const adapter = new CursorSdkAdapter({
+        apiKey: "fake-key-not-validated-in-stub",
+        ...(cell.defaultModel !== undefined
+          ? { defaultModel: cell.defaultModel }
+          : {}),
+      });
+      const spec =
+        cell.modelId !== undefined
+          ? { ...baseCreateSpec(), modelId: cell.modelId }
+          : baseCreateSpec();
+      await adapter.create(spec);
+
+      assert.ok(
+        captured.lastOpts,
+        `Agent.create must have been called [${cell.label}]`,
+      );
+      assert.ok(
+        !("model" in (captured.lastOpts as Record<string, unknown>)),
+        `BUG-SDK-007 closed acceptance [${cell.label}]: Agent.create must ` +
+          `never receive a model key, but lastOpts=${JSON.stringify(
+            captured.lastOpts,
+          )}`,
+      );
+    } finally {
+      restore();
+    }
+  }
+});
+
+// ─────── TS-MODEL-7: spec.modelId still wires through to Agent.resume() ───────
+//
+// Regression guard: the BUG-SDK-007 hotfix surgically removes `model`
+// from Agent.create() ONLY. The resume-path model wire-through (which
+// is what actually unblocks BUG-SDK-001's "Local SDK agents require an
+// explicit model" SDK error) must remain intact, otherwise this hotfix
+// would silently re-introduce BUG-SDK-001 on local sends.
+
+test("TS-MODEL-7 (BUG-SDK-007 regression guard): spec.modelId → Agent.resume receives model.id=spec.modelId", async () => {
+  const { captured, restore } = patchAgentResumeForSeamTest();
+  try {
+    const adapter = new CursorSdkAdapter({
+      apiKey: "fake-key-not-validated-in-stub",
+      // intentionally NO defaultModel — spec.modelId must drive on its own
+    });
+    const spec = { ...baseSendSpec(), modelId: "gpt-5" };
+    await assert.rejects(
+      () => adapter.send(spec, "stub-sdk-id-bug-sdk-007-test"),
+      new RegExp(SEAM_TEST_HALT),
+      "expected stub agent.send() to halt after Agent.resume captured opts",
+    );
+
+    assert.ok(captured.lastResumeOpts);
+    const model = (captured.lastResumeOpts as { model?: { id?: string } })
+      .model;
+    assert.deepEqual(
+      model,
+      { id: "gpt-5" },
+      "BUG-SDK-007 must NOT strip the resume-path model wire-through; " +
+        "spec.modelId still has to reach Agent.resume({ model }) so " +
+        "BUG-SDK-001 (Local SDK agents require an explicit model) stays " +
+        "fixed on the resume half of the pipeline.",
+    );
+  } finally {
+    restore();
+  }
+});
+
+// ─────── TS-MODEL-8: defaultModel still wires through to Agent.resume() ───────
+//
+// Symmetric to TS-MODEL-7 but exercises the defaultModel fallback half
+// of the spec.modelId ?? this._opts.defaultModel precedence chain on
+// the resume path.
+
+test("TS-MODEL-8 (BUG-SDK-007 regression guard): defaultModel-only → Agent.resume receives model.id=defaultModel", async () => {
+  const { captured, restore } = patchAgentResumeForSeamTest();
+  try {
+    const adapter = new CursorSdkAdapter({
+      apiKey: "fake-key-not-validated-in-stub",
+      defaultModel: "claude-sonnet-4",
+      // intentionally NO spec.modelId — defaultModel must drive on fallback
+    });
+    await assert.rejects(
+      () => adapter.send(baseSendSpec(), "stub-sdk-id-bug-sdk-007-test"),
+      new RegExp(SEAM_TEST_HALT),
+    );
+
+    assert.ok(captured.lastResumeOpts);
+    const model = (captured.lastResumeOpts as { model?: { id?: string } })
+      .model;
+    assert.deepEqual(
+      model,
+      { id: "claude-sonnet-4" },
+      "BUG-SDK-007 must preserve the adapter-level defaultModel fallback " +
+        "on the resume path; otherwise users who only set CURSOR_DEFAULT_MODEL " +
+        "(common case) would silently regress to BUG-SDK-001.",
     );
   } finally {
     restore();

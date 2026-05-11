@@ -1,8 +1,8 @@
 {
   "name": "@codeflow/runtime",
-  "version": "0.2.0-beta.2",
+  "version": "0.2.0-beta.3",
   "private": true,
-  "description": "CodeFlow AI Runtime — Agent Registry + Session Manager + Task Scheduler + Review Engine + Skill Runtime. v0.2.0-beta.2 (MT-2 + MT-4 bundle): 14 subsystems, 109/109 tests, 0 flakes. MT-2: CursorSdkAdapter.send() passes local.force=true so persisted local runs from Agent.create() don't trigger 'agent already has active run' (BUG-SDK-002). MT-4: ReviewEngine.extractText() walks SDKAssistantMessage.message.content[] array shape (TextBlock concat, ToolUseBlock skip) so real-SDK reviewer streams populate the buffer — closes BUG-SDK-004 verdict_parse_failed → needs_human collapse. MT-1 defaultModel wire-through (BUG-SDK-001) + atomic-write retry-on-EPERM still active. Backed by codeflow-shell. Not published to npm — for ADMIN test only.",
+  "description": "CodeFlow AI Runtime — Agent Registry + Session Manager + Task Scheduler + Review Engine + Skill Runtime. v0.2.0-beta.3 (MT-5 hotfix): 14 subsystems, 112/112 tests, 0 flakes. MT-5: CursorSdkAdapter.create() no longer passes a `model` field to Agent.create() on any API key tier (BUG-SDK-007 — Cursor backend ACL on ADMIN-class keys disguised as 'Cannot use this model'); the resume-path model wire-through (where BUG-SDK-001 actually fires) is preserved. TS-MODEL-1/2 flipped to assert NO model on create; new TS-MODEL-6 sweeps the (defaultModel × spec.modelId) matrix; TS-MODEL-7/8 regression-guard the resume-path model still works. MT-1/2/4 (BUG-SDK-001/002/004) + atomic-write retry still active. Backed by codeflow-shell. Not published to npm — for ADMIN test only.",
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
