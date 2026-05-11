@@ -1,13 +1,14 @@
 {
   "name": "@codeflow/runtime",
-  "version": "0.2.0-beta.3",
+  "version": "0.3.0-alpha",
   "private": true,
-  "description": "CodeFlow AI Runtime — Agent Registry + Session Manager + Task Scheduler + Review Engine + Skill Runtime. v0.2.0-beta.3 (MT-5 hotfix): 14 subsystems, 112/112 tests, 0 flakes. MT-5: CursorSdkAdapter.create() no longer passes a `model` field to Agent.create() on any API key tier (BUG-SDK-007 — Cursor backend ACL on ADMIN-class keys disguised as 'Cannot use this model'); the resume-path model wire-through (where BUG-SDK-001 actually fires) is preserved. TS-MODEL-1/2 flipped to assert NO model on create; new TS-MODEL-6 sweeps the (defaultModel × spec.modelId) matrix; TS-MODEL-7/8 regression-guard the resume-path model still works. MT-1/2/4 (BUG-SDK-001/002/004) + atomic-write retry still active. Backed by codeflow-shell. Not published to npm — for ADMIN test only.",
+  "description": "CodeFlow AI Runtime — Agent Registry + Session Manager + Task Scheduler + Review Engine + Skill Runtime, now backed by fcop@1.1.0 via pythonia (P4 sprint, 5/11). v0.3.0-alpha wires 4 subsystems through the fcop bridge with graceful yaml fallback: TaskParser (Day 2), ReviewWriter + NeedsHumanGate (Day 3), InboxWatcher schema-gating (Day 4). Charter 5.4 schema ownership matrix is now in types.ts and `fcop/internal/p4-day5-schema-drift.md` (Day 5). 141/141 tests pass (serial mode default — see scripts.test), 3 workspace tsc clean, 2 smoke modes (skip + real fcop) verified. Backed by codeflow-shell. Not published to npm — internal preview only.",
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test \"src/**/__tests__/*.test.ts\""
+    "test": "node --import tsx --test --test-concurrency=1 \"src/**/__tests__/*.test.ts\"",
+    "test:parallel": "node --import tsx --test \"src/**/__tests__/*.test.ts\""
   },
   "dependencies": {
     "@codeflow/protocol": "file:../codeflow-protocol",

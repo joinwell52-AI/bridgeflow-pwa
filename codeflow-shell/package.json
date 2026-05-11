@@ -1,8 +1,8 @@
 {
   "name": "codeflow-shell",
-  "version": "0.2.0-beta.3",
+  "version": "0.3.0-alpha",
   "private": true,
-  "description": "CodeFlow Shell — minimal executable wrapper around @codeflow/runtime. v0.2.0-beta.3 (MT-5 single hotfix on top of MT-1..4 bundle): MT-5 = Agent.create() no longer passes `model` to the SDK on ANY API key tier; the resume-time model wire-through (where BUG-SDK-001 actually fires) is preserved. Closes BUG-SDK-007 which QA-014 surfaced as a Cursor backend ACL on ADMIN-class keys that wrongly reuses the 'Cannot use this model' error code. Five of BUG-SDK-001..007 now closed (005 ripgrep noise + 006 reviewer dispatch race tracked separately).",
+  "description": "CodeFlow Shell — minimal executable wrapper around @codeflow/runtime. v0.3.0-alpha (P4 sprint release): 4 banner rows now report per-subsystem fcop wire-up state — `fcop bridge`, `Task parser`, `Review writer`, `Inbox watcher`. fcop bridge is opt-in via `PYTHON_BIN` env (or `CODEFLOW_SKIP_FCOP_PROBE=1` to keep Day-1 behavior). Charter 5.4 alignment: workspace migrated docs/agents → fcop/ (OPS-015), schema ownership matrix clarified (Day 5). See `docs/releases/v0.3.0-alpha.md` for the full changelog.",
   "type": "module",
   "main": "src/main.ts",
   "scripts": {

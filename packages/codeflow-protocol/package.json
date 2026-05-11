@@ -1,8 +1,8 @@
 {
   "name": "@codeflow/protocol",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "private": true,
-  "description": "CodeFlow AI Runtime — 5 schemas (Agent/Task/Review/Session/Skill) + ajv validator. Sprint S1 of design doc §10.2.",
+  "description": "CodeFlow AI Runtime — 5 schemas (Agent/Task/Review/Session/Skill) + ajv validator. Sprint S1 of design doc §10.2. v0.1.0-alpha.2 (P4 sprint Day 5): types.ts header carries the Charter 5.4 schema ownership matrix — 4 schemas are CodeFlow-owned application-layer emergence; Review is a dual contract (fcop-first + yaml-fallback). No schema JSON files changed; consumers can rely on v0.1.0-alpha.1 field shapes. See `fcop/internal/p4-day5-schema-drift.md` for the full ownership analysis.",
   "type": "module",
   "main": "src/index.ts",
   "bin": {
