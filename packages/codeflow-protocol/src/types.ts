@@ -2,27 +2,87 @@
  * CodeFlow Runtime Protocol — TypeScript type mirror of the 5 JSON schemas
  * under `packages/codeflow-protocol/schemas/`.
  *
- * SCOPE & RULES (READ BEFORE EDITING):
+ * ─────────────────────────────────────────────────────────────────────────
+ * SCHEMA OWNERSHIP MATRIX (Charter 5.4 — set at P4 Day 5, 2026-05-11)
+ * ─────────────────────────────────────────────────────────────────────────
  *
- * - These types are a hand-maintained 1:1 mirror of the JSON Schemas.
- *   The JSON Schemas in `schemas/` are the SINGLE SOURCE OF TRUTH;
- *   these TS types are a *consumer convenience* for downstream packages.
+ * | Schema   | SSOT                                            | Category                                              |
+ * |----------|-------------------------------------------------|-------------------------------------------------------|
+ * | Agent    | this repo (`schemas/agent.schema.json`)         | **CodeFlow-owned** — application-layer PCB (Char 5.4) |
+ * | Task     | this repo (`schemas/task.schema.json`)          | **CodeFlow-owned** — emergence schema (Charter 5.4)   |
+ * | Review   | DUAL — see §3.4 below                           | **Dual contract** — v0.3 fcop-first / yaml-fallback   |
+ * | Session  | this repo (`schemas/session.schema.json`)       | **CodeFlow-owned** — emergence schema (Charter 5.4)   |
+ * | Skill    | this repo (`schemas/skill.schema.json`)         | **CodeFlow-owned** — MCP registry (Charter 5.4)       |
  *
- * - DO NOT add fields here that do not exist in the corresponding schema.
- *   Per design doc §8.0 Hard Rule #4, ANY schema evolution must originate
- *   in the `D:\FCoP` repository (https://github.com/joinwell52-AI/FCoP),
- *   propagate to `packages/codeflow-protocol/schemas/*.json` after upstream
- *   review, and only then be reflected here. Single-side forks are forbidden.
+ * Charter 5.4 ("CodeFlow 仍持有应用层涌现物 — agent runtime PCB / SDK session
+ * 状态 / Windows EPERM retry") is the governing principle. None of CodeFlow's
+ * 5 schemas are a simple "mirror" of fcop@1.1.0 schemas:
+ *
+ * - **Agent** lives in `agents.json` as runtime PCB (sdk_agent_id / node /
+ *   runtime / model / memory_usage / status). fcop@1.1.0's own `agent`
+ *   schema describes role identity + capability (`code` / `can` / `cannot`)
+ *   in `fcop.json/team.roles[]` — different facet, different storage.
+ *
+ * - **Task** is CodeFlow's application-layer TASK PCB. fcop@1.1.0 has no
+ *   standalone Task schema; it has `ipc-envelope` of which `type=TASK` is
+ *   one specialization. The fcop bridge (Day 2 TaskParser) wraps fcop's
+ *   `Project.read_task$()` which validates against fcop's internal task
+ *   shape; CodeFlow's Task schema is the consumer-side contract.
+ *
+ * - **Review** is the only schema with a DUAL contract:
+ *     · v0.3 fcop-first path → fcop@1.1.0 `review.schema.json` is SSOT
+ *       (`Project.write_review$()` validates; ReviewWriter._writeViaFcop
+ *       discards CodeFlow-only fields like decision_duration_ms).
+ *     · yaml fallback path  → this file's `schemas/review.schema.json` is
+ *       SSOT (legacy compatibility for CODEFLOW_SKIP_FCOP_PROBE=1 mode +
+ *       FcopClientError fallback).
+ *   See Day 3 (TASK-20260511-011) ReviewWriter for the wire-up.
+ *
+ * - **Session** is 100% CodeFlow runtime concern. fcop@1.1.0 explicitly
+ *   omits session ("fcop is a file protocol, runtime is an SDK concept" —
+ *   see fcop ADR-0020 §session-recovery-hook). SessionManager + SessionStore
+ *   never cross the fcop bridge.
+ *
+ * - **Skill** is CodeFlow's MCP server registry (`provided_by.transport`,
+ *   `command`, `required_kernel`, `available_to_roles`). fcop@1.1.0's own
+ *   `skill` schema describes role-capability references (`id` / `uri` /
+ *   per-tool risk metadata) in `fcop.json` — different concept, different
+ *   consumer.
+ *
+ * **For full drift analysis see `fcop/internal/p4-day5-schema-drift.md`.**
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * SCOPE & RULES (READ BEFORE EDITING)
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * - These types are a hand-maintained 1:1 mirror of the JSON Schemas in
+ *   the SAME repo (`schemas/` under this package). The JSON files are
+ *   the SINGLE SOURCE OF TRUTH for the **CodeFlow-owned** facet of each
+ *   schema; these TS types are a consumer convenience.
+ *
+ * - For the **dual-contract Review schema**, the fcop-first writer path
+ *   ultimately delegates to fcop@1.1.0's `review.schema.json` (in
+ *   `D:\FCoP\src\fcop\_data\schemas\review.schema.json`). When working on
+ *   review fields, consult BOTH schemas — CodeFlow's file is the yaml
+ *   fallback contract; fcop's file is the fcop-bridge contract.
+ *
+ * - DO NOT add fields here that don't exist in the corresponding
+ *   CodeFlow-owned schema. Application-layer field additions stay in
+ *   this repo (Charter 5.4); they do NOT propagate to `D:\FCoP`.
  *
  * - DO NOT loosen field types beyond what schemas allow (e.g. don't widen
- *   an enum to `string`). If you find a schema mismatch, file an Issue
- *   in `D:\FCoP` first; do not fix it locally.
+ *   an enum to `string`). If you find a Review schema divergence between
+ *   the fcop-first path and the yaml-fallback path, document it in the
+ *   release notes' "Semantic changes" section — do NOT silently align.
  *
  * - When schemas change, refresh this file by re-reading the schemas line
  *   by line. We deliberately don't auto-generate yet (json-schema-to-typescript
  *   tooling is a v0.x.+ choice, see design doc §3.7).
  *
- * Reference: design doc `docs/design/codeflow-v2-on-fcop-sdk.md` §3.2 – §3.6
+ * Reference:
+ * - design doc `docs/design/codeflow-v2-on-fcop-sdk.md` §3.2 – §3.6
+ * - Charter 5.4 — see `.cursor/rules/codeflow-project.mdc`
+ * - `fcop/internal/p4-day5-schema-drift.md` (P4 Day 5 ownership matrix)
  */
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -37,6 +97,10 @@ export type RiskLevel = "low" | "medium" | "high" | "irreversible";
 
 // ───────────────────────────────────────────────────────────────────────────
 // §3.2 Agent Schema  (mirror of schemas/agent.schema.json)
+// Charter 5.4: CodeFlow-owned PCB schema. Not a mirror of fcop@1.1.0's
+// `agent` schema — that one describes role identity + capability and
+// lives in `fcop.json/team.roles[]`. This one is runtime PCB in
+// `agents.json`. The two never collide.
 // ───────────────────────────────────────────────────────────────────────────
 
 export type AgentLayer = "worker" | "governance" | "admin";
@@ -101,6 +165,11 @@ export interface Agent {
 
 // ───────────────────────────────────────────────────────────────────────────
 // §3.3 Task Schema  (mirror of schemas/task.schema.json)
+// Charter 5.4: CodeFlow-owned emergence schema. fcop@1.1.0 has no standalone
+// `task` schema — it uses `ipc-envelope` with type=TASK. Day 2 TaskParser
+// (TASK-20260511-009) routes through `Project.read_task$()` which validates
+// against fcop's internal envelope+TASK shape; this interface is the
+// CodeFlow consumer-side contract.
 // ───────────────────────────────────────────────────────────────────────────
 
 export type TaskPriority = "P0" | "P1" | "P2" | "P3";
@@ -156,7 +225,16 @@ export interface Task {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// §3.4 Review Schema  (mirror of schemas/review.schema.json)
+// §3.4 Review Schema  (mirror of schemas/review.schema.json — YAML FALLBACK CONTRACT)
+// **Dual contract** — see file header. Day 3 (TASK-20260511-011) wired
+// `ReviewWriter` to a fcop-first / yaml-fallback path:
+//   - fcop bridge active → fcop@1.1.0 `review.schema.json` is SSOT (writer
+//     filters out CodeFlow-only fields: review_id is fcop-generated,
+//     decision_duration_ms is dropped, v0.1 human_approval stub is dropped).
+//   - fcop bridge degraded → this interface (mirror of v0.1 CodeFlow schema)
+//     is SSOT; CodeFlow-only fields (review_board, decision_duration_ms,
+//     v0.1 human_approval stub shape) are preserved.
+// See `fcop/internal/p4-day5-schema-drift.md` §2.2.2 for known divergence.
 // ───────────────────────────────────────────────────────────────────────────
 
 export type ReviewSubjectType = "task" | "code_change" | "report" | "role_switch";
@@ -231,6 +309,10 @@ export interface Review {
 
 // ───────────────────────────────────────────────────────────────────────────
 // §3.5 Session Schema  (mirror of schemas/session.schema.json)
+// Charter 5.4: CodeFlow-owned emergence schema. fcop@1.1.0 explicitly
+// excludes session ("fcop is a file protocol, runtime is an SDK concept" —
+// fcop ADR-0020 §session-recovery-hook). SessionManager / SessionStore /
+// SessionRun never cross the fcop bridge; this schema is the only SSOT.
 // ───────────────────────────────────────────────────────────────────────────
 
 export type SessionStatus = "running" | "completed" | "failed" | "cancelled";
@@ -280,6 +362,13 @@ export interface Session {
 
 // ───────────────────────────────────────────────────────────────────────────
 // §3.6 Skill Schema  (mirror of schemas/skill.schema.json)
+// Charter 5.4: CodeFlow-owned MCP server registry. Not a mirror of
+// fcop@1.1.0's `skill` schema — that one describes role-capability
+// references (id / uri / per-tool risk metadata) in `fcop.json`. This
+// one describes how to spawn + mount an MCP server (provided_by.transport,
+// command/url, required_kernel, available_to_roles). Different concept,
+// different consumer. CodeFlow `SkillRegistry` / `MCPInjector` only read
+// this schema.
 // ───────────────────────────────────────────────────────────────────────────
 
 export type SkillTransport = "stdio" | "http" | "sse";
