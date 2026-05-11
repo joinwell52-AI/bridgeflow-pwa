@@ -273,7 +273,15 @@ export class Runtime {
 
     // --- scheduler layer ---
     const historyWriter = new StateHistoryWriter();
-    const watcher = new InboxWatcher({ dir: opts.inboxDir });
+    // P4 sprint Day 4 (TASK-20260511-013): when a fcop client is supplied,
+    // wire InboxWatcher with fcop schema gating (default policy
+    // `dispatch_anyway` keeps Day 1 behavior; operators can override via
+    // env / config when v0.5 ack queue lands). When fcopClient=null,
+    // InboxWatcher stays exactly on the Day 1 code path.
+    const watcher = new InboxWatcher({
+      dir: opts.inboxDir,
+      ...(opts.fcopClient ? { fcopClient: opts.fcopClient } : {}),
+    });
     // P4 sprint Day 2: when a fcop client is supplied, wire a TaskParser
     // instance whose `.parse(filepath)` delegates to fcop's typed
     // `read_task(filename_or_id)`. Otherwise leave dispatcher on the

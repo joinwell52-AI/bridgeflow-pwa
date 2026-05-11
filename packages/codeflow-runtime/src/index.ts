@@ -82,6 +82,7 @@ export {
   InboxWatcher,
   type InboxEvent,
   type InboxEventHandler,
+  type InboxValidationFailPolicy,
   type InboxWatcherOpts,
   TaskParser,
   type ParsedTask,

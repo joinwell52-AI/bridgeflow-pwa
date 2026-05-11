@@ -26,9 +26,38 @@ import { resolve as resolvePath } from "node:path";
 import chokidar from "chokidar";
 import type { FSWatcher } from "chokidar";
 
+import {
+  FcopClientError,
+  type FcopProjectClient,
+  type FcopValidationIssue,
+} from "../_external/fcop-client.ts";
+
 /** Default file-name regex — task signature only. */
 const DEFAULT_TASK_FILE_REGEX =
   /^TASK-\d{8}-\d{3}-[A-Za-z]+-to-[A-Za-z]+\.md$/;
+
+/**
+ * What to do when `fcopClient.inspectTask()` reports `severity === "error"`
+ * issues for an incoming TASK file.
+ *
+ * P4 Day 4 (TASK-20260511-013 §2.1) introduces this policy. The v0.3
+ * default is `dispatch_anyway` — same降级容错 spirit as Day 2 TaskParser's
+ * `FcopClientError → yaml fallback`: when fcop is strict-er than v0.1
+ * historical files, we'd rather emit a warning + still dispatch than
+ * silently swallow tasks an operator dropped. Day 5/6 may upgrade the
+ * default once we know the v0.3 false-positive rate.
+ *
+ * - `dispatch_anyway`: log a warning + still emit the task_added event.
+ * - `reject`: drop the event entirely + log a warning (the file stays
+ *   on disk; operator must fix + re-drop or PM re-issues).
+ * - `needs_human_review`: surface label for v0.5 ack queue. For v0.3 it
+ *   behaves like `reject` (we don't have a per-watcher review queue
+ *   yet) but logs with a different prefix so operators can grep.
+ */
+export type InboxValidationFailPolicy =
+  | "dispatch_anyway"
+  | "reject"
+  | "needs_human_review";
 
 export interface InboxWatcherOpts {
   /** Directory to watch. Default behavior: caller passes the absolute path. */
@@ -50,6 +79,29 @@ export interface InboxWatcherOpts {
     warn: (msg: string, ...args: unknown[]) => void;
     error: (msg: string, ...args: unknown[]) => void;
   };
+  /**
+   * P4 Day 4 (TASK-20260511-013) — optional fcop bridge for pre-dispatch
+   * schema gating.
+   *
+   * When supplied: every incoming TASK file is first run through
+   * `fcopClient.inspectTask(filename)`; the resulting `ValidationIssue[]`
+   * decides whether to emit `task_added`:
+   *   - 0 errors           → emit normally
+   *   - `error`-severity   → `onValidationFail` policy
+   *   - `FcopClientError`  → degrade to dispatch_anyway (same Day 2
+   *                          TaskParser降级容错 idiom)
+   *
+   * When omitted: behavior is exactly Day 1 — no inspect call, all events
+   * forwarded. Lets `CODEFLOW_SKIP_FCOP_PROBE=1` mode keep working.
+   */
+  fcopClient?: FcopProjectClient;
+  /**
+   * Policy for `severity === "error"` validation issues. Defaults to
+   * `"dispatch_anyway"` (PM TASK-013 §2.1 recommended default; same
+   * 容错 spirit as Day 2 TaskParser fallback — we'd rather emit a
+   * warning + still dispatch than silently swallow operator drops).
+   */
+  onValidationFail?: InboxValidationFailPolicy;
 }
 
 /** Discriminated event passed to handlers. v0.1 only emits `task_added`. */
@@ -90,6 +142,8 @@ export class InboxWatcher {
   private readonly _ignoreInitial: boolean;
   private readonly _fileNamePattern: RegExp;
   private readonly _logger: NonNullable<InboxWatcherOpts["logger"]>;
+  private readonly _fcopClient: FcopProjectClient | null;
+  private readonly _onValidationFail: InboxValidationFailPolicy;
 
   private _watcher: FSWatcher | null = null;
   private _started = false;
@@ -103,11 +157,27 @@ export class InboxWatcher {
       warn: (msg, ...args) => console.warn(msg, ...args),
       error: (msg, ...args) => console.error(msg, ...args),
     };
+    this._fcopClient = opts.fcopClient ?? null;
+    this._onValidationFail = opts.onValidationFail ?? "dispatch_anyway";
   }
 
   /** Absolute watch directory (resolved at construction time). */
   get dir(): string {
     return this._dir;
+  }
+
+  /**
+   * P4 Day 4 (TASK-20260511-013) — whether this watcher has an active
+   * fcop bridge wired up. Runtime.start() / banner can log it for
+   * transparency (same idiom as `TaskParser` / `ReviewWriter` flags).
+   */
+  get fcopClientWired(): boolean {
+    return this._fcopClient !== null;
+  }
+
+  /** P4 Day 4 — current validation-fail policy (read-only). */
+  get onValidationFail(): InboxValidationFailPolicy {
+    return this._onValidationFail;
   }
 
   /**
@@ -218,19 +288,109 @@ export class InboxWatcher {
       recipient: parsed.recipient,
     };
 
-    for (const handler of [...this._handlers]) {
-      // Fire-and-forget with error isolation. We do NOT await here:
-      // a slow handler must not delay sibling handlers. If callers want
-      // ordering, they can chain inside a single handler.
-      Promise.resolve()
-        .then(() => handler(event))
-        .catch((err) => {
-          this._logger.error(
-            `[InboxWatcher] handler threw on ${event.filename}: ${
-              err instanceof Error ? err.message : String(err)
-            }`,
-          );
-        });
+    // P4 Day 4 (TASK-20260511-013): pre-dispatch gating runs in an
+    // isolated async chain. We do NOT block subsequent `add` events —
+    // chokidar's emit loop can keep firing while one task awaits fcop.
+    // Each gated dispatch still goes through the per-handler isolation
+    // (one slow listener can't starve another, same as Day 1).
+    Promise.resolve()
+      .then(async () => {
+        const shouldDispatch = await this._gate(event);
+        if (!shouldDispatch) return;
+        for (const handler of [...this._handlers]) {
+          Promise.resolve()
+            .then(() => handler(event))
+            .catch((err) => {
+              this._logger.error(
+                `[InboxWatcher] handler threw on ${event.filename}: ${
+                  err instanceof Error ? err.message : String(err)
+                }`,
+              );
+            });
+        }
+      })
+      .catch((err) => {
+        // Gate itself should swallow expected failures and return a
+        // bool; anything that bubbles is a runtime bug — log loudly so
+        // it shows up in operator triage instead of silently dropping
+        // the task.
+        this._logger.error(
+          `[InboxWatcher] gate threw on ${event.filename}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      });
+  }
+
+  /**
+   * P4 Day 4 (TASK-20260511-013 §2.1) pre-dispatch fcop schema gate.
+   *
+   * Contract:
+   *   - No fcopClient wired                → return true (Day 1 behavior).
+   *   - fcopClient.inspectTask resolves [] → return true (happy path).
+   *   - Has error-severity issues          → policy decides:
+   *       · dispatch_anyway → warn + return true (default, Day 2 容错
+   *         spirit — let downstream surface schema noise vs swallow
+   *         operator drops)
+   *       · reject          → warn + return false (drop the event)
+   *       · needs_human_review → warn (with explicit prefix so the
+   *         v0.5 ack queue can grep) + return false
+   *   - inspectTask throws FcopClientError → degrade to dispatch_anyway
+   *     + warn (same Day 2 TaskParser FcopClientError→yaml fallback
+   *     idiom — fcop bridge being sad must NEVER eat tasks)
+   *   - inspectTask throws anything else   → rethrow (lets the outer
+   *     `_onAdd` catch log it as a real bug — we don't want a
+   *     surprised RuntimeError pretending to be a fcop issue)
+   */
+  private async _gate(event: InboxEvent): Promise<boolean> {
+    if (this._fcopClient === null) return true;
+
+    let issues: FcopValidationIssue[];
+    try {
+      issues = await this._fcopClient.inspectTask(event.filename);
+    } catch (err) {
+      if (err instanceof FcopClientError) {
+        // Degraded fcop bridge — never block a task drop on fcop being
+        // sad. Day 2 TaskParser path A 改良 says the same.
+        this._logger.warn(
+          `[InboxWatcher] fcop inspectTask failed for ${event.filename}; ` +
+            `degrading to dispatch_anyway. Original error: ${err.message}`,
+        );
+        return true;
+      }
+      throw err;
+    }
+
+    const errors = issues.filter((i) => i.severity === "error");
+    if (errors.length === 0) return true;
+
+    const summary = errors
+      .map((i) => `[${i.field}] ${i.message}`)
+      .join("; ");
+
+    switch (this._onValidationFail) {
+      case "dispatch_anyway":
+        this._logger.warn(
+          `[InboxWatcher] ${event.filename} has ${errors.length} fcop ` +
+            `validation error(s) but onValidationFail="dispatch_anyway" — ` +
+            `still dispatching. Errors: ${summary}`,
+        );
+        return true;
+      case "reject":
+        this._logger.warn(
+          `[InboxWatcher] ${event.filename} rejected ` +
+            `(${errors.length} fcop validation error(s), ` +
+            `onValidationFail="reject"). Errors: ${summary}`,
+        );
+        return false;
+      case "needs_human_review":
+        this._logger.warn(
+          `[InboxWatcher][needs_human_review] ${event.filename} blocked on ` +
+            `${errors.length} fcop validation error(s); v0.3 has no per-` +
+            `watcher review queue yet — v0.5 will pick this up. Errors: ` +
+            `${summary}`,
+        );
+        return false;
     }
   }
 }

@@ -337,20 +337,28 @@ async function main(): Promise<void> {
     const reviewMode = fcopClient
       ? "ReviewWriter=fcop + NeedsHumanGate fcop audit wired"
       : "ReviewWriter=yaml (no fcop client)";
+    // P4 Day 4 (TASK-20260511-013): Inbox watcher gating line — same
+    // transparency idiom as Day 2 `Task parser` + Day 3 `Review writer`.
+    const watcherMode = fcopClient
+      ? `InboxWatcher=fcop schema-gating (onValidationFail=${runtime.watcher.onValidationFail})`
+      : "InboxWatcher=Day-1 pass-through (no fcop client)";
     console.log(
       `fcop bridge    : fcop ${fcopReady.fcopVersion} via pythonia ` +
         `(Python at ${fcopReady.pythonExecutable})`,
     );
     console.log(`Task parser    : ${parserMode}`);
     console.log(`Review writer  : ${reviewMode}`);
+    console.log(`Inbox watcher  : ${watcherMode}`);
   } else if (fcopReady.status === "skipped") {
     console.log(`fcop bridge    : (skipped — ${fcopReady.reason})`);
     console.log(`Task parser    : yaml fallback (no fcop client)`);
     console.log(`Review writer  : ReviewWriter=yaml (no fcop client)`);
+    console.log(`Inbox watcher  : InboxWatcher=Day-1 pass-through (no fcop client)`);
   } else {
     console.log(`fcop bridge    : FAILED — see message above`);
     console.log(`Task parser    : yaml fallback`);
     console.log(`Review writer  : ReviewWriter=yaml (no fcop client)`);
+    console.log(`Inbox watcher  : InboxWatcher=Day-1 pass-through (no fcop client)`);
   }
   // MT-1 friendly hint: live adapter without a default model + local
   // listScope = nothing actually wrong yet, but every task drop will

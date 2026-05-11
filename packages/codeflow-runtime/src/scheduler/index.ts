@@ -10,6 +10,7 @@ export {
   InboxWatcher,
   type InboxEvent,
   type InboxEventHandler,
+  type InboxValidationFailPolicy,
   type InboxWatcherOpts,
 } from "./InboxWatcher.ts";
 
