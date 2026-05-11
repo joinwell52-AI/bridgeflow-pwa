@@ -859,11 +859,39 @@ export function parseVerdict(
 /**
  * Try to extract human-readable text from an `sdk.assistant` event payload.
  *
- * Probe order:
- *   1. `payload.text`              (InMemoryRunHandle test fixture style)
- *   2. `payload.raw.text`          (SdkRunHandle real SDK shape)
- *   3. `payload.raw.message.text`  (alternate SDK shape — defensive)
- *   4. JSON.stringify of the whole payload as a last resort
+ * Probe order (first match wins):
+ *   1. `payload.text`                       (InMemoryRunHandle test fixture
+ *                                            style — flat string)
+ *   2. `payload.raw.text`                   (SDKThinkingMessage / SDKTaskMessage
+ *                                            style — direct `text: string`)
+ *   3. `payload.raw.message.text`           (defensive: hypothetical alternate
+ *                                            SDK shape with flat string —
+ *                                            currently unused by SDK 0.x but
+ *                                            kept for forward-compat)
+ *   4. `payload.raw.message.content[]`      (REAL SDKAssistantMessage shape;
+ *                                            see node_modules/@cursor/sdk/
+ *                                            dist/cjs/messages.d.ts:
+ *                                              SDKAssistantMessage.message.content
+ *                                              = Array<TextBlock | ToolUseBlock>
+ *                                            where TextBlock = {type: "text",
+ *                                            text: string} and ToolUseBlock =
+ *                                            {type: "tool_use", ...}.
+ *                                            We concatenate every TextBlock.text
+ *                                            and skip ToolUseBlock entirely.
+ *
+ *                                            BUG-SDK-004 fix (TASK-013 /
+ *                                            REPORT-013): without this branch,
+ *                                            the ReviewEngine reviewer-buffer
+ *                                            stays empty even when the LLM
+ *                                            streamed a full verdict, causing
+ *                                            `verdict_parse_failed` →
+ *                                            decision=needs_human on every
+ *                                            real-SDK review.)
+ *
+ * Returns `null` when the payload yields no extractable text — the caller
+ * (`_onEvent`) treats that as "not interesting" and silently drops the
+ * event. Tool-use blocks correctly produce `null` here because the
+ * reviewer's verdict text never lives inside a tool_use block.
  */
 function extractText(payload: unknown): string | null {
   if (payload === null || payload === undefined) return null;
@@ -878,6 +906,25 @@ function extractText(payload: unknown): string | null {
     if (message && typeof message === "object") {
       const m = message as Record<string, unknown>;
       if (typeof m["text"] === "string") return m["text"];
+      // Probe 4 — SDKAssistantMessage real shape: message.content[] array.
+      const content = m["content"];
+      if (Array.isArray(content)) {
+        const parts: string[] = [];
+        for (const block of content) {
+          if (block && typeof block === "object") {
+            const b = block as Record<string, unknown>;
+            if (b["type"] === "text" && typeof b["text"] === "string") {
+              parts.push(b["text"] as string);
+            }
+            // ToolUseBlock and any unknown block types fall through;
+            // we deliberately do NOT stringify tool args into the
+            // reviewer buffer (would pollute parseVerdict).
+          }
+        }
+        if (parts.length > 0) {
+          return parts.join("");
+        }
+      }
     }
   }
   return null;

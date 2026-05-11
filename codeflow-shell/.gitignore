@@ -17,3 +17,9 @@ codeflow.config.json
 .smoke-test-state/
 .sigint-test-state/
 examples/hello-world/.codeflow-state/
+
+# Smoke / dev-test scratch — never commit. (PM TASK-012 §5.5 defense:
+# DEV / QA self-tests use ad-hoc dataDirs / log files like
+# `.smoke-beta1/`, `.smoke-beta1-log.txt`, `.smoke-retry-1223/` that
+# would otherwise pollute `git status` and risk being committed.)
+.smoke-*

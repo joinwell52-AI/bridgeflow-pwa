@@ -1,8 +1,8 @@
 {
   "name": "@codeflow/runtime",
-  "version": "0.2.0-beta.1",
+  "version": "0.2.0-beta.2",
   "private": true,
-  "description": "CodeFlow AI Runtime — Agent Registry + Session Manager + Task Scheduler + Review Engine + Skill Runtime. v0.2.0-beta.1 (MT-1 hotfix): 14 subsystems, 104/104 tests, 0 flakes; CursorSdkAdapter wires defaultModel into Agent.create / agent.send (BUG-SDK-001). MT-2 atomic-write retry-on-EPERM still active. Backed by codeflow-shell. Not published to npm — for ADMIN test only.",
+  "description": "CodeFlow AI Runtime — Agent Registry + Session Manager + Task Scheduler + Review Engine + Skill Runtime. v0.2.0-beta.2 (MT-2 + MT-4 bundle): 14 subsystems, 109/109 tests, 0 flakes. MT-2: CursorSdkAdapter.send() passes local.force=true so persisted local runs from Agent.create() don't trigger 'agent already has active run' (BUG-SDK-002). MT-4: ReviewEngine.extractText() walks SDKAssistantMessage.message.content[] array shape (TextBlock concat, ToolUseBlock skip) so real-SDK reviewer streams populate the buffer — closes BUG-SDK-004 verdict_parse_failed → needs_human collapse. MT-1 defaultModel wire-through (BUG-SDK-001) + atomic-write retry-on-EPERM still active. Backed by codeflow-shell. Not published to npm — for ADMIN test only.",
   "type": "module",
   "main": "src/index.ts",
   "scripts": {

@@ -1,8 +1,8 @@
 {
   "name": "codeflow-shell",
-  "version": "0.2.0-beta.1",
+  "version": "0.2.0-beta.2",
   "private": true,
-  "description": "CodeFlow Shell — minimal executable wrapper around @codeflow/runtime. v0.2.0-beta.1 (MT-1 hotfix on top of P2: cfg.cursor.defaultModel wired end-to-end into Agent.create / agent.send; closes BUG-SDK-001 from QA-009).",
+  "description": "CodeFlow Shell — minimal executable wrapper around @codeflow/runtime. v0.2.0-beta.2 (MT-2 + MT-3 + MT-4 bundle): MT-2 = agent.send() local.force=true (BUG-SDK-002); MT-3 = .env.example CURSOR_DEFAULT_MODEL default not auto (BUG-SDK-003); MT-4 = ReviewEngine.extractText() walks SDKAssistantMessage content[] (BUG-SDK-004 — fixes verdict_parse_failed → needs_human collapse on real-SDK reviews). All four BUG-SDK-001..004 closed.",
   "type": "module",
   "main": "src/main.ts",
   "scripts": {

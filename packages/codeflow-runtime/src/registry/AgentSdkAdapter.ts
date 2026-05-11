@@ -17,6 +17,47 @@
  * surface used here (Agent.create/resume/list signatures + asyncDispose).
  * Reproduced inline (NOT git-mv'd; spike folder is preserved as historical
  * evidence per HANDOFF + REPORT-002).
+ *
+ * ── BUG-SDK-002 (v0.2.0-beta.2, TASK-20260510-012) ────────────────────
+ *
+ * QA-011 found that `Agent.create({ local: { cwd } })` followed by
+ * `Agent.resume(id) → agent.send(text)` 100% fails on local agents with:
+ *
+ *   Agent <uuid> already has active run (code=undefined, isRetryable=false)
+ *
+ * Root cause (inferred from `@cursor/sdk` types — package source isn't
+ * shipped): every `Agent.create()` for a local agent creates a persisted
+ * run record on disk under the agent's cwd. `Symbol.asyncDispose` only
+ * tears down the local IPC stream; the run record stays "active". The
+ * very next `Agent.resume(id)` therefore re-binds to that still-active
+ * run, and `agent.send()` is interpreted as a *second* concurrent run on
+ * the same agent — the SDK rejects with the message above.
+ *
+ * Fix (direction B', adopted): pass `local: { force: true }` to
+ * `agent.send()`. `SendOptions.local.force` is documented in
+ * `node_modules/@cursor/sdk/dist/.../agent.d.ts` as:
+ *
+ *   "Expire the currently active persisted run, if any, before starting
+ *    this message as a new follow-up run. Recovery path for local agents
+ *    left wedged after a crashed CLI process."
+ *
+ * We adopt it as the *normal* path because v0.2 codeflow-shell is
+ * single-shot per task (no in-process multi-turn dialog the force=true
+ * would clobber). Cloud-mode senders go through a separate code path
+ * — the SDK type system forbids `local: { ... }` on cloud sends, and
+ * cloud has server-side `409 agent_busy` instead. See `_buildSendOptions`.
+ *
+ * Investigated and rejected:
+ *  - Direction A (`Agent.create({ immediate: false })`) — option does
+ *    not exist on `AgentOptions` (see options.d.ts).
+ *  - Direction B in original form (cache the run from create() and reuse
+ *    it on first send) — would require a per-process cache keyed by
+ *    sdk_agent_id + survives between two `npm start` invocations? No,
+ *    the persisted run on disk does. force=true is the cross-process
+ *    correct answer.
+ *  - Direction C (drop `prompt` from create) — `AgentOptions` doesn't
+ *    accept a `prompt` field; only `Agent.prompt()` (a different API)
+ *    does. Already not applicable.
  */
 
 import { Agent, CursorAgentError } from "@cursor/sdk";
@@ -270,7 +311,10 @@ export class CursorSdkAdapter implements AgentSdkAdapter {
 
     let run;
     try {
-      run = await agent.send(spec.text);
+      // BUG-SDK-002 fix: pass `local: { force: true }` for local-mode sends
+      // so any persisted-but-wedged run from a prior create()/resume() is
+      // expired before this send starts a new run. See file-level JSDoc.
+      run = await agent.send(spec.text, this._buildSendOptions());
     } catch (err) {
       // Dispose the resumed agent if send failed — we never got to a usable
       // state. Best-effort: a failing dispose adds noise but doesn't change
@@ -319,6 +363,31 @@ export class CursorSdkAdapter implements AgentSdkAdapter {
       };
     }
     return {};
+  }
+
+  /**
+   * Build the `SendOptions` passed to `agent.send(text, opts)`.
+   *
+   * Local mode (the v0.2 default): include `local: { force: true }` to
+   * expire any persisted-but-wedged run on the agent's cwd before this
+   * send starts a new one. This is the BUG-SDK-002 fix — see file-level
+   * JSDoc for the full root-cause analysis.
+   *
+   * Cloud mode: NO `local` field. The SDK type system rejects `local`
+   * options on cloud sends, and cloud has server-side `409 agent_busy`
+   * concurrency control (see SDKAgent.send / SendOptions.local in
+   * `@cursor/sdk` agent.d.ts).
+   *
+   * Undefined `listScope` (rare; only when callers omit it explicitly):
+   * we treat as local because v0.2 ships local as default and forwarding
+   * `force` to a non-existent local run is a no-op. Cloud users MUST
+   * set `listScope: "cloud"` to opt out.
+   */
+  private _buildSendOptions(): { local?: { force: true } } {
+    if (this._opts.listScope === "cloud") {
+      return {};
+    }
+    return { local: { force: true } };
   }
 }
 

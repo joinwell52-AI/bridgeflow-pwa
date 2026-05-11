@@ -13,6 +13,17 @@
  *   - TS-6.11: needs_changes end-to-end → required_changes populated +
  *              schema-valid frontmatter
  *
+ *   ── BUG-SDK-004 (TASK-013 / REPORT-013) ─────────────────────────────
+ *   - TS-6.12: SDKAssistantMessage real shape (`content[].text`) +
+ *              markdown-decorated `**VERDICT:` line → buffer accumulates
+ *              correctly + decision=rejected (NOT needs_human)
+ *   - TS-6.13: SDKAssistantMessage with mixed TextBlock + ToolUseBlock →
+ *              only TextBlock.text lands in buffer; tool_use args are
+ *              silently skipped (no JSON.stringify pollution)
+ *   - TS-6.14: SDKAssistantMessage with multiple TextBlocks (streaming
+ *              chunked output) → all chunks concatenated in arrival
+ *              order before parseVerdict runs
+ *
  * The pipeline construction here mirrors `TaskDispatcher.test.ts` so a
  * future maintainer can swap pieces without re-deriving the wiring.
  */
@@ -203,6 +214,72 @@ function reviewerHandleWith(verdictLine: string) {
           run_id: "run-fake",
           agent_id: spec.agentId,
           payload: { text: verdictLine },
+        },
+      ],
+    });
+  };
+}
+
+/**
+ * TS-6.12 ~ TS-6.14 helper — emits a reviewer `sdk.assistant` event whose
+ * payload mirrors the REAL `SDKAssistantMessage` shape produced by
+ * `@cursor/sdk` in production:
+ *
+ *   payload = {
+ *     raw: {
+ *       type: "assistant",
+ *       agent_id, run_id,
+ *       message: {
+ *         role: "assistant",
+ *         content: Array<TextBlock | ToolUseBlock>
+ *       }
+ *     }
+ *   }
+ *
+ * (See `node_modules/@cursor/sdk/dist/cjs/messages.d.ts:23-31`.)
+ *
+ * BUG-SDK-004 fix (TASK-013) guards against `extractText()` regressing on
+ * this real shape — without the `content[]` probe, the reviewer's buffer
+ * stays empty and every real-SDK review collapses to
+ * `decision=needs_human` regardless of what the LLM actually said.
+ *
+ * @param contentBlocks  Mix of TextBlock and ToolUseBlock dicts. Only
+ *                       `type:"text"` entries should land in the reviewer
+ *                       buffer; `type:"tool_use"` must be silently
+ *                       skipped (tool args are never verdict text).
+ */
+function reviewerHandleWithSdkContent(
+  contentBlocks: Array<Record<string, unknown>>,
+) {
+  return (spec: AgentSendSpec, _sdkAgentId: string): InMemoryRunHandle => {
+    if (spec.agentId !== "REVIEW-01") {
+      return new InMemoryRunHandle({
+        sessionId: spec.sessionId,
+        agentId: spec.agentId,
+      });
+    }
+    return new InMemoryRunHandle({
+      sessionId: spec.sessionId,
+      agentId: spec.agentId,
+      emitEvents: [
+        {
+          event_id: `${spec.sessionId}-asst-1`,
+          at: new Date().toISOString(),
+          event_type: "sdk.assistant",
+          session_id: spec.sessionId,
+          run_id: "run-fake",
+          agent_id: spec.agentId,
+          payload: {
+            raw: {
+              type: "assistant",
+              agent_id: `agent-${spec.sessionId}`,
+              run_id: "run-fake",
+              message: {
+                role: "assistant",
+                content: contentBlocks,
+              },
+            },
+          },
         },
       ],
     });
@@ -527,6 +604,167 @@ describe("ReviewEngine", () => {
             JSON.stringify(result.errors, null, 2)
           })`,
         );
+      } finally {
+        await pipe.shutdown();
+      }
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // BUG-SDK-004 fixes (TASK-013 / REPORT-013) — extractText() must
+  // recognize the REAL `SDKAssistantMessage.message.content[]` shape
+  // (TextBlock | ToolUseBlock array). Without these tests, a regression
+  // in `extractText` could re-introduce the v0.2.0-beta.2 production
+  // bug where every real-SDK review collapsed to `decision=needs_human`
+  // because the reviewer buffer never accumulated a single character.
+  // ─────────────────────────────────────────────────────────────────────
+
+  it("TS-6.12: SDK content[]+markdown-bold VERDICT → decision=rejected (NOT needs_human)", async () => {
+    await withTempReview(async ({ inboxDir, stateDir, reviewsDir }) => {
+      await plantTaskFile(inboxDir);
+      const pipe = await buildPipeline({
+        inboxDir,
+        stateDir,
+        reviewsDir,
+        // Real SDK shape: payload.raw.message.content[] with one TextBlock
+        // whose `.text` is markdown-decorated (`**VERDICT: rejected; ...`).
+        // VERDICT_REGEX is unanchored so the leading `**` does not block
+        // the match — but only IF extractText() walked into content[] in
+        // the first place. (Pre-fix it short-circuited at probe 3 and
+        // returned null.)
+        reviewerHandleFactory: reviewerHandleWithSdkContent([
+          {
+            type: "text",
+            text:
+              "**VERDICT: rejected; RATIONALE: cannot find subject task body**",
+          },
+        ]),
+      });
+      try {
+        await pipe.registry.register(devSpec());
+        await pipe.registry.register(reviewerSpec());
+
+        await pipe.sessionManager.startSession("DEV-01", SUBJECT_TASK_ID, {
+          text: "real SDK shape please",
+        });
+
+        await awaitReviewSettled(pipe);
+
+        const expectedReviewId =
+          `REVIEW-20260509-001-REVIEW-on-${SUBJECT_TASK_ID}`;
+        const { frontmatter } = await readReviewFile(
+          join(reviewsDir, `${expectedReviewId}.md`),
+        );
+        assert.equal(
+          frontmatter["decision"],
+          "rejected",
+          "BUG-SDK-004 regression: real SDK content[] shape must drive " +
+            "decision=rejected, not the verdict_parse_failed → needs_human " +
+            "fallback observed in v0.2.0-beta.2 smoke #1.",
+        );
+        const result = await validate("review", frontmatter);
+        assert.equal(result.valid, true, JSON.stringify(result.errors));
+      } finally {
+        await pipe.shutdown();
+      }
+    });
+  });
+
+  it("TS-6.13: SDK content[] mixed TextBlock+ToolUseBlock → only text lands in buffer", async () => {
+    await withTempReview(async ({ inboxDir, stateDir, reviewsDir }) => {
+      await plantTaskFile(inboxDir);
+      const pipe = await buildPipeline({
+        inboxDir,
+        stateDir,
+        reviewsDir,
+        // Reviewer emits a tool_use call (e.g. glob), then the verdict
+        // text. extractText must skip the tool_use block entirely;
+        // otherwise its JSON-stringified args could match VERDICT_REGEX
+        // garbage or, worse, hide the real verdict line.
+        reviewerHandleFactory: reviewerHandleWithSdkContent([
+          {
+            type: "tool_use",
+            id: "tool-call-1",
+            name: "glob",
+            input: { pattern: "**/VERDICT*", verdict: "rejected" }, // adversarial: value contains "rejected"
+          },
+          {
+            type: "text",
+            text: "VERDICT: approved; RATIONALE: implementation looks fine",
+          },
+        ]),
+      });
+      try {
+        await pipe.registry.register(devSpec());
+        await pipe.registry.register(reviewerSpec());
+
+        await pipe.sessionManager.startSession("DEV-01", SUBJECT_TASK_ID, {
+          text: "tool then verdict",
+        });
+
+        await awaitReviewSettled(pipe);
+
+        const expectedReviewId =
+          `REVIEW-20260509-001-REVIEW-on-${SUBJECT_TASK_ID}`;
+        const { frontmatter } = await readReviewFile(
+          join(reviewsDir, `${expectedReviewId}.md`),
+        );
+        assert.equal(
+          frontmatter["decision"],
+          "approved",
+          "tool_use blocks must NOT pollute the reviewer buffer; the " +
+            "trailing TextBlock's verdict line is the only signal that " +
+            "should drive decision.",
+        );
+        const result = await validate("review", frontmatter);
+        assert.equal(result.valid, true, JSON.stringify(result.errors));
+      } finally {
+        await pipe.shutdown();
+      }
+    });
+  });
+
+  it("TS-6.14: SDK content[] multiple TextBlocks → concatenated in order before parseVerdict", async () => {
+    await withTempReview(async ({ inboxDir, stateDir, reviewsDir }) => {
+      await plantTaskFile(inboxDir);
+      const pipe = await buildPipeline({
+        inboxDir,
+        stateDir,
+        reviewsDir,
+        // Streaming responses arrive as many small TextBlocks. The
+        // verdict line is split mid-keyword across two blocks; only by
+        // joining them in order does VERDICT_REGEX find a hit.
+        reviewerHandleFactory: reviewerHandleWithSdkContent([
+          { type: "text", text: "Reviewing the task body now…\n\nVERD" },
+          {
+            type: "text",
+            text: "ICT: needs_changes; RATIONALE: missing tests for path X",
+          },
+        ]),
+      });
+      try {
+        await pipe.registry.register(devSpec());
+        await pipe.registry.register(reviewerSpec());
+
+        await pipe.sessionManager.startSession("DEV-01", SUBJECT_TASK_ID, {
+          text: "streaming chunks",
+        });
+
+        await awaitReviewSettled(pipe);
+
+        const expectedReviewId =
+          `REVIEW-20260509-001-REVIEW-on-${SUBJECT_TASK_ID}`;
+        const { frontmatter } = await readReviewFile(
+          join(reviewsDir, `${expectedReviewId}.md`),
+        );
+        assert.equal(
+          frontmatter["decision"],
+          "needs_changes",
+          "multi-chunk streaming TextBlocks must be concatenated in arrival " +
+            "order so a verdict split mid-keyword is still parseable.",
+        );
+        const result = await validate("review", frontmatter);
+        assert.equal(result.valid, true, JSON.stringify(result.errors));
       } finally {
         await pipe.shutdown();
       }

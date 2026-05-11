@@ -1,5 +1,5 @@
 /**
- * codeflow-shell main entry — v0.2.0-beta.1 (MT-1 hotfix on top of P2).
+ * codeflow-shell main entry — v0.2.0-beta.2 (MT-2 hotfix on top of MT-1).
  *
  * Reference:
  *   - design doc §11.2 + §11.3 (Layer 1 minimal entry)
@@ -7,6 +7,14 @@
  *   - TASK-20260510-007-PM-to-DEV §四 P2 §3 + §4 (P2 acceptance: spike + MT-2)
  *   - TASK-20260510-010-PM-to-DEV (MT-1 hotfix: defaultModel wire-through;
  *     adds banner WARNING block when live + local + no model)
+ *   - TASK-20260510-012-PM-to-DEV (MT-2 hotfix: agent.send() carries
+ *     local.force=true to expire wedged persisted runs; closes BUG-SDK-002.
+ *     No banner change — fix is purely inside CursorSdkAdapter.send().)
+ *   - TASK-20260510-013-PM-to-DEV (MT-3 hotfix: .env.example template
+ *     CURSOR_DEFAULT_MODEL=auto → default; closes BUG-SDK-003.
+ *     MT-4 hotfix: ReviewEngine.extractText() walks SDKAssistantMessage
+ *     content[] array; closes BUG-SDK-004. No banner change — both
+ *     fixes live in subordinate files.)
  *
  * Pipeline:
  *
@@ -44,7 +52,7 @@ import {
   makeRealCursorSdkAdapter,
 } from "./sdk-factory.ts";
 
-const VERSION = "0.2.0-beta.1";
+const VERSION = "0.2.0-beta.2";
 
 interface ShellLogger {
   info: (msg: string) => void;
