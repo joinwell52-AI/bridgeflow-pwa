@@ -163,3 +163,31 @@ export type {
 } from "./types/state.ts";
 
 export { ReconciliationStrategy } from "./types/state.ts";
+
+// ─────────────────────────────────────────────────────────────────────────
+// P4 sprint Day 1 (TASK-20260511-007) — fcop@1.1.0 bridge via pythonia.
+// `FcopProjectClient` is the new TS façade for fcop's Python API. Calling
+// any exported symbol from here boots the pythonia child Python process
+// (StdioCom.start runs at `import 'pythonia'` time), so consumers MUST
+// also call `disposeFcopBridge()` on graceful shutdown — see fcop-client.ts
+// JSDoc.
+// ─────────────────────────────────────────────────────────────────────────
+export {
+  FcopProjectClient,
+  FcopClientError,
+  assertFcopReady,
+  disposeFcopBridge,
+  type FcopProjectClientOptions,
+  type FcopTask,
+  type FcopReview,
+  type WriteTaskSpec,
+  type ListTasksFilter,
+  type WriteReviewSpec,
+  type MarkHumanApprovedSpec,
+  type Priority as FcopPriority,
+  type RiskLevel as FcopRiskLevel,
+  type ReviewDecision as FcopReviewDecision,
+  type ReviewSubjectType as FcopReviewSubjectType,
+  type HumanApprovalDecision,
+  type HumanApprovalChannel,
+} from "./_external/fcop-client.ts";

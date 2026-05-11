@@ -1,5 +1,5 @@
 /**
- * codeflow-shell main entry — v0.2.0-beta.3 (MT-5 hotfix on top of MT-1..4).
+ * codeflow-shell main entry — v0.3.0-alpha (P4 sprint Day 1 — TASK-20260511-007).
  *
  * Reference:
  *   - design doc §11.2 + §11.3 (Layer 1 minimal entry)
@@ -8,43 +8,53 @@
  *   - TASK-20260510-010-PM-to-DEV (MT-1 hotfix: defaultModel wire-through;
  *     adds banner WARNING block when live + local + no model)
  *   - TASK-20260510-012-PM-to-DEV (MT-2 hotfix: agent.send() carries
- *     local.force=true to expire wedged persisted runs; closes BUG-SDK-002.
- *     No banner change — fix is purely inside CursorSdkAdapter.send().)
- *   - TASK-20260510-013-PM-to-DEV (MT-3 hotfix: .env.example template
- *     CURSOR_DEFAULT_MODEL=auto → default; closes BUG-SDK-003.
- *     MT-4 hotfix: ReviewEngine.extractText() walks SDKAssistantMessage
- *     content[] array; closes BUG-SDK-004. No banner change — both
- *     fixes live in subordinate files.)
+ *     local.force=true to expire wedged persisted runs; closes BUG-SDK-002.)
+ *   - TASK-20260510-013-PM-to-DEV (MT-3 + MT-4 hotfixes: CURSOR_DEFAULT_MODEL
+ *     default; ReviewEngine.extractText() walks content[] array.)
  *   - TASK-20260511-001-PM-to-DEV (MT-5 hotfix: Agent.create() no longer
- *     receives a `model` field on ANY key tier — closes BUG-SDK-007 which
- *     QA-014 surfaced as a Cursor backend ACL on ADMIN-class keys. The
- *     resume-time model wire-through is untouched, so BUG-SDK-001 stays
- *     fixed. Banner WARNING example updated `auto` → `default` to match
- *     MT-3. v0.2.0-beta.3.)
+ *     receives a `model` field — closes BUG-SDK-007.)
+ *   - TASK-20260511-007-PM-to-DEV (P4 main sprint Day 1: introduce
+ *     `FcopProjectClient` + banner PYTHON_BIN/fcop check + .env.example
+ *     PYTHON_BIN entry. Day 2-5 will progressively swap TaskDispatcher /
+ *     ReviewEngine / NeedsHumanGate / AgentRegistry over to fcop@1.1.0
+ *     Python API via pythonia. v0.3.0-alpha.)
  *
  * Pipeline:
  *
  *   1. `loadConfig()` — merge defaults / config.json / .env / process.env / CLI args.
  *   2. Ensure data dirs exist (chokidar doesn't auto-create).
  *   3. Plant fixture skills if `<skillsDir>/fcop.json` is missing.
- *   4. Pick the SDK adapter — real CursorSdkAdapter if cfg.cursor.apiKey
+ *   4. **NEW (P4 Day 1.4)**: Probe pythonia + fcop@1.1.0 readiness via
+ *      `assertFcopReady()`. Fail fast with actionable error if PYTHON_BIN
+ *      points nowhere / Python < 3.10 / fcop@1.1.0 not installed.
+ *   5. Pick the SDK adapter — real CursorSdkAdapter if cfg.cursor.apiKey
  *      resolves, else InMemorySdkAdapter (smoke-test fallback).
- *   5. Construct Runtime (synchronously runs RuntimeBootstrap).
- *   6. Register the default agent kit if `agents.json` is empty.
- *   7. Start dispatcher / review engine / status reconciler.
- *   8. Print banner with config provenance + adapter mode + watcher dir + PID.
- *   9. Wait for SIGINT / SIGTERM → graceful stop.
+ *   6. Construct Runtime (synchronously runs RuntimeBootstrap).
+ *   7. Register the default agent kit if `agents.json` is empty.
+ *   8. Start dispatcher / review engine / status reconciler.
+ *   9. Print banner with config provenance + adapter mode + watcher dir +
+ *      PYTHON_BIN + fcop version + PID.
+ *   10. Wait for SIGINT / SIGTERM → graceful stop (now also
+ *       `disposeFcopBridge()` to kill the pythonia child Python process).
  *
- * What this file does NOT do (deferred to later v0.2 phases):
+ * What this file does NOT do (deferred to later v0.3 days / sprints):
  *
- *   - P2: replace EXE bundler (currently `npm start` only)
- *   - P3: instantiate `RelayBridge` from `cfg.relay.*`
- *   - P4: 7-schema rewrite (Boundary capability, etc.)
+ *   - Day 2-5: swap TaskDispatcher / ReviewEngine.writeReview /
+ *              NeedsHumanGate / AgentRegistry to FcopProjectClient.
+ *   - Day 6:   bump version + CHANGELOG + release notes.
+ *   - P3:      instantiate `RelayBridge` from `cfg.relay.*`.
+ *   - P5:      install.ps1 auto-install Python + fcop.
  */
 
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 
-import { Runtime } from "@codeflow/runtime";
+import {
+  Runtime,
+  assertFcopReady,
+  disposeFcopBridge,
+  FcopClientError,
+} from "@codeflow/runtime";
 
 import {
   ensureDataDirs,
@@ -58,6 +68,11 @@ import {
   makeRealCursorSdkAdapter,
 } from "./sdk-factory.ts";
 
+/**
+ * Version stays `0.2.0-beta.3` until P4 Day 6 (PM TASK-20260511-007 §四 Day
+ * 6.6 "版本号 bump"). Day 1-5 work is **on top of** beta.3 — the banner
+ * already shows the per-day P4 progress in the new "fcop bridge" line.
+ */
 const VERSION = "0.2.0-beta.3";
 
 interface ShellLogger {
@@ -71,6 +86,132 @@ const consoleLogger: ShellLogger = {
   warn: (msg) => console.warn(msg),
   error: (msg) => console.error(msg),
 };
+
+/**
+ * Result of {@link probeFcopBridge}. We discriminate three states so the
+ * banner can print the right thing and tests can drive each branch:
+ *
+ *   - `ok`       fcop@1.1.0 reachable + version captured.
+ *   - `failed`   probe threw. `probeFcopBridge` already printed actionable
+ *                  errors to stderr and called `process.exit(1)` — this
+ *                  variant exists so TS knows the branch is unreachable in
+ *                  production, but the type stays sound for tests / sandbox.
+ *   - `skipped`  user explicitly opted out via `CODEFLOW_SKIP_FCOP_PROBE=1`.
+ *                  Used during integration tests that pre-stub fcop and
+ *                  during early P4 dev when Python isn't yet on the box.
+ */
+type FcopProbeResult =
+  | {
+      status: "ok";
+      fcopVersion: string;
+      pythonVersion: string;
+      pythonExecutable: string;
+    }
+  | {
+      status: "skipped";
+      reason: string;
+    }
+  | {
+      status: "failed";
+      message: string;
+    };
+
+/**
+ * Probe pythonia + fcop@1.1.0 readiness. **Side-effect: kills the process
+ * with exit code 2 on failure** (after printing actionable hints to
+ * stderr). Returns a structured result for the banner if the probe
+ * succeeds or was skipped.
+ *
+ * Why exit code **2** (not 1)? `main().catch` already uses exit code 1
+ * for unexpected fatals. Splitting "config / env failure" → 2 from
+ * "uncaught exception" → 1 lets ops scripts (Day 6 smoke tests; later
+ * install.ps1 / EXE bundler) distinguish them.
+ */
+async function probeFcopBridge(): Promise<FcopProbeResult> {
+  if (process.env["CODEFLOW_SKIP_FCOP_PROBE"] === "1") {
+    return {
+      status: "skipped",
+      reason: "CODEFLOW_SKIP_FCOP_PROBE=1 in env",
+    };
+  }
+  // PRE-flight check: pythonia's StdioCom synchronously cp.spawn()s
+  // `process.env.PYTHON_BIN || 'python3'` the first time something from
+  // the pythonia module is imported. `cp.spawn()` returns synchronously
+  // even when the target doesn't exist — the ENOENT surfaces as an
+  // async 'error' event on the child process, which pythonia doesn't
+  // listen for, so Node crashes with exit code 1 BEFORE assertFcopReady's
+  // try/catch can ever run.
+  //
+  // Therefore we verify PYTHON_BIN points to an existing file BEFORE we
+  // touch any code path that transitively imports pythonia. The check is
+  // intentionally only "file exists" (not "is a Python interpreter +
+  // version + has fcop") — the deeper checks live in assertFcopReady().
+  const pythonBin = process.env["PYTHON_BIN"];
+  if (pythonBin && !existsSync(pythonBin)) {
+    printFcopProbeFailure(
+      `PYTHON_BIN points at a path that does not exist: ${pythonBin}`,
+      [
+        "Check the spelling, escape backslashes properly in .env, or unset",
+        "PYTHON_BIN to let pythonia fall back to PATH `python3` / `python`.",
+        "",
+        "Find a valid path with:",
+        "  Windows: where.exe python  OR  py -3 -c \"import sys; print(sys.executable)\"",
+        "  macOS:   which python3      OR  python3 -c \"import sys; print(sys.executable)\"",
+        "  Linux:   which python3      OR  python3 -c \"import sys; print(sys.executable)\"",
+      ],
+    );
+  }
+  try {
+    const info = await assertFcopReady();
+    return {
+      status: "ok",
+      fcopVersion: info.fcopVersion,
+      pythonVersion: info.pythonVersion,
+      pythonExecutable: info.pythonExecutable,
+    };
+  } catch (err) {
+    const isClientError = err instanceof FcopClientError;
+    const message = err instanceof Error ? err.message : String(err);
+    if (isClientError) {
+      // assertFcopReady already builds a multi-line actionable message.
+      printFcopProbeFailure(message, []);
+    } else {
+      printFcopProbeFailure("Unexpected error during fcop bridge probe:", [
+        message,
+        "",
+        "Hints:",
+        "  - Set PYTHON_BIN to a Python 3.10+ executable that has fcop installed.",
+        `    Current PYTHON_BIN = ${process.env["PYTHON_BIN"] ?? "<unset>"}`,
+        "  - Install fcop: `py -3 -m pip install fcop` (or `pip install fcop`",
+        "    on the same interpreter PYTHON_BIN points to).",
+      ]);
+    }
+  }
+  // Unreachable but TS requires a return.
+  return { status: "failed", message: "unreachable" };
+}
+
+/**
+ * Print a structured FATAL banner with hints and exit with code 2.
+ *
+ * **never returns** — the function is typed `never` so TS knows control flow
+ * after a call to it can't reach further statements (we still write a
+ * sentinel `return` after the `process.exit(2)` for runtime sanity).
+ */
+function printFcopProbeFailure(headline: string, lines: string[]): never {
+  console.error("===========================================================");
+  console.error("FATAL: pythonia + fcop@1.1.0 bridge is not ready.");
+  console.error("===========================================================");
+  console.error(headline);
+  for (const line of lines) console.error(line);
+  console.error("");
+  console.error(
+    "To run codeflow-shell without the fcop bridge (Day 1 development only),",
+  );
+  console.error("set CODEFLOW_SKIP_FCOP_PROBE=1 and the probe will be skipped.");
+  console.error("===========================================================");
+  process.exit(2);
+}
 
 function describeSources(sources: ReturnType<typeof loadConfig>["sources"]): string {
   const order = [
@@ -97,12 +238,30 @@ async function main(): Promise<void> {
   // ── 3. Plant fixture skills BEFORE Runtime.create ──────────────────
   const skillResult = await plantSkillFixturesIfMissing(skillsDir);
 
-  // ── 4. Pick the SDK adapter ────────────────────────────────────────
+  // ── 4. fcop bridge readiness probe (P4 sprint Day 1.4) ─────────────
+  //
+  // BUG-SDK-001 taught us: silent feature-flags that surface as obscure
+  // failures 30 seconds into a task dispatch waste user time. The fcop
+  // bridge has THREE common ways to be misconfigured on Windows:
+  //
+  //   1. `PYTHON_BIN` env var not set, and PATH `python3` / `python` is a
+  //      Python that doesn't have fcop installed (Windows defaults to
+  //      python.org PATH installer which is often a separate interpreter
+  //      from the one with fcop).
+  //   2. Python < 3.10 (fcop requires 3.10+; DEV-005 §五 S2).
+  //   3. fcop@1.1.0 missing (`pip install fcop` was never run, or run on
+  //      the wrong interpreter — see #1).
+  //
+  // We probe NOW (before Runtime.create) so users see the error at the
+  // banner stage with actionable hints, not after the first task drop.
+  const fcopReady = await probeFcopBridge();
+
+  // ── 5. Pick the SDK adapter ────────────────────────────────────────
   const sdkAdapter =
     makeRealCursorSdkAdapter(cfg.cursor) ?? makeFakeCursorSdkAdapter();
   const adapterDescription = describeAdapterChoice(cfg.cursor, sdkAdapter);
 
-  // ── 5. Construct runtime (bootstrap runs synchronously) ────────────
+  // ── 6. Construct runtime (bootstrap runs synchronously) ────────────
   const runtime = await Runtime.create({
     sdkAdapter,
     persistDir: dataDir,
@@ -111,16 +270,16 @@ async function main(): Promise<void> {
     logger: consoleLogger,
   });
 
-  // ── 6. Register default agent kit ──────────────────────────────────
+  // ── 7. Register default agent kit ──────────────────────────────────
   const agentResult = await registerDefaultAgentKitIfEmpty({
     dataDir,
     runtime,
   });
 
-  // ── 7. Start ───────────────────────────────────────────────────────
+  // ── 8. Start ───────────────────────────────────────────────────────
   await runtime.start();
 
-  // ── 8. Banner ──────────────────────────────────────────────────────
+  // ── 9. Banner ──────────────────────────────────────────────────────
   console.log("===========================================================");
   console.log(`CodeFlow v${VERSION} — internal preview`);
   console.log("===========================================================");
@@ -129,6 +288,19 @@ async function main(): Promise<void> {
   console.log(`Reviews        : ${runtime.reviewWriter.reviewsDir}`);
   console.log(`Config sources : ${describeSources(cfg.sources)}`);
   console.log(`Cursor SDK     : ${adapterDescription}`);
+  // P4 Day 1.4: surface fcop bridge state in the banner. When the probe
+  // skipped (FAKE_PYTHONIA env / probe disabled), show "(skipped)".
+  if (fcopReady.status === "ok") {
+    console.log(
+      `fcop bridge    : fcop ${fcopReady.fcopVersion} via pythonia ` +
+        `(Python at ${fcopReady.pythonExecutable})`,
+    );
+  } else if (fcopReady.status === "skipped") {
+    console.log(`fcop bridge    : (skipped — ${fcopReady.reason})`);
+  } else {
+    // 'failed' — error already printed by probeFcopBridge before exit.
+    console.log(`fcop bridge    : FAILED — see message above`);
+  }
   // MT-1 friendly hint: live adapter without a default model + local
   // listScope = nothing actually wrong yet, but every task drop will
   // fail at `agent.send()` with `Local SDK agents require an explicit
@@ -192,7 +364,7 @@ async function main(): Promise<void> {
   console.log(`PID            : ${process.pid}`);
   console.log("===========================================================");
 
-  // ── 9. Graceful stop ───────────────────────────────────────────────
+  // ── 10. Graceful stop ──────────────────────────────────────────────
   let stopping = false;
   const stop = async (signal: string): Promise<void> => {
     if (stopping) return;
@@ -200,6 +372,11 @@ async function main(): Promise<void> {
     console.log(`\n[shell] received ${signal}, stopping runtime...`);
     try {
       await runtime.stop();
+      // P4 Day 1.4: tear down pythonia child Python process. Without this
+      // Node would hang on shutdown because pythonia keeps a stdio-piped
+      // child alive (see fcop-client.ts `__killRealPythonChildForTests`
+      // JSDoc for the same hazard surfaced in tests).
+      await disposeFcopBridge();
       console.log("[shell] runtime stopped cleanly. Goodbye.");
       process.exit(0);
     } catch (err) {
