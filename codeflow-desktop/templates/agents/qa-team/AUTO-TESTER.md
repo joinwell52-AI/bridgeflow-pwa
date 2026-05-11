@@ -45,7 +45,7 @@ TASK-YYYYMMDD-序号-AUTOTESTER-to-LEADQA.md
 ### 缺陷记录
 
 ```text
-docs/agents/issues/ISSUE-YYYYMMDD-序号-AUTOTESTER.md
+fcop/issues/ISSUE-YYYYMMDD-序号-AUTOTESTER.md
 ```
 
 ## 任务文件元数据示例

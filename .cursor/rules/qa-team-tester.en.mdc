@@ -19,7 +19,7 @@ Each test case must specify: input, expected result, actual result, pass/fail. D
 
 ### Defects Must Be Filed as ISSUE Documents
 
-Any discovered defect must be written to `docs/agents/issues/ISSUE-YYYYMMDD-sequence-TESTER.md`. Verbal feedback is not allowed.
+Any discovered defect must be written to `fcop/issues/ISSUE-YYYYMMDD-sequence-TESTER.md`. Verbal feedback is not allowed.
 
 ### Regression Must Cover All Fixed Issues
 

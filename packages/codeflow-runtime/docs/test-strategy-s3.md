@@ -900,7 +900,7 @@ __tests__/fixtures/
 | **10** | README 更新至 Phase C 完成态（scheduler/* 在状态表标 ✅）| — （文档验收）| grep "InboxWatcher.*✅" README.md |
 | **11** | 不动 spike 文件夹（`git diff --stat _ignore/spike_sdk_doorbell/` 空）| — （git 验收）| 同 Phase A/B |
 | **12** | 不动 protocol schema 字段（`git diff --stat packages/codeflow-protocol/schemas/` 空）| — （git 验收）| 同 Phase A/B |
-| **13** | 不修改 docs/agents/tasks/ 已有 task 文件（`git diff --stat docs/agents/tasks/` 只含 ??）| — （git 验收）| 新文件 `??` 可以；已有文件不应有 `M` |
+| **13** | 不修改 fcop/tasks/ 已有 task 文件（`git diff --stat fcop/tasks/` 只含 ??）| — （git 验收）| 新文件 `??` 可以；已有文件不应有 `M` |
 | **14** | new dependency 仅 chokidar + yaml（`package.json` diff 审查）| — （依赖验收）| `Select-String "chokidar\|yaml" packages/codeflow-runtime/package.json` 命中 |
 | **15** | TS-1.6 风格测试稳定（scheduler/__tests__/helpers.ts 复用 EBUSY-retry 模式）| — （工程约束）| grep `retry` scheduler/__tests__/helpers.ts 命中 |
 
@@ -910,7 +910,7 @@ __tests__/fixtures/
 > 3. 验证 TS-5.2（REPORT-*.md / HANDOFF-*.md 被忽略，无 false positive）
 > 4. 手工验证 E2E demo（验收 #7）：运行 `npx tsx examples/hello-world.ts`，确认 stdout 无 error 且含 "Runtime started"
 > 5. 跑 `git diff packages/codeflow-protocol/` 确认空
-> 6. 跑 `git diff docs/agents/tasks/` 确认无 M（只有 ?? 新文件）
+> 6. 跑 `git diff fcop/tasks/` 确认无 M（只有 ?? 新文件）
 > 7. Phase C 全过后 + Phase A/B/C 合并回归（≥ 52 tests）→ 写 REPORT-019-QA-to-PM
 
 > **Phase C 不含的 QA 场景**：TS-4.6（Phase B / C 决议中）；Skill Runtime（S4）；Review Engine（S5）；E2E full demo with 真实 SDK（S6）。
@@ -935,7 +935,7 @@ __tests__/fixtures/
 | **10** | 协议依赖纪律 grep（`runtime/src/skill` 不重新声明 schema 字段名）| — （架构约束）| `grep "^export (interface\|type)" src/skill/` = 0 命中 |
 | **11** | ReadLints 0 错误（所有新增 skill/*.ts 文件）| — （lint）| 对 SkillRegistry / KernelDependencyValidator / MCPInjector + 修改文件 |
 | **12** | README 更新至 Phase E 完成态（skill/* 加进结构图，状态标 ✅）| — （文档验收）| `Select-String "SkillRegistry.*✅" README.md` |
-| **13** | 不动 spike / protocol schema / docs/agents/tasks/ 已有 task 文件 | — （git 验收）| `git diff --stat _ignore/ packages/codeflow-protocol/schemas/ docs/agents/tasks/` = 空 |
+| **13** | 不动 spike / protocol schema / fcop/tasks/ 已有 task 文件 | — （git 验收）| `git diff --stat _ignore/ packages/codeflow-protocol/schemas/ fcop/tasks/` = 空 |
 | **14** | 不引入新 npm 依赖（`package.json` diff 仅版本号 0.1.0-alpha.4→5）| — （依赖验收）| `npm ls --depth=0` diff 与 Phase D 一致 |
 | **15** | 不修改 §0.0 宪法 5 句（`git diff docs/design/` 空）| — （宪法保护）| 同 Phase D 验收 #15 |
 

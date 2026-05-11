@@ -19,7 +19,7 @@ alwaysApply: false
 
 ### 缺陷必须落 ISSUE 文件
 
-发现任何缺陷，必须写 `docs/agents/issues/ISSUE-YYYYMMDD-序号-TESTER.md`，不允许口头反馈。
+发现任何缺陷，必须写 `fcop/issues/ISSUE-YYYYMMDD-序号-TESTER.md`，不允许口头反馈。
 
 ### 回归必须覆盖所有已修复 ISSUE
 

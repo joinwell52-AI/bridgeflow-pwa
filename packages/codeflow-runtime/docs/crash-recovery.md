@@ -2,7 +2,7 @@
 
 > 本文件是 `@codeflow/runtime` 包的设计稿 —— 仅文档，不实现。S3 sprint 按本文件结论实现。
 >
-> 派单依据：[`docs/agents/tasks/TASK-20260509-002-PM-to-DEV.md`](../../../docs/agents/tasks/TASK-20260509-002-PM-to-DEV.md) §必交付 5。
+> 派单依据：[`fcop/tasks/TASK-20260509-002-PM-to-DEV.md`](../../../fcop/tasks/TASK-20260509-002-PM-to-DEV.md) §必交付 5。
 > 上游设计：[`docs/design/codeflow-v2-on-fcop-sdk.md`](../../../docs/design/codeflow-v2-on-fcop-sdk.md) §2.1（State Store 子系统 6）+ §0.8.2（v0.1 第 3 条硬约束「进程能恢复」）。
 >
 > 总长度约 230 行；4 问答各含 ≥ 30 行论证 + 明确推荐方案。

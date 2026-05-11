@@ -1,4 +1,4 @@
-﻿---
+---
 name: switch-team
 description: Switch FCoP team template without losing existing data
 ---
@@ -12,7 +12,7 @@ Switching the team template updates role configuration but preserves existing ta
 
 1. 查看可用模板：调用 `get_available_teams` 工具
 2. 重新初始化：调用 `init_project(team="新模板名")`
-3. 新的角色配置会写入 `docs/agents/fcop.json`，旧的任务文件保留
+3. 新的角色配置会写入 `fcop/fcop.json`，旧的任务文件保留
 
 ## 注意 / Notes
 

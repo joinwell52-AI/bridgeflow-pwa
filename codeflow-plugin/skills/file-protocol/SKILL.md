@@ -7,9 +7,9 @@ description: "FCoP file-driven collaboration protocol — read tasks, write repo
 
 ## Overview / 概述
 
-**FCoP** (File-based Coordination Protocol) uses files as the communication protocol between agents. All collaboration happens through reading and writing Markdown files in `docs/agents/`.
+**FCoP** (File-based Coordination Protocol) uses files as the communication protocol between agents. All collaboration happens through reading and writing Markdown files in `fcop/`.
 
-**FCoP（File-based Coordination Protocol）** 使用文件作为 Agent 间的通信协议。所有协作通过读写 `docs/agents/` 下的 Markdown 文件完成。
+**FCoP（File-based Coordination Protocol）** 使用文件作为 Agent 间的通信协议。所有协作通过读写 `fcop/` 下的 Markdown 文件完成。
 
 ## Directory Layout / 目录结构
 
@@ -92,12 +92,12 @@ status: completed | partial | blocked
 
 ### Submit a report / 提交报告
 
-1. Create file in `docs/agents/reports/`
+1. Create file in `fcop/reports/`
 2. Filename: `TASK-{same-id}-{YOUR_ROLE}-to-{sender}.md`
 3. Include: what you did, results, evidence
 
 ### Record an issue / 记录问题
 
-1. Create file in `docs/agents/issues/`
+1. Create file in `fcop/issues/`
 2. Filename: `ISSUE-{date}-{seq}-{summary}.md`
 3. Include severity: P0 (critical) / P1 (important) / P2 (normal)

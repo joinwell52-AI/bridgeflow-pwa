@@ -191,7 +191,7 @@ CodeFlow 的 Task 形态分两个阶段：
 每条 Task 是一份独立 Markdown 文件，按"发起方 → 接收方"命名：
 
 ```text
-docs/agents/tasks/
+fcop/tasks/
 ├── TASK-20260509-001-PM-to-DEV.md       ← Task 本体
 ├── REPORT-20260509-001-DEV-to-PM.md     ← 执行回执
 └── REVIEW-20260509-001-QA-on-TASK-001.md ← 审计结论

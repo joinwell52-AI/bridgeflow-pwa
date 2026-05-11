@@ -1,5 +1,5 @@
 """
-Hook script: triggered by afterFileEdit on docs/agents/**/*.md
+Hook script: triggered by afterFileEdit on fcop/**/*.md
 
 Reads the edited file info from stdin and could push notifications
 to the relay server (Phase 2).

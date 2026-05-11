@@ -50,7 +50,7 @@ The minimal executable wrapper around `@codeflow/runtime`. The shell is a **thin
 5. Starts the dispatcher / review engine / status reconciler.
 6. Waits for `SIGINT` → graceful stop.
 
-What it does **not** do (deferred to v0.2 — see [TASK-20260509-028 §二](../docs/agents/tasks/TASK-20260509-028-PM-to-DEV.md)):
+What it does **not** do (deferred to v0.2 — see [TASK-20260509-028 §二](../fcop/tasks/TASK-20260509-028-PM-to-DEV.md)):
 
 - ❌ tray icon (system tray)
 - ❌ web panel (Express + PWA)

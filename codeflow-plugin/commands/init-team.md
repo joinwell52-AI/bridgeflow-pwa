@@ -16,8 +16,8 @@ Use the `init_project` tool from the `fcop` MCP to initialize the collaboration 
    - `media-team` — 自媒体团队（PUBLISHER, COLLECTOR, WRITER, EDITOR）
    - `mvp-team` — 创业 MVP 团队（MARKETER, RESEARCHER, DESIGNER, BUILDER）
 3. 工具会自动：
-   - 创建 `docs/agents/` 目录结构
-   - 写入 `docs/agents/fcop.json`（项目身份配置）
+   - 创建 `fcop/` 目录结构
+   - 写入 `fcop/fcop.json`（项目身份配置）
    - 部署 `.cursor/rules/fcop-rules.mdc`（FCoP 协议规则，`alwaysApply: true`）
    - 部署 `.cursor/rules/fcop-protocol.mdc`（FCoP 协议解释，`alwaysApply: true`）
    - 生成一条欢迎任务给 leader

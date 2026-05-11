@@ -208,7 +208,7 @@ No. The EXE is self-contained. Just download and double-click.
 The Desktop and Cursor work locally. The phone connection needs a relay server (included by default at `wss://ai.chedian.cc/codeflow/ws/`). You can also run your own relay.
 
 **Q: Can I customize the team roles?**
-Yes. Edit `docs/agents/codeflow.json` in your project folder. The PWA picks up changes automatically.
+Yes. Edit `fcop/codeflow.json` in your project folder. The PWA picks up changes automatically.
 
 **Q: Is my data sent to any server?**
 Only task status events (JSON text, no file content) pass through the relay. All actual files stay on your PC. The relay has a 256KB message limit.

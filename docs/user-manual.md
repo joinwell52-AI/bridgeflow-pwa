@@ -1,4 +1,4 @@
-﻿# 码流（CodeFlow）用户操作手册
+# 码流（CodeFlow）用户操作手册
 
 **版本：** v2.12.0 ｜ **更新日期：** 2026-04-06
 
@@ -36,7 +36,7 @@ D:\my-ai-team\
 ```
 
 这个文件夹将用来存放：
-- `docs/agents/` — 任务单、报告、问题记录
+- `fcop/` — 任务单、报告、问题记录
 - `.cursor/rules/` — Agent 协作规则
 - `.cursor/skills/` — Agent 技能文件
 
@@ -84,7 +84,7 @@ http://127.0.0.1:18765
 │   ├── rules/codeflow-core.mdc          ← Agent 协作协议（旧版可能为 CodeFlow-core.mdc）
 │   ├── rules/codeflow-patrol.mdc        ← 自动巡检规则（旧版可能为 CodeFlow-patrol.mdc）
 │   └── skills/file-protocol/SKILL.md    ← 文件协议技能
-├── docs/agents/
+├── fcop/
 │   ├── codeflow.json                    ← 团队配置（兼容旧名 codeflow.json）
 │   ├── PM.md / PM.en.md                 ← 角色定义（中英双语）
 │   ├── DEV.md / DEV.en.md
@@ -134,7 +134,7 @@ http://127.0.0.1:18765
 
 启动后：
 - 按钮变为青色亮灯状态
-- Nudger 开始监听 `docs/agents/tasks/` 和 `reports/` 目录
+- Nudger 开始监听 `fcop/tasks/` 和 `reports/` 目录
 - 有新任务文件落入时，自动用快捷键切换到对应 Agent Tab 并唤醒
 
 **首次启动完成！**
@@ -322,10 +322,10 @@ PC 端 Cursor 与手机端 PWA 工作实况内容保持一致：
 | 文件 | 说明 |
 |------|------|
 | `CodeFlow-Desktop.exe` | 主程序，双击运行，约 35MB，支持自动更新 |
-| `docs/agents/codeflow.json` | 团队配置（角色、房间密钥、中继地址；兼容 `codeflow.json`） |
-| `docs/agents/tasks/*.md` | 任务单文件 |
-| `docs/agents/reports/*.md` | 完成报告文件 |
-| `docs/agents/issues/*.md` | 问题记录文件 |
-| `docs/agents/log/*.md` | 历史归档文件 |
+| `fcop/codeflow.json` | 团队配置（角色、房间密钥、中继地址；兼容 `codeflow.json`） |
+| `fcop/tasks/*.md` | 任务单文件 |
+| `fcop/reports/*.md` | 完成报告文件 |
+| `fcop/issues/*.md` | 问题记录文件 |
+| `fcop/log/*.md` | 历史归档文件 |
 | `.cursor/rules/*.mdc` | Cursor Agent 规则文件 |
 | `.cursor/skills/*/SKILL.md` | Cursor Agent 技能文件 |

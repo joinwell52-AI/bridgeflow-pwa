@@ -208,7 +208,7 @@ AI 角色在 Cursor 里工作时的样子：
 桌面端和 Cursor 在本地工作。手机连接需要中继服务器（默认已配置 `wss://ai.chedian.cc/codeflow/ws/`）。你也可以自己搭中继。
 
 **问：能自定义团队角色吗？**
-可以。编辑项目文件夹里的 `docs/agents/codeflow.json`，PWA 会自动同步。
+可以。编辑项目文件夹里的 `fcop/codeflow.json`，PWA 会自动同步。
 
 **问：我的数据会发到服务器吗？**
 只有任务状态事件（JSON 文本，不含文件内容）经过中继。所有实际文件都在你的 PC 上。中继消息限制 256KB。

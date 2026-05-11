@@ -225,7 +225,7 @@ v2 的核心交付物不是"应用"，而是 **§3 定义的 Runtime Protocol（
 | **进程 (Process)** | **Task**（FCoP `TASK-*.md`） | 工作单元，有 lifecycle / state / owner / 可阻塞、可挂起 |
 | **线程 (Thread)** | **Agent**（SDK agent 实例） | 执行上下文，可并发承接多个 Task |
 | 进程控制块 (PCB) | `.codeflow/state/agents.json` + Task front-matter | 元数据持久化 |
-| 文件系统 | **Task Store**（`docs/agents/tasks/`） | FCoP 协议规定的目录布局，所有 Task 与状态流转都在这 |
+| 文件系统 | **Task Store**（`fcop/tasks/`） | FCoP 协议规定的目录布局，所有 Task 与状态流转都在这 |
 | 进程间通信 (IPC) | **FCoP** | 文件即消息总线，致敬 Plan 9 "everything is a file" |
 | 系统调用 (syscall) | **MCP tool call** | agent → adapter 的 ABI |
 | **kernel 子系统** | **`fcop-mcp`** | syscall 调度层，所有 agent 工具调用必经它（OS *实现* 层面） |
@@ -1097,7 +1097,7 @@ CodeFlow v2 启动时会执行 schema 校验，缺 fcop 直接拒绝加载该角
 │  │   - .codeflow/state/agents.json (PCB)                        │   │
 │  │   - .codeflow/state/sessions/<id>.json (会话记录)            │   │
 │  │   - .codeflow/state/transcripts/<run-id>.md (事件转录)       │   │
-│  │   - docs/agents/tasks/ (Task Store, FCoP 协议目录)           │   │
+│  │   - fcop/tasks/ (Task Store, FCoP 协议目录)           │   │
 │  │   - 对位 OS：文件系统 + journal log                           │   │
 │  └──────────────────────────────────────────────────────────────┘   │
 │                                                                      │
@@ -1108,7 +1108,7 @@ CodeFlow v2 启动时会执行 schema 校验，缺 fcop 直接拒绝加载该角
               │                         │                       │
    ┌──────────┴──────────┐  ┌───────────┴──────────┐  ┌─────────┴────────┐
    │ FCoP 文件系统       │  │ Agent 节点（任意）   │  │ ADMIN 入口       │
-   │ docs/agents/tasks/  │  │  - Local SDK agents  │  │  - PWA 手机端    │
+   │ fcop/tasks/  │  │  - Local SDK agents  │  │  - PWA 手机端    │
    │   ├─ inbox/<role>/  │  │  - Cloud SDK agents  │  │  - fcop CLI      │
    │   ├─ in_progress/   │  │  - (未来) Claude Code│  │  - 任意文本编辑  │
    │   ├─ review/        │  │  - (未来) Codex      │  │                  │
@@ -1192,8 +1192,8 @@ version: 1
 defaults:
   runtime: local
   cwd: "."
-  inbox_root: "docs/agents/tasks/inbox"
-  done_root: "docs/agents/tasks/done"
+  inbox_root: "fcop/tasks/inbox"
+  done_root: "fcop/tasks/done"
   brief_dir: ".codeflow/briefs"
 
 roles:
@@ -1673,7 +1673,7 @@ labels:
 **目标形态：**
 
 ```text
-docs/agents/tasks/
+fcop/tasks/
 └── TASK-20260601-001-PM-to-DEV/        ← 目录，沿用 FCoP 命名
      ├── task.md                         ← Goal + Constraints（取代单文件 body）
      ├── plan.md                         ← PM 拆解结果
@@ -2610,7 +2610,7 @@ codeflow-pwa/
 |---|---|---|
 | v2 EXE 完成 §0.8.3 Hello World demo | ≥ 1 次成功跑通 PM→DEV→REVIEW→DONE | 立即 deprecate v1 |
 | v2 EXE 跑过 5 个真人用户验收 | ≥ 5 真人确认"双击就能用" | 锁定 v2 主链 |
-| v2 EXE 兼容 v1 的 `docs/agents/codeflow.json` | v1 用户切换不需要重选团队 | 解除"切换流失" 担忧 |
+| v2 EXE 兼容 v1 的 `fcop/codeflow.json` | v1 用户切换不需要重选团队 | 解除"切换流失" 担忧 |
 | v0.3 释放完成 | §10.4 v0.3 sprint 全部 ship | 触发 `git mv` 到 legacy/ |
 
 任一判据未达成 = deprecation buffer 延长，不强制 v0.3 触发。

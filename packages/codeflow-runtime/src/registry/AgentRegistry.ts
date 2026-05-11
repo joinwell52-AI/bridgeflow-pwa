@@ -13,7 +13,7 @@
  * Reference:
  * - design doc `docs/design/codeflow-v2-on-fcop-sdk.md` §2.1 subsystem 3,
  *   §3.2 Agent Schema, §0.9.1 layer enforcement
- * - `docs/agents/tasks/TASK-20260509-009-PM-to-DEV.md` §必交付 2
+ * - `fcop/tasks/TASK-20260509-009-PM-to-DEV.md` §必交付 2
  * - `docs/crash-recovery.md` decision 1 (write timing) + decision 2
  *   (RuntimeNotReady race-defense)
  */

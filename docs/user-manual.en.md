@@ -1,4 +1,4 @@
-﻿# CodeFlow User Manual (码流)
+# CodeFlow User Manual (码流)
 
 **Version:** v2.0.0 | **Updated:** 2026-04-04
 
@@ -36,7 +36,7 @@ D:\my-ai-team\
 ```
 
 This folder will contain:
-- `docs/agents/` — tasks, reports, issues
+- `fcop/` — tasks, reports, issues
 - `.cursor/rules/` — Agent collaboration rules
 - `.cursor/skills/` — Agent skill files
 
@@ -80,7 +80,7 @@ Your project folder/
 │   ├── rules/codeflow-core.mdc (legacy: CodeFlow-core.mdc)
 │   ├── rules/codeflow-patrol.mdc (legacy: CodeFlow-patrol.mdc)
 │   └── skills/file-protocol/SKILL.md
-├── docs/agents/
+├── fcop/
 │   ├── codeflow.json (legacy: codeflow.json)
 │   ├── PM.md / PM.en.md              ← Role docs (bilingual)
 │   ├── DEV.md / DEV.en.md
@@ -127,7 +127,7 @@ Go back to the control panel (`http://127.0.0.1:18765`), click **Start**.
 
 Once started:
 - Button turns cyan (lit state)
-- Nudger monitors `docs/agents/tasks/` and `reports/`
+- Nudger monitors `fcop/tasks/` and `reports/`
 - When new task files appear, it auto-switches to the right Agent Tab
 
 **First-time setup complete!**
@@ -225,10 +225,10 @@ Click the **Reset** button at bottom-right of the panel (requires confirmation),
 | File | Description |
 |------|-------------|
 | `CodeFlow-Desktop.exe` | Main program, double-click to run, ~50MB |
-| `docs/agents/codeflow.json` | Team config (roles, room key, relay URL; legacy `codeflow.json`) |
-| `docs/agents/tasks/*.md` | Task files |
-| `docs/agents/reports/*.md` | Completion reports |
-| `docs/agents/issues/*.md` | Issue records |
-| `docs/agents/log/*.md` | Historical archives |
+| `fcop/codeflow.json` | Team config (roles, room key, relay URL; legacy `codeflow.json`) |
+| `fcop/tasks/*.md` | Task files |
+| `fcop/reports/*.md` | Completion reports |
+| `fcop/issues/*.md` | Issue records |
+| `fcop/log/*.md` | Historical archives |
 | `.cursor/rules/*.mdc` | Cursor Agent rule files |
 | `.cursor/skills/*/SKILL.md` | Cursor Agent skill files |

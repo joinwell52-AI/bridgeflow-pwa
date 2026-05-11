@@ -112,7 +112,7 @@ scan() 执行流程：
 ## 四、角色切换：实时坐标 + 原生鼠标事件
 
 > **角色命名规范**：CodeFlow 支持四套团队模板（dev-team / media-team / mvp-team / qa-team），
-> 每套角色的完整清单、Cursor Tab 显示名、文件协议名、归一化规则见 [`docs/agents/README.md`](../agents/README.md#角色命名规范)。
+> 每套角色的完整清单、Cursor Tab 显示名、文件协议名、归一化规则见 [`fcop/README.md`](../agents/README.md#角色命名规范)。
 > CDP 层面不区分团队，统一用 `序号-角色名` 格式匹配 Tab。
 
 ### 4.1 为什么不用固定坐标

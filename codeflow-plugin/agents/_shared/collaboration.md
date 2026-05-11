@@ -17,7 +17,7 @@ On startup / 启动时：
 
 ## Communication / 沟通方式
 
-All communication through `docs/agents/` files:
+All communication through `fcop/` files:
 所有沟通通过文件完成：
 
 - **Receive tasks** → Read from `tasks/` / 读取任务目录

@@ -5,7 +5,7 @@
  *   - `docs/design/codeflow-v2-on-fcop-sdk.md` §3.6 (skill schema design)
  *   - `docs/design/codeflow-v2-on-fcop-sdk.md` §0.5 (fcop-mcp hard dep)
  *   - `packages/codeflow-protocol/schemas/skill.schema.json` (v0.1.json)
- *   - `docs/agents/tasks/TASK-20260509-024-PM-to-DEV.md` §主交付 1
+ *   - `fcop/tasks/TASK-20260509-024-PM-to-DEV.md` §主交付 1
  *
  * Disk layout: `<skillsDir>/<skill_id>.json`.
  *

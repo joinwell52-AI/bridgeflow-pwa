@@ -31,10 +31,10 @@
 > 当前 dev-team 的角色信息**同时**存在 3 个来源（互相不同步）。本表把它们对齐一张表，便于查阅。
 >
 > 🔥 **强制（source of truth）** = `.cursor/rules/*-bridge.mdc` —— Cursor agent 自动应用，违反会被 rule 系统拦
-> 🟡 **说明性** = `docs/agents/{ROLE}-01.md` —— 角色定位 + 职责，给人和 agent 阅读
+> 🟡 **说明性** = `fcop/{ROLE}-01.md` —— 角色定位 + 职责，给人和 agent 阅读
 > 🟢 **brief 素材**（v1 时代位置，等迁移）= `codeflow-plugin/agents/dev-team/{role}.md`
 
-| 角色 | `.cursor/rules/` 强约束 🔥 | `docs/agents/` 说明文档 🟡 | `codeflow-plugin/agents/dev-team/` v1 brief 🟢 | 接收源（按规则）|
+| 角色 | `.cursor/rules/` 强约束 🔥 | `fcop/` 说明文档 🟡 | `codeflow-plugin/agents/dev-team/` v1 brief 🟢 | 接收源（按规则）|
 |---|---|---|---|---|
 | **ADMIN** | [`admin-human-bridge.mdc`](../../.cursor/rules/admin-human-bridge.mdc) + `.en.mdc` | [`ADMIN-01.md`](./ADMIN-01.md) + `.en.md` | （无 — admin 是真人，无 brief） | 真人，唯一 boss |
 | **PM** | [`pm-bridge.mdc`](../../.cursor/rules/pm-bridge.mdc) + `.en.mdc` | [`PM-01.md`](./PM-01.md) + `.en.md` | [`pm.md`](../../codeflow-plugin/agents/dev-team/pm.md) | 只接 `TASK-*-ADMIN-to-PM.md` |
@@ -48,7 +48,7 @@
 |---|---|
 | [`.cursor/rules/codeflow-project.mdc`](../../.cursor/rules/codeflow-project.mdc) + `.en.mdc` | 项目级总纲（命名约定 / YAML 元数据头 / 中继事件 / 文件编辑规范）|
 | [`codeflow-plugin/agents/_shared/collaboration.md`](../../codeflow-plugin/agents/_shared/collaboration.md) | 跨角色协作规范（v1 brief 素材，等迁移）|
-| [`docs/agents/README.md`](./README.md) | 角色文件结构说明（命名规范 + 团队模板说明）|
+| [`fcop/README.md`](./README.md) | 角色文件结构说明（命名规范 + 团队模板说明）|
 
 ## 四、协议元数据头（每个 task/report 文件必带）
 
@@ -64,7 +64,7 @@ thread_key: 一组相关文件共用的 key
 ---
 ```
 
-来源：[`docs/agents/README.md` §协议元数据](./README.md#协议元数据)
+来源：[`fcop/README.md` §协议元数据](./README.md#协议元数据)
 
 ## 五、3 源之间是什么关系？
 
@@ -79,7 +79,7 @@ thread_key: 一组相关文件共用的 key
               │ 引用 / 解释
               ▼
 ┌────────────────────────────────────────────────────────┐
-│  docs/agents/{ROLE}-01.md  ← 说明性文档 🟡              │   人和 agent 都读
+│  fcop/{ROLE}-01.md  ← 说明性文档 🟡              │   人和 agent 都读
 │       │                                                 │
 │       └─ 角色定位 + 职责说明 + 历史背景                     │
 └────────────────────────────────────────────────────────┘
@@ -95,7 +95,7 @@ thread_key: 一组相关文件共用的 key
 ```
 
 **冲突时谁赢**：
-1. `.cursor/rules/` 与 `docs/agents/` 矛盾 → 以 `.cursor/rules/` 为准（rule 是强制的，docs 改一下就齐）
+1. `.cursor/rules/` 与 `fcop/` 矛盾 → 以 `.cursor/rules/` 为准（rule 是强制的，docs 改一下就齐）
 2. `codeflow-plugin/agents/` 与 `.cursor/rules/` 矛盾 → 以 `.cursor/rules/` 为准（v1 brief 没强制力，只是 brief 素材）
 3. 任何位置都没说的事 → 回 `.cursor/rules/codeflow-project.mdc` 项目级总纲
 
@@ -119,7 +119,7 @@ thread_key: 一组相关文件共用的 key
 
 ❌ 本文件**不做**：
 - 不创建任何新格式（如 `roles.yaml`）
-- 不修改任何 source of truth（`.cursor/rules/` / `docs/agents/{ROLE}-01.md` / `codeflow-plugin/agents/`）
+- 不修改任何 source of truth（`.cursor/rules/` / `fcop/{ROLE}-01.md` / `codeflow-plugin/agents/`）
 - 不引入 `Agent.layer` 等待评审字段（避免抢跑 FCoP Issue #2）
 - 不替代设计文档 §3.2 角色注册表
 

@@ -81,7 +81,7 @@ function fakeFcopReview(overrides: Partial<FcopReview> = {}): FcopReview {
     is_archived: false,
     body: "fcop-stub body",
     mtime: "2026-05-11T14:30:00+08:00",
-    path: "/fake/docs/agents/reviews/REVIEW-20260511-001-QA-on-TASK-20260511-001-PM-to-DEV.md",
+    path: "/fake/fcop/reviews/REVIEW-20260511-001-QA-on-TASK-20260511-001-PM-to-DEV.md",
     human_approval: null,
     ...overrides,
   };
@@ -244,7 +244,7 @@ describe("ReviewWriter", () => {
           writeReviewCalls.push(spec);
           return fakeFcopReview({
             review_id: "REVIEW-20260511-042-QA-on-TASK-20260511-001-PM-to-DEV",
-            path: "/fake/docs/agents/reviews/REVIEW-20260511-042-QA-on-TASK-20260511-001-PM-to-DEV.md",
+            path: "/fake/fcop/reviews/REVIEW-20260511-042-QA-on-TASK-20260511-001-PM-to-DEV.md",
           });
         },
       });
@@ -263,7 +263,7 @@ describe("ReviewWriter", () => {
       // change v0.3 ships under TASK-20260511-011 §3.1.1.
       assert.equal(
         filepath,
-        "/fake/docs/agents/reviews/REVIEW-20260511-042-QA-on-TASK-20260511-001-PM-to-DEV.md",
+        "/fake/fcop/reviews/REVIEW-20260511-042-QA-on-TASK-20260511-001-PM-to-DEV.md",
         "fcop path returns the fcop-generated filepath (caller's review_id is discarded)",
       );
 

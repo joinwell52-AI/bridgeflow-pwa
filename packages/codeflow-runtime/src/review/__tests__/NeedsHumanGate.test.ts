@@ -63,7 +63,7 @@ function fakeAckedFcopReview(overrides: {
     is_archived: false,
     body: "ack-recorded body",
     mtime: "2026-05-11T14:35:21+08:00",
-    path: "/fake/docs/agents/reviews/REVIEW-20260509-001-REVIEW-on-TASK-20260509-001-PM-to-DEV.md",
+    path: "/fake/fcop/reviews/REVIEW-20260509-001-REVIEW-on-TASK-20260509-001-PM-to-DEV.md",
     human_approval: {
       approver: overrides.approver ?? "ADMIN",
       decision: "approve",

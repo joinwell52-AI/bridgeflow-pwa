@@ -3,7 +3,7 @@
  *
  * Scope (TASK-20260509-018 §主交付 1):
  *
- * - Watch ONE directory (default `docs/agents/tasks/`), depth=0 (no recurse).
+ * - Watch ONE directory (default `fcop/tasks/`), depth=0 (no recurse).
  *   The repo currently lays Task files flat — the §2.4 reference impl in the
  *   design doc uses per-role subdirs, but adopting that is a v0.x+ migration
  *   (TASK-018 §不做 line 328 "保持现状平铺，不破坏").

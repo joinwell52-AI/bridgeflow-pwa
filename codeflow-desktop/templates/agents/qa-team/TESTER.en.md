@@ -45,7 +45,7 @@ TASK-YYYYMMDD-seq-TESTER-to-LEADQA.md
 ### Defect Record
 
 ```text
-docs/agents/issues/ISSUE-YYYYMMDD-seq-TESTER.md
+fcop/issues/ISSUE-YYYYMMDD-seq-TESTER.md
 ```
 
 ## Metadata Example

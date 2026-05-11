@@ -1,4 +1,4 @@
-﻿---
+---
 description: CodeFlow Project Rules — applies globally to all sessions
 alwaysApply: true
 ---
@@ -49,7 +49,7 @@ CodeFlow/
 ├── codeflow-plugin/     # Cursor MCP plugin
 ├── web/pwa/             # PWA source — sync to codeflow-pwa repo and bump version after changes
 ├── docs/
-├── docs/agents/
+├── fcop/
 ├── server/relay/
 └── scripts/
 ```
@@ -101,7 +101,7 @@ Outgoing events must include:
 
 - Do not hardcode real `room_key` in public examples
 - Do not send large payloads over relay (8KB limit)
-- Do not modify existing task files under `docs/agents/tasks/` and `reports/` (append only)
+- Do not modify existing task files under `fcop/tasks/` and `reports/` (append only)
 - Do not introduce a secondary chat-only protocol
 
 ## File Editing Rules (Mandatory)

@@ -504,7 +504,7 @@ describe("FcopProjectClient (P4 sprint Day 1.3 — TASK-20260511-007)", () => {
 
     const client = await FcopProjectClient.create({
       projectRoot: "D:/fake/project",
-      workspaceDir: "docs/agents",
+      workspaceDir: "legacy/agents",
       team: "dev-team",
       lang: "zh",
     });
@@ -513,7 +513,7 @@ describe("FcopProjectClient (P4 sprint Day 1.3 — TASK-20260511-007)", () => {
     assert.equal(recorder.projectCalls[0]?.path, "D:/fake/project");
     assert.deepEqual(
       recorder.projectCalls[0]?.kwargs,
-      { strict: false, workspace_dir: "docs/agents" },
+      { strict: false, workspace_dir: "legacy/agents" },
       "Project$ receives strict=false + workspace_dir override (DEV-005 §S8 escape hatch)",
     );
 

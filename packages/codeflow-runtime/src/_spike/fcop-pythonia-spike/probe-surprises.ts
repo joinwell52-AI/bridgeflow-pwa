@@ -8,7 +8,7 @@
  *   P1. Windows 路径含空格 / 反斜杠 → Project 是否正常处理
  *   P2. Python GIL 阻塞行为：N 个并发 write_task 是否串行化（fcop 内部锁 vs GIL）
  *   P3. fcop_mcp（MCP server 包）是否会被 import；如果 import，是否拖慢启动
- *   P4. `Project(path, workspace_dir="docs/agents")` escape hatch 是否能切到 v0.x layout
+ *   P4. `Project(path, workspace_dir="fcop")` escape hatch 是否能切到 v0.x layout
  *   P5. 启动开销：连续 3 次 await python('fcop') 平均耗时（确认 warm 模式）
  *
  * 跑法：
@@ -36,7 +36,7 @@ async function main() {
   console.log(`Boot pythonia + import fcop: ${Date.now() - t0} ms`);
 
   // ─────────────────────────────────────────────────────────────
-  // P1：Windows 路径含空格（与 CodeFlow `D:\Bridgeflow\docs\agents\...` 习惯不同）
+  // P1：Windows 路径含空格（与 CodeFlow `D:\Bridgeflow\fcop\...` 习惯不同）
   // ─────────────────────────────────────────────────────────────
   console.log("\n=== P1: Windows path with space & deep nesting ===");
   // 故意带空格的目录名（多数 Windows 软件踩坑的常见模式）
@@ -122,14 +122,14 @@ async function main() {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // P4：workspace_dir = "docs/agents" escape hatch（CodeFlow v0.x layout）
+  // P4：workspace_dir = "fcop" escape hatch（CodeFlow v0.x layout）
   // ─────────────────────────────────────────────────────────────
-  console.log("\n=== P4: workspace_dir='docs/agents' (CodeFlow v0.x layout) ===");
+  console.log("\n=== P4: workspace_dir='fcop' (CodeFlow v0.x layout) ===");
   const docsAgentsRoot = mkdtempSync(join(tmpdir(), "spike-docs-agents-"));
   try {
     const pDocsAgents = await fcop.Project$(docsAgentsRoot, {
       strict: false,
-      workspace_dir: "docs/agents", // ADR-0022 explicit escape hatch
+      workspace_dir: "fcop", // ADR-0022 explicit escape hatch
     });
     await pDocsAgents.init$({ team: "dev-team", lang: "zh" });
     const wsRoot = await pDocsAgents.workspace_dir;
@@ -142,7 +142,7 @@ async function main() {
       recipient: "DEV",
       priority: "P1",
       subject: "v0.x layout test",
-      body: "test write under docs/agents",
+      body: "test write under fcop",
     });
     const fn = await task.filename;
     const fp = await task.path;

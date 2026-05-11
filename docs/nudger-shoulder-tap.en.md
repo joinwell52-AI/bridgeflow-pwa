@@ -36,7 +36,7 @@ Conclusion: the **direction of the solution is correct**; issues cluster around 
 
 ### 2.1 Product layer: define "effective" first
 
-- **Single source of truth**: collaboration content is authoritative in **TASK files** under `docs/agents/`; **Shoulder Tap** only **wakes** agents — it does not repeat long body text in chat.  
+- **Single source of truth**: collaboration content is authoritative in **TASK files** under `fcop/`; **Shoulder Tap** only **wakes** agents — it does not repeat long body text in chat.  
 - **Success criteria**: business success is **the file being read by the target role and driving follow-up actions**; desktop automation aims at **best-effort delivery of a short prompt**, with **one manual click** allowed as backup.  
 - **Fixed phrasing**: short lines (e.g. patrol-style "receive file") reduce ambiguity when paste fails and reduce model misreading of long text.
 
@@ -62,7 +62,7 @@ Conclusion: the **direction of the solution is correct**; issues cluster around 
 
 | Priority | Item | Effect |
 |----------|------|--------|
-| P0 | **Preflight panel** one-click check: project path, `docs/agents`, whether hotkeys are written to `keybindings.json`, Relay connectivity | Reduces ineffective Shoulder Taps from "never configured properly". |
+| P0 | **Preflight panel** one-click check: project path, `fcop`, whether hotkeys are written to `keybindings.json`, Relay connectivity | Reduces ineffective Shoulder Taps from "never configured properly". |
 | P0 | **Fixed Cursor usage habits**: single window, Agents bar visible, avoid multiple Cursor instances fighting for focus | Ops constraints often improve success more than code changes. |
 | P1 | **File watching**: use `watchdog` (or Windows `ReadDirectoryChangesW`) instead of pure polling to shorten disk-write → first Shoulder Tap attempt latency and reduce idle spinning | Watch for multiple editor saves — apply **debouncing**. |
 | P1 | **Configurable delays**: `post_hotkey_delay_ms`, `after_ctrl_l_delay_ms`, etc. in `codeflow-nudger.json` (legacy name `codeflow-desktop.json`) for slow machines | Precision often means tunability. |

@@ -91,7 +91,7 @@ export interface RuntimeCreateOptions {
    */
   persistDir: string;
   /**
-   * Directory the InboxWatcher monitors. Default: `docs/agents/tasks/`
+   * Directory the InboxWatcher monitors. Default: `fcop/tasks/`
    * relative to process.cwd().
    */
   inboxDir: string;

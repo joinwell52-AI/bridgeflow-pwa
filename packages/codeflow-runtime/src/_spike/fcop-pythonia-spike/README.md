@@ -1,7 +1,7 @@
 # `_spike/fcop-pythonia-spike` — P4 sprint 调研 spike
 
-**任务参考**：[TASK-20260511-005-PM-to-DEV](../../../../../docs/agents/tasks/TASK-20260511-005-PM-to-DEV.md)
-**调研结论**：[REPORT-20260511-005-DEV-to-PM](../../../../../docs/agents/tasks/REPORT-20260511-005-DEV-to-PM.md)（完工时填）
+**任务参考**：[TASK-20260511-005-PM-to-DEV](../../../../../fcop/tasks/TASK-20260511-005-PM-to-DEV.md)
+**调研结论**：[REPORT-20260511-005-DEV-to-PM](../../../../../fcop/tasks/REPORT-20260511-005-DEV-to-PM.md)（完工时填）
 
 ## 这个目录是什么
 

@@ -1,4 +1,4 @@
-﻿---
+---
 description: CodeFlow 项目规范 - 所有 session 全局生效
 alwaysApply: true
 ---
@@ -45,7 +45,7 @@ D:\\CodeFlow\\
 ├── codeflow-plugin/     # Cursor MCP 插件
 ├── web/pwa/             # PWA 源码，改完同步到 codeflow-pwa 仓库并升版本号
 ├── docs/                # 项目文档，改代码时同步更新
-├── docs/agents/         # Agent 角色定义和任务文件
+├── fcop/         # Agent 角色定义和任务文件
 ├── server/relay/        # 本地联调中继（不部署到生产）
 └── scripts/             # 运维脚本
 ```
@@ -97,7 +97,7 @@ D:\\CodeFlow\\
 
 - 不要把真实 `room_key` 写死到公开示例配置
 - 不要在中继传大文件（限制 8KB）
-- 不要修改 `docs/agents/tasks/` 和 `reports/` 下已有的任务文件（只追加）
+- 不要修改 `fcop/tasks/` 和 `reports/` 下已有的任务文件（只追加）
 - 不要引入第二套"只聊天不落文件"的协议
 
 ## 文件编辑规范（强制）

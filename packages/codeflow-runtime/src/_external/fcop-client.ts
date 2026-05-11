@@ -29,11 +29,11 @@
  *   - S4  PM TASK §3.2 5 处 API 误用 → 本文件按 fcop@1.1.0 `inspect.signature()` 实证
  *   - S6  fcop sequence-generator 并发安全 → 本 client 不加 mutex（pythonia 已串行化）
  *   - S7  fcop_mcp NOT auto-imported → 本 client 只 `await python('fcop')`（不引 fcop_mcp）
- *   - S8  workspace_dir='docs/agents' escape hatch → `create({ workspaceDir })` 暴露
+ *   - S8  workspace_dir escape hatch → `create({ workspaceDir })` 暴露
  *   - S9  没有 `python.builtins` shortcut → 不用
  *   - S10 enum 返回 repr 而非 value → 所有读 enum 字段处用 `.value` 取字符串
  *   - S11 fcop 同进程无 file lock → 单 runtime 进程内安全，多进程留 P5
- *   - S12 默认 layout=`fcop/` → 通过 `workspaceDir` 切到 `docs/agents/`
+ *   - S12 默认 layout=`fcop/` → 通过 `workspaceDir` 切到 `fcop/`
  *
  * # 不在范围（PM TASK-007 §3.4 + §6.4）
  *
@@ -353,9 +353,8 @@ export interface FcopProjectClientOptions {
   /** Absolute path to the project root (CodeFlow workspace). */
   projectRoot: string;
   /**
-   * Override fcop's workspace layout. Pass `"docs/agents"` to keep
-   * CodeFlow v0.x layout (PM TASK §五 P1-1 + DEV-005 §S8). If omitted,
-   * fcop's v1.0 default (`fcop/`) is used.
+   * Override fcop's workspace layout for legacy/non-default projects.
+   * If omitted, fcop's v1.0 default (`fcop/`) is used.
    */
   workspaceDir?: string;
   /**
@@ -515,7 +514,7 @@ export async function disposeFcopBridge(): Promise<void> {
  *   ```ts
  *   const client = await FcopProjectClient.create({
  *     projectRoot: "D:/Bridgeflow",
- *     workspaceDir: "docs/agents",   // 维持 CodeFlow v0.x layout
+ *     workspaceDir: "legacy/agents", // optional escape hatch for non-default layouts
  *   });
  *   const task = await client.writeTask({
  *     sender: "PM",
@@ -545,7 +544,7 @@ export class FcopProjectClient {
   /**
    * Factory entry point. Boots the Python bridge (lazy / cached), constructs
    * a `fcop.Project` instance pointing at `opts.projectRoot`, optionally
-   * runs `project.init()` to materialize the `fcop/` (or `docs/agents/`)
+   * runs `project.init()` to materialize the `fcop/` (or `fcop/`)
    * tree.
    */
   static async create(
@@ -640,7 +639,7 @@ export class FcopProjectClient {
   /**
    * Read a single TASK file via fcop. The argument is a **filename or
    * task_id** (NOT a filesystem path) — fcop resolves it against the
-   * project's `docs/agents/tasks/` (or whatever `workspace_dir` was
+   * project's `fcop/tasks/` (or whatever `workspace_dir` was
    * configured at create() time).
    *
    * fcop 端 signature（实证）：
@@ -792,7 +791,7 @@ export class FcopProjectClient {
   /**
    * Read a single REVIEW file via fcop. The argument is a **filename or
    * review_id** (NOT a filesystem path) — fcop resolves it against the
-   * project's `docs/agents/reviews/` (or whatever `workspace_dir` was
+   * project's `fcop/reviews/` (or whatever `workspace_dir` was
    * configured at create() time).
    *
    * fcop 端 signature (Day 3 reconnaissance verified):

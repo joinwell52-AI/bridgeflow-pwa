@@ -191,7 +191,7 @@ CodeFlow's Task format evolves in two stages:
 Each Task is a single Markdown file, named by "sender → recipient":
 
 ```text
-docs/agents/tasks/
+fcop/tasks/
 ├── TASK-20260509-001-PM-to-DEV.md       ← Task body
 ├── REPORT-20260509-001-DEV-to-PM.md     ← Execution report
 └── REVIEW-20260509-001-QA-on-TASK-001.md ← Review verdict

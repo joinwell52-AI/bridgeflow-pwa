@@ -112,7 +112,7 @@ scan() execution flow:
 ## 4. Role Switching: Real-Time Coordinates + Native Mouse Events
 
 > **Role naming convention**: CodeFlow supports four team templates (dev-team / media-team / mvp-team / qa-team).
-> See [`docs/agents/README.md`](../agents/README.md#角色命名规范) for the complete role roster, Cursor Tab display names, file protocol names, and normalization rules.
+> See [`fcop/README.md`](../agents/README.md#角色命名规范) for the complete role roster, Cursor Tab display names, file protocol names, and normalization rules.
 > CDP does not distinguish between teams — it uniformly matches Tabs using the `number-ROLE_NAME` format.
 
 ### 4.1 Why Not Fixed Coordinates

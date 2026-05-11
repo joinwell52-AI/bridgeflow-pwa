@@ -7,11 +7,11 @@
 CodeFlow AI Runtime —— 6 大 kernel 子系统中的 **5 个**（Agent Registry + Session Manager + Task Scheduler + Review Engine + Skill Runtime），现已 v0.1 全量落地。
 
 - 上游设计：[`docs/design/codeflow-v2-on-fcop-sdk.md`](../../docs/design/codeflow-v2-on-fcop-sdk.md) §0.5（fcop-mcp 强依赖）+ §0.7.5（Skill Runtime）+ §2.1（子系统 1 + 3）+ §2.4（Inbox watcher）+ §3（Runtime Protocol & Schemas）+ §3.4（Review schema）+ §3.6（Skill schema）+ §0.9.4（Review Engine 行为）
-- Phase A 派单：[`docs/agents/tasks/TASK-20260509-009-PM-to-DEV.md`](../../docs/agents/tasks/TASK-20260509-009-PM-to-DEV.md)
-- Phase B 派单：[`docs/agents/tasks/TASK-20260509-013-PM-to-DEV.md`](../../docs/agents/tasks/TASK-20260509-013-PM-to-DEV.md)
-- Phase C 派单：[`docs/agents/tasks/TASK-20260509-018-PM-to-DEV.md`](../../docs/agents/tasks/TASK-20260509-018-PM-to-DEV.md)
-- Phase D 派单：[`docs/agents/tasks/TASK-20260509-022-PM-to-DEV.md`](../../docs/agents/tasks/TASK-20260509-022-PM-to-DEV.md)
-- Phase E 派单：[`docs/agents/tasks/TASK-20260509-024-PM-to-DEV.md`](../../docs/agents/tasks/TASK-20260509-024-PM-to-DEV.md)
+- Phase A 派单：[`fcop/tasks/TASK-20260509-009-PM-to-DEV.md`](../../fcop/tasks/TASK-20260509-009-PM-to-DEV.md)
+- Phase B 派单：[`fcop/tasks/TASK-20260509-013-PM-to-DEV.md`](../../fcop/tasks/TASK-20260509-013-PM-to-DEV.md)
+- Phase C 派单：[`fcop/tasks/TASK-20260509-018-PM-to-DEV.md`](../../fcop/tasks/TASK-20260509-018-PM-to-DEV.md)
+- Phase D 派单：[`fcop/tasks/TASK-20260509-022-PM-to-DEV.md`](../../fcop/tasks/TASK-20260509-022-PM-to-DEV.md)
+- Phase E 派单：[`fcop/tasks/TASK-20260509-024-PM-to-DEV.md`](../../fcop/tasks/TASK-20260509-024-PM-to-DEV.md)
 - Sprint 路线图：[`docs/design/codeflow-v2-on-fcop-sdk.md` §10.2](../../docs/design/codeflow-v2-on-fcop-sdk.md)
 - 持久化决策：[`docs/crash-recovery.md`](./docs/crash-recovery.md)
 
@@ -100,7 +100,7 @@ CodeFlow AI Runtime —— 6 大 kernel 子系统中的 **5 个**（Agent Regist
 | codeflow-shell EXE 壳子 | **S6** —— Node SEA bundle，import `Runtime.create` 即用 |
 | Mobile Console / 中继 | **v0.2 S7-S10** |
 | Task queue（同 agent 已 running 时排队） | **v0.2** —— 当前默认 reject_busy |
-| `inbox/<role>/` 子目录路由 | **v0.x+** —— 当前 `docs/agents/tasks/` 平铺，与 §2.4 reference impl 不同 |
+| `inbox/<role>/` 子目录路由 | **v0.x+** —— 当前 `fcop/tasks/` 平铺，与 §2.4 reference impl 不同 |
 | EMERGENCY-{ts}.md 落档（emergency stop 完整审计） | **v0.2 S10**（接钩子） |
 | 实际调用 `Agent.create / resume` 的 spike | 仍在 [`_ignore/spike_sdk_doorbell/`](../../_ignore/spike_sdk_doorbell/) — 作为参考实现保留 |
 

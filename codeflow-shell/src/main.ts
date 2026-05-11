@@ -270,17 +270,16 @@ async function main(): Promise<void> {
   // omit the client — Runtime then keeps the legacy yaml parser
   // (back-compat + CODEFLOW_SKIP_FCOP_PROBE=1 escape hatch).
   //
-  // Note: we pass `workspaceDir: "docs/agents"` to keep CodeFlow's v0.x
-  // task layout (`docs/agents/tasks/`) — TASK-20260511-007 §五 P1-1 +
-  // DEV-005 §S8 escape hatch. `ensureInitialized: false` because fcop
-  // init writes 12+ files and we want full control over when that
-  // happens; the demo / shell startup just READS the existing tree.
+  // P4 OPS-015 layout migration: CodeFlow now uses fcop's default
+  // `<projectRoot>/fcop/` workspace layout, so we intentionally do not
+  // pass `workspaceDir`. `ensureInitialized: false` because fcop init
+  // writes 12+ files and we want full control over when that happens;
+  // the demo / shell startup just READS the existing tree.
   let fcopClient: FcopProjectClient | undefined;
   if (fcopReady.status === "ok") {
     try {
       fcopClient = await FcopProjectClient.create({
         projectRoot: process.cwd(),
-        workspaceDir: "docs/agents",
         ensureInitialized: false,
       });
     } catch (err) {

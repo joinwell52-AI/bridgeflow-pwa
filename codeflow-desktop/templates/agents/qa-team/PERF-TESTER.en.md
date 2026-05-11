@@ -46,7 +46,7 @@ TASK-YYYYMMDD-seq-PERFTESTER-to-LEADQA.md
 ### Performance Issue Record
 
 ```text
-docs/agents/issues/ISSUE-YYYYMMDD-seq-PERFTESTER.md
+fcop/issues/ISSUE-YYYYMMDD-seq-PERFTESTER.md
 ```
 
 ## Metadata Example

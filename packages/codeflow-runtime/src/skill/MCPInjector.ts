@@ -4,7 +4,7 @@
  * Reference:
  *   - `docs/design/codeflow-v2-on-fcop-sdk.md` §0.7.5 + line 1894
  *     (Skill Runtime wraps every MCP tool call, checks risk_level)
- *   - `docs/agents/tasks/TASK-20260509-024-PM-to-DEV.md` §主交付 3
+ *   - `fcop/tasks/TASK-20260509-024-PM-to-DEV.md` §主交付 3
  *
  * v0.1 = STUB MODE. No subprocess spawned, no MCP runtime wired — the
  * injector is a structured logger that records what *would* have been

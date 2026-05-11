@@ -1,8 +1,8 @@
-﻿# CodeFlow Agent File Structure
+# CodeFlow Agent File Structure
 
 **CodeFlow**'s first phase is not about building a "mobile chat app" — it's about building the file system backbone for "humans entering the team protocol."
 
-Therefore, `docs/agents/` is the core collaboration directory of this project.
+Therefore, `fcop/` is the core collaboration directory of this project.
 
 ---
 
@@ -26,7 +26,7 @@ protocol as the overarching clause. Full event log and evidence archive:
 ## Directory Structure
 
 ```text
-docs/agents/
+fcop/
 ├── README.md                  # This file: agent file structure overview
 ├── ADMIN-01.md                # Human role ADMIN responsibilities
 ├── PM-01.md                   # PM role definition
@@ -51,7 +51,7 @@ The same role has different representations across different contexts. **All fou
 |---------|--------|---------|-------------|
 | **File name sender/recipient** | `ROLE_NAME` (no hyphen, no number) | `PM`, `QA`, `COLLECTOR` | Used in `TASK-*-PM-to-QA.md` |
 | **Cursor Tab display name** | `number-ROLE_NAME` | `01-PM`, `03-QA`, `01-COLLECTOR` | Set when pinning in Cursor Agents panel |
-| **Role definition doc** | `ROLE_NAME-number.md` | `PM-01.md`, `COLLECTOR.md` | In `docs/agents/` or `templates/agents/` |
+| **Role definition doc** | `ROLE_NAME-number.md` | `PM-01.md`, `COLLECTOR.md` | In `fcop/` or `templates/agents/` |
 | **Patrol engine internal** | Pure role name (auto-normalized) | `PM`, `QA`, `COLLECTOR` | Code uses `_role_key_for_task()` |
 
 ### dev-team Roles (Software Development)
@@ -209,7 +209,7 @@ This metadata serves to:
 | `qa-team/` | Dedicated QA | LEAD-QA, TESTER, AUTO-TESTER, PERF-TESTER |
 
 When initializing CodeFlow Desktop, users select a team template. The system automatically:
-1. Copies role definition files to `docs/agents/`
+1. Copies role definition files to `fcop/`
 2. Creates corresponding Agent Tabs in Cursor (named by number + role name)
 3. The patrol engine auto-detects all roles and starts patrolling
 

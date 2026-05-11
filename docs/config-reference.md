@@ -1,4 +1,4 @@
-﻿# 码流（CodeFlow）配置参考
+# 码流（CodeFlow）配置参考
 
 **适用版本**：Desktop v2.9.16 / PWA v2.0.3  
 **最后更新**：2026-04-10
@@ -111,8 +111,8 @@
 
 **内置默认文案：**
 ```
-中文：【码流巡检】巡检，开工。请自行查看 docs/agents/tasks/ 等待办任务。
-英文：[CodeFlow] Patrol ping — proceed. Open docs/agents/tasks/ for pending items.
+中文：【码流巡检】巡检，开工。请自行查看 fcop/tasks/ 等待办任务。
+英文：[CodeFlow] Patrol ping — proceed. Open fcop/tasks/ for pending items.
 ```
 
 > 首次打招呼（`first_hello`）固定包含角色文件路径，不受此配置影响。
@@ -282,8 +282,8 @@ relayUrl: "wss://your-server.com/codeflow/ws/"
 ### 自定义催促短句
 
 ```json
-"patrol_ping_zh": "【巡检】继续执行，查看 docs/agents/tasks/",
-"patrol_ping_en": "[Patrol] Continue — check docs/agents/tasks/"
+"patrol_ping_zh": "【巡检】继续执行，查看 fcop/tasks/",
+"patrol_ping_en": "[Patrol] Continue — check fcop/tasks/"
 ```
 
 ### Cursor 不在标准路径

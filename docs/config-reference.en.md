@@ -1,4 +1,4 @@
-﻿# CodeFlow Configuration Reference (码流)
+# CodeFlow Configuration Reference (码流)
 
 **Version:** v0.2.1
 
@@ -107,16 +107,16 @@ When a config already exists, `codeflow init --relay-url/--room-key` only update
 | Field | Type | Default | Required | Description |
 |-------|------|---------|----------|-------------|
 | `root_dir` | `string` | `.` (absolute path of working directory) | ✅ | Project root. Auto-set by `codeflow init` to the directory where the command is run |
-| `tasks_dir` | `string` | `"docs/agents/tasks"` | ✅ | Task file directory, relative to `root_dir`. Tasks are written here when AI receives assignments |
-| `reports_dir` | `string` | `"docs/agents/reports"` | ✅ | Reply/report directory, relative to `root_dir`. AI writes reports here upon completion |
-| `issues_dir` | `string` | `"docs/agents/issues"` | ✅ | Issue record directory, relative to `root_dir` |
+| `tasks_dir` | `string` | `"fcop/tasks"` | ✅ | Task file directory, relative to `root_dir`. Tasks are written here when AI receives assignments |
+| `reports_dir` | `string` | `"fcop/reports"` | ✅ | Reply/report directory, relative to `root_dir`. AI writes reports here upon completion |
+| `issues_dir` | `string` | `"fcop/issues"` | ✅ | Issue record directory, relative to `root_dir` |
 
 ```json
 "project": {
   "root_dir": "C:\\Users\\YourName\\my-ai-team",
-  "tasks_dir": "docs/agents/tasks",
-  "reports_dir": "docs/agents/reports",
-  "issues_dir": "docs/agents/issues"
+  "tasks_dir": "fcop/tasks",
+  "reports_dir": "fcop/reports",
+  "issues_dir": "fcop/issues"
 }
 ```
 
@@ -346,9 +346,9 @@ global.CODEFLOW_CONFIG = {
   },
   "project": {
     "root_dir": "C:\\Users\\YourName\\my-ai-team",
-    "tasks_dir": "docs/agents/tasks",
-    "reports_dir": "docs/agents/reports",
-    "issues_dir": "docs/agents/issues"
+    "tasks_dir": "fcop/tasks",
+    "reports_dir": "fcop/reports",
+    "issues_dir": "fcop/issues"
   },
   "runtime": {
     "runtime_dir": ".CodeFlow/runtime",

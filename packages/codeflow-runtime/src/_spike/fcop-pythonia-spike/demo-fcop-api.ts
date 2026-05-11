@@ -7,7 +7,7 @@
  *
  * 五调用清单（PM TASK §3.2 + 实际 fcop@1.1.0 签名核实）：
  *   1. fcop.Project(path, strict=False)       → 构造 Project 对象（不创建目录）
- *   1.5. project.init(team='dev-team')        → 创建 docs/agents/{tasks,reports,issues,shared,log}/ 目录树
+ *   1.5. project.init(team='dev-team')        → 创建 fcop/{tasks,reports,issues,shared,log}/ 目录树
  *      （这步 PM TASK §3.2 省略了，但实际 write_task 之前必须 init —— surprise 候选）
  *   2. project.write_task(...)                → 写一张 PM→DEV 任务，返回 Task 对象
  *   3. project.list_tasks(status='open')      → 列开放任务，返回 list[Task]
@@ -82,7 +82,7 @@ async function main() {
     );
     allCallsPassed++;
 
-    // (1.5) init —— PM TASK §3.2 省略，但实际 write_task 之前 docs/agents/ 树必须存在
+    // (1.5) init —— PM TASK §3.2 省略，但实际 write_task 之前 fcop/ 树必须存在
     //   surprise §4：fcop Project() 与 init() 是分离的两步，未 init 时 write_task 会报
     //   `ProjectNotInitializedError`（或类似），需要先调 init。
     const initStatus = await timed("(1.5) project.init(team='dev-team')", () =>

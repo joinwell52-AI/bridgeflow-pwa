@@ -46,7 +46,7 @@ TASK-YYYYMMDD-序号-PERFTESTER-to-LEADQA.md
 ### 性能问题记录
 
 ```text
-docs/agents/issues/ISSUE-YYYYMMDD-序号-PERFTESTER.md
+fcop/issues/ISSUE-YYYYMMDD-序号-PERFTESTER.md
 ```
 
 ## 任务文件元数据示例

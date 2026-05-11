@@ -11,7 +11,7 @@
  *     contains at least one `fcop@.+` entry. We do NOT re-check that
  *     here — we just verify that the agent's `skills` list resolves to
  *     at least one such schema-valid skill.
- *   - `docs/agents/tasks/TASK-20260509-024-PM-to-DEV.md` §主交付 2
+ *   - `fcop/tasks/TASK-20260509-024-PM-to-DEV.md` §主交付 2
  *
  * Three rejection reasons (PM TASK-024 §校验规则):
  *

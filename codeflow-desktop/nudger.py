@@ -2,7 +2,7 @@
 CodeFlow Nudger — Agent 唤醒器核心模块
 
 职责：
-1. 监听 docs/agents/tasks/ 和 reports/ 文件变化
+1. 监听 fcop/tasks/ 和 reports/ 文件变化
 2. 从文件名解析收件人角色
 3. 识别 Cursor 窗口状态（优先 CDP 直连 DOM，降级到 OCR 截屏识别）
 4. 用快捷键切换到对应 Agent tab
@@ -380,7 +380,7 @@ def format_preflight_mapping_detail(rows: list[dict], ocr_active: str) -> str:
 
 
 def save_preflight_agent_map_file(project_dir, window_title: str, ocr_active: str, rows: list[dict]):
-    """将映射写入 docs/agents/.codeflow/preflight_agent_map.json。"""
+    """将映射写入 fcop/.codeflow/preflight_agent_map.json。"""
     try:
         from datetime import datetime as _dt
         d = Path(project_dir) / "docs" / "agents" / ".codeflow"
@@ -1329,9 +1329,9 @@ def parse_recipient(filename: str) -> str | None:
 
 _MSG_TEMPLATES = {
     "zh": {
-        "first_hello": "【码流巡检】你好，你当前的角色是 {role_name}，请阅读 {role_file} 确认身份，然后查看 docs/agents/tasks/ 中待办任务并开始执行。",
+        "first_hello": "【码流巡检】你好，你当前的角色是 {role_name}，请阅读 {role_file} 确认身份，然后查看 fcop/tasks/ 中待办任务并开始执行。",
         # 首次身份确认之后：新文件 / 定时催办 / 卡住催促 一律短句，由 Agent 自行打开任务文件阅读
-        "patrol_ping": "【码流巡检】巡检，开工。请自行查看 docs/agents/tasks/ 等待办任务。",
+        "patrol_ping": "【码流巡检】巡检，开工。请自行查看 fcop/tasks/ 等待办任务。",
         "new_task": "新任务到达: {filename}，请读取任务单并执行",
         "new_report": "新报告到达: {filename}，请审核并回复",
         "new_issue": "新问题: {filename}，请查看并处理",
@@ -1340,8 +1340,8 @@ _MSG_TEMPLATES = {
         "kick": "继续",
     },
     "en": {
-        "first_hello": "[CodeFlow] Hello, your role is {role_name}. Confirm by reading {role_file}, then check docs/agents/tasks/ for pending tasks and proceed.",
-        "patrol_ping": "[CodeFlow] Patrol ping — proceed. Open docs/agents/tasks/ for pending items.",
+        "first_hello": "[CodeFlow] Hello, your role is {role_name}. Confirm by reading {role_file}, then check fcop/tasks/ for pending tasks and proceed.",
+        "patrol_ping": "[CodeFlow] Patrol ping — proceed. Open fcop/tasks/ for pending items.",
         "new_task": "New task: {filename}, please read and execute",
         "new_report": "New report: {filename}, please review",
         "new_issue": "New issue: {filename}, please check",
@@ -1463,34 +1463,34 @@ def _patrol_ping_text(
 
 
 def _role_to_file(role_code: str) -> str:
-    """将角色代码映射到 docs/agents/ 下的文件路径，支持标准角色和媒体/MVP团队角色。"""
+    """将角色代码映射到 fcop/ 下的文件路径，支持标准角色和媒体/MVP团队角色。"""
     # 先去掉前缀数字（如 "03-WRITER" → "WRITER"，"WRITER" → "WRITER"）
     clean = re.sub(r'^\d+[-_\s]*', '', role_code.upper()).strip()
     # 标准 dev 团队
     _KNOWN = {
         # ── dev-team ──
-        "PM":        "docs/agents/PM-01.md",
-        "DEV":       "docs/agents/DEV-01.md",
-        "OPS":       "docs/agents/OPS-01.md",
-        "QA":        "docs/agents/QA-01.md",
-        "ADMIN":     "docs/agents/README.md",
+        "PM":        "fcop/PM-01.md",
+        "DEV":       "fcop/DEV-01.md",
+        "OPS":       "fcop/OPS-01.md",
+        "QA":        "fcop/QA-01.md",
+        "ADMIN":     "fcop/README.md",
         # ── media-team ──
-        "COLLECTOR": "docs/agents/COLLECTOR.md",
-        "WRITER":    "docs/agents/WRITER.md",
-        "EDITOR":    "docs/agents/EDITOR.md",
-        "PUBLISHER": "docs/agents/PUBLISHER.md",
+        "COLLECTOR": "fcop/COLLECTOR.md",
+        "WRITER":    "fcop/WRITER.md",
+        "EDITOR":    "fcop/EDITOR.md",
+        "PUBLISHER": "fcop/PUBLISHER.md",
         # ── mvp-team ──
-        "BUILDER":    "docs/agents/BUILDER.md",
-        "DESIGNER":   "docs/agents/DESIGNER.md",
-        "MARKETER":   "docs/agents/MARKETER.md",
-        "RESEARCHER": "docs/agents/RESEARCHER.md",
+        "BUILDER":    "fcop/BUILDER.md",
+        "DESIGNER":   "fcop/DESIGNER.md",
+        "MARKETER":   "fcop/MARKETER.md",
+        "RESEARCHER": "fcop/RESEARCHER.md",
         # ── qa-team ──
-        "LEAD-QA":     "docs/agents/LEAD-QA.md",
-        "TESTER":      "docs/agents/TESTER.md",
-        "AUTO-TESTER": "docs/agents/AUTO-TESTER.md",
-        "PERF-TESTER": "docs/agents/PERF-TESTER.md",
+        "LEAD-QA":     "fcop/LEAD-QA.md",
+        "TESTER":      "fcop/TESTER.md",
+        "AUTO-TESTER": "fcop/AUTO-TESTER.md",
+        "PERF-TESTER": "fcop/PERF-TESTER.md",
     }
-    return _KNOWN.get(clean, f"docs/agents/{clean}.md")
+    return _KNOWN.get(clean, f"fcop/{clean}.md")
 
 
 def build_nudge_message(
@@ -1850,7 +1850,7 @@ class Nudger:
 
             ev = {
                 "action": "file_detected",
-                "path": f"docs/agents/{dir_name}/{filename}",
+                "path": f"fcop/{dir_name}/{filename}",
                 "recipient": recipient or "",
                 "time": datetime.now().strftime("%H:%M:%S"),
                 "nudged": False,
@@ -2737,7 +2737,7 @@ async def relay_client(config, nudger: Nudger, stop_event: asyncio.Event | None 
                                 if nudger.running:
                                     resolved = target_role or "PM"
                                     _relay_say_to_cursor(nudger, config, resolved,
-                                                         f"收到新任务 {filename}，请查看 docs/agents/tasks/ 并执行")
+                                                         f"收到新任务 {filename}，请查看 fcop/tasks/ 并执行")
                             else:
                                 if nudger.running:
                                     _relay_say_to_cursor(nudger, config,
@@ -3332,7 +3332,7 @@ def _handle_desktop_action(action: str, nudger: Nudger) -> dict:
 
 def _handle_admin_command(config, text: str, target_role: str = "",
                           priority: str = "P1") -> str:
-    """PWA 发来指令 → 写任务文件到 docs/agents/tasks/，返回文件名"""
+    """PWA 发来指令 → 写任务文件到 fcop/tasks/，返回文件名"""
     logger.info("收到 PWA 指令: %s", text[:80])
     config.tasks_dir.mkdir(parents=True, exist_ok=True)
 

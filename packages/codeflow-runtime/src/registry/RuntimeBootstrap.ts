@@ -5,7 +5,7 @@
  * Reference:
  *   - `docs/crash-recovery.md` decision 2 (synchronous reconciliation)
  *   - `docs/crash-recovery.md` decision 3 (3-scenario branching)
- *   - `docs/agents/tasks/TASK-20260509-009-PM-to-DEV.md` §必交付 3
+ *   - `fcop/tasks/TASK-20260509-009-PM-to-DEV.md` §必交付 3
  *
  * Sequence (matching TASK-009 §必交付 3 ASCII):
  *

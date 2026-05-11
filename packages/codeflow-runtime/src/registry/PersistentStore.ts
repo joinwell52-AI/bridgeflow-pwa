@@ -13,7 +13,7 @@
  *   - design doc `docs/design/codeflow-v2-on-fcop-sdk.md` §2.1 subsystem 6
  *     (State Store), §10.2 sprint S3
  *   - `docs/crash-recovery.md` decision 1 (atomic-write + fsync per write)
- *   - `docs/agents/tasks/TASK-20260509-009-PM-to-DEV.md` §必交付 1
+ *   - `fcop/tasks/TASK-20260509-009-PM-to-DEV.md` §必交付 1
  */
 
 import { promises as fs } from "node:fs";

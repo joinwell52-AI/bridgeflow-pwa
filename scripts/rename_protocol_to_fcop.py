@@ -1,9 +1,9 @@
 """One-shot rename: `protocol: agent_bridge` -> `protocol: fcop` in role docs.
 
 Runs idempotently. Intentionally SKIPS:
-  - docs/agents/tasks/**  (historical task files, including 20260420 evidence)
-  - docs/agents/reports/**
-  - docs/agents/log/**
+  - fcop/tasks/**  (historical task files, including 20260420 evidence)
+  - fcop/reports/**
+  - fcop/log/**
   - README files (handled separately with custom surrounding prose)
 
 Only touches role-definition files whose embedded task templates need to reflect
@@ -18,8 +18,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 TARGETS = [
-    "docs/agents/QA-01.md",
-    "docs/agents/QA-01.en.md",
+    "fcop/QA-01.md",
+    "fcop/QA-01.en.md",
     "codeflow-desktop/templates/agents/dev-team/QA-01.md",
     "codeflow-desktop/templates/agents/dev-team/QA-01.en.md",
     "codeflow-desktop/templates/agents/qa-team/LEAD-QA.md",

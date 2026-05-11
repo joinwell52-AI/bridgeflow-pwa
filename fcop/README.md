@@ -1,8 +1,8 @@
-﻿# 码流（CodeFlow）Agent 文件结构
+# 码流（CodeFlow）Agent 文件结构
 
 **码流（CodeFlow）** 的第一阶段不是做"手机聊天软件"，而是做"人类角色进入团队协议"的文件系统骨架。
 
-因此 `docs/agents/` 是这个项目的核心协作目录。
+因此 `fcop/` 是这个项目的核心协作目录。
 
 ---
 
@@ -23,7 +23,7 @@
 ## 目录结构
 
 ```text
-docs/agents/
+fcop/
 ├── README.md                  # 本文件：说明 agent 文件结构
 ├── ADMIN-01.md                # 真人角色 ADMIN 的职责说明
 ├── PM-01.md                   # PM 角色说明
@@ -48,7 +48,7 @@ docs/agents/
 |------|------|------|------|
 | **文件名 sender/recipient** | `角色名`（无连字符无序号） | `PM`、`QA`、`COLLECTOR` | 用于 `TASK-*-PM-to-QA.md` |
 | **Cursor Tab 显示名** | `序号-角色名` | `01-PM`、`03-QA`、`01-COLLECTOR` | Cursor Agents 面板中 Pin 时设置 |
-| **角色定义文档名** | `角色名-序号.md` | `PM-01.md`、`COLLECTOR.md` | `docs/agents/` 或 `templates/agents/` |
+| **角色定义文档名** | `角色名-序号.md` | `PM-01.md`、`COLLECTOR.md` | `fcop/` 或 `templates/agents/` |
 | **巡检器内部** | 纯角色名（自动归一化） | `PM`、`QA`、`COLLECTOR` | 代码中 `_role_key_for_task()` 自动处理 |
 
 ### dev-team 角色清单（软件研发）
@@ -203,7 +203,7 @@ attachments_count: 0
 | `qa-team/` | 专项测试 / 质量团队 | LEAD-QA, TESTER, AUTO-TESTER, PERF-TESTER |
 
 用户在 CodeFlow Desktop 初始化时选择团队模板，系统自动：
-1. 复制对应的角色定义文件到 `docs/agents/`
+1. 复制对应的角色定义文件到 `fcop/`
 2. 在 Cursor 中创建对应的 Agent Tab（按序号+角色名命名）
 3. 巡检器自动识别所有角色并开始巡检
 
