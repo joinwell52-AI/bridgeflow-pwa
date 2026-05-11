@@ -61,6 +61,12 @@ node_modules/
 *.log
 *.tmp
 
+# ── Smoke / dev-test scratch dirs at repo root (PM TASK-20260511-002) ──
+# DEV / QA self-tests sometimes drop .smoke-* scratch directories at
+# the repo root (e.g. .smoke-qa014-20260511-080830/). codeflow-shell
+# subtree already excludes them; this line covers the repo root.
+.smoke-*/
+
 # ── FCoP Agent 抽屉（私人空间，不入版本库；proposals 不在此列，需进 git）──
 .fcop/drawer/
 
