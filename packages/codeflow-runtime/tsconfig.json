@@ -17,5 +17,6 @@
       "@codeflow/protocol": ["../codeflow-protocol/src/index.ts"]
     }
   },
-  "include": ["src/**/*", "fixtures/**/*"]
+  "include": ["src/**/*", "fixtures/**/*"],
+  "exclude": ["src/_spike/**/*"]
 }
